@@ -8,6 +8,90 @@ app_license = "mit"
 # Apps
 # ------------------
 
+fixtures = [
+    "Type Of Leave",    
+    "Workflow State",
+    "Workflow Action Master",    
+    {
+        "doctype": "Calendar View",
+        "filters": [
+            ["name", "in", ["AFL"]]
+        ]
+    },
+    {
+        "doctype": "Custom Field",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]]
+        ]
+    },
+    {
+        "doctype": "Property Setter",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]]
+        ]
+    },
+    {
+        "doctype": "Client Script",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]],
+            ["enabled", "=", 1]
+        ]
+    },
+    {
+        "doctype": "Server Script",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]],
+            ["disabled", "=", 0]
+        ]
+    },
+    {
+        "doctype": "Web Page",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]],       
+        ]
+    },    
+    {
+        "doctype": "Timesheet Template",
+        "filters": [
+            ["name", "in", "Внутренняя команда РФ"]
+        ]
+    },    
+    {
+        "doctype": "Workflow",
+        "filters": [
+            ["document_type", "in", ["Application For Leave", "User Timesheet Position"]],
+            ["is_active", "=", 1]            
+        ]
+    },
+    {
+        "doctype": "Role",
+        "filters": [
+            ["name", "in", ["Dinext_UTP_Appoval", "Dinext_UT_Full_Access"]],
+            ["disabled", "=", 0]
+        ]
+    },
+    {
+        "doctype": "Custom DocPerm",
+        "filters": [
+            ["parent", "in", ["Timesheet Template", "User Timesheet", "User Timesheet Position", "Application For Leave", "Type Of Leave", "Working Hours Table"]]
+        ]
+    },    
+    {
+        "doctype": "DocType Permission",
+        "filters": [
+            ["ref_doctype", "in", 
+                [
+                    "Timesheet Template",
+                    "User Timesheet",
+                    "User Timesheet Position",
+                    "Application For Leave"
+                ]
+            ],
+            ["docstatus", "!=", 2]            
+        ]
+    }
+]
+
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page

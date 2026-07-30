@@ -1,0 +1,153 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:ttsubject",
+ "creation": "2024-12-14 12:59:52.635841",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ttsubject",
+  "enabled",
+  "doctype_for_timesheet",
+  "tab_break_59oz6",
+  "tt_working_hours_on_date",
+  "ttreporting_period",
+  "automatically",
+  "system_verification_rules_section",
+  "hours_on_date",
+  "_is_mandatory",
+  "column_break_d019h",
+  "minimum_hours",
+  "maximum_hours",
+  "deadlines_for_sending_section",
+  "working_days"
+ ],
+ "fields": [
+  {
+   "fieldname": "ttsubject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "doctype_for_timesheet",
+   "fieldtype": "Table MultiSelect",
+   "label": "Doctype for Timesheet",
+   "options": "Doctype for Timesheet",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tab_break_59oz6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tt_working_hours_on_date",
+   "fieldtype": "Link",
+   "label": "Working Hours On Date",
+   "options": "Working Hours On Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ttreporting_period",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Reporting Period",
+   "options": "\u041d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439\n\u041c\u0435\u0441\u044f\u0447\u043d\u044b\u0439\n\u041d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u043e \u043a\u043e\u043d\u0435\u0446 \u043c\u0435\u0441\u044f\u0446\u0430\n\u041f\u043e\u043b\u0443\u043c\u0435\u0441\u044f\u0447\u043d\u044b\u0439",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "automatically",
+   "fieldtype": "Check",
+   "label": "Automatically create timesheets at the beginning of the period"
+  },
+  {
+   "fieldname": "system_verification_rules_section",
+   "fieldtype": "Section Break",
+   "label": "System verification rules"
+  },
+  {
+   "fieldname": "hours_on_date",
+   "fieldtype": "Float",
+   "label": "Hours On Date",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "_is_mandatory",
+   "fieldtype": "Check",
+   "label": "Description field is mandatory"
+  },
+  {
+   "fieldname": "column_break_d019h",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "minimum_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Permissible Deviation Minus",
+   "reqd": 1
+  },
+  {
+   "fieldname": "maximum_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Permissible Deviation Plus",
+   "reqd": 1
+  },
+  {
+   "fieldname": "deadlines_for_sending_section",
+   "fieldtype": "Section Break",
+   "label": "Deadlines for sending"
+  },
+  {
+   "fieldname": "working_days",
+   "fieldtype": "Int",
+   "label": "Working Days",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "link_doctype": "Worker",
+   "link_fieldname": "wtimesheet_template"
+  }
+ ],
+ "modified": "2026-07-30 00:12:56.108130",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Timesheet Template",
+ "naming_rule": "By fieldname",
+ "owner": "iodyshev@dinord.email",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

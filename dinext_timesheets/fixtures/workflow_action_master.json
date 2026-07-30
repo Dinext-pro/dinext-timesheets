@@ -1,0 +1,296 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-02-21 18:24:43.351587",
+  "name": "Review",
+  "workflow_action_name": "Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2024-12-22 23:28:32.103456",
+  "name": "Отклонить на доработку",
+  "workflow_action_name": "Отклонить на доработку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-06-17 05:46:58.524855",
+  "name": "Согласовать",
+  "workflow_action_name": "Согласовать"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2024-12-22 23:25:55.641789",
+  "name": "Согласовать в работу",
+  "workflow_action_name": "Согласовать в работу"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:40:24.813166",
+  "name": "Вернуть в предыдущий статус",
+  "workflow_action_name": "Вернуть в предыдущий статус"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-16 18:58:14.666980",
+  "name": "Отменить действие",
+  "workflow_action_name": "Отменить действие"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-06-16 13:03:05.615716",
+  "name": "Согласовано / в разработку",
+  "workflow_action_name": "Согласовано / в разработку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:34:17.316123",
+  "name": "На консультацию",
+  "workflow_action_name": "На консультацию"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:36:28.764876",
+  "name": "Взять в работу",
+  "workflow_action_name": "Взять в работу"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:36:49.801300",
+  "name": "Не выполнено",
+  "workflow_action_name": "Не выполнено"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:38:44.947574",
+  "name": "На согласование",
+  "workflow_action_name": "На согласование"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:41:27.318416",
+  "name": "На тестирование",
+  "workflow_action_name": "На тестирование"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:42:08.810803",
+  "name": "На доработку",
+  "workflow_action_name": "На доработку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:40:37.587904",
+  "name": "На разработку",
+  "workflow_action_name": "На разработку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:34:35.675345",
+  "name": "Передать в работу",
+  "workflow_action_name": "Передать в работу"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:35:12.596739",
+  "name": "Выполнено",
+  "workflow_action_name": "Выполнено"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:39:04.286988",
+  "name": "На уточнение",
+  "workflow_action_name": "На уточнение"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-07-01 06:55:48.227799",
+  "name": "Отменить задачу",
+  "workflow_action_name": "Отменить задачу"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:41:00.301143",
+  "name": "В разработку",
+  "workflow_action_name": "В разработку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:34:51.485074",
+  "name": "На оценку",
+  "workflow_action_name": "На оценку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:35:55.448812",
+  "name": "Передать в очередь",
+  "workflow_action_name": "Передать в очередь"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:35:33.298073",
+  "name": "Отложить",
+  "workflow_action_name": "Отложить"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-02-11 16:04:03.842400",
+  "name": "Редактировать",
+  "workflow_action_name": "Редактировать"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:39:44.489479",
+  "name": "Не согласовано",
+  "workflow_action_name": "Не согласовано"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-02-11 16:03:55.172003",
+  "name": "Остановить Воркфлоу",
+  "workflow_action_name": "Остановить Воркфлоу"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-01-18 17:52:41.265176",
+  "name": "Передать на согласование",
+  "workflow_action_name": "Передать на согласование"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-09-13 13:40:04.884016",
+  "name": "Согласовано",
+  "workflow_action_name": "Согласовано"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-11 20:07:57.789345",
+  "name": "Block",
+  "workflow_action_name": "Block"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-11 20:07:57.789584",
+  "name": "Waive",
+  "workflow_action_name": "Waive"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-11 20:07:57.810122",
+  "name": "Resume Review",
+  "workflow_action_name": "Resume Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-17 01:15:23.033710",
+  "name": "Activate",
+  "workflow_action_name": "Activate"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-17 01:18:38.630395",
+  "name": "Skip",
+  "workflow_action_name": "Skip"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-17 01:21:43.150736",
+  "name": "Complete",
+  "workflow_action_name": "Complete"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-11 20:07:57.795239",
+  "name": "Revise",
+  "workflow_action_name": "Revise"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-05-28 02:44:21.021316",
+  "name": "Submit for Approval",
+  "workflow_action_name": "Submit for Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-02-21 18:24:43.349710",
+  "name": "Reject",
+  "workflow_action_name": "Reject"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-11 20:07:57.726912",
+  "name": "Submit for Review",
+  "workflow_action_name": "Submit for Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-06-04 02:21:08.157744",
+  "name": "Return to Draft",
+  "workflow_action_name": "Return to Draft"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-06-04 02:21:08.271105",
+  "name": "Mark Reviewed",
+  "workflow_action_name": "Mark Reviewed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-06-04 02:21:08.282024",
+  "name": "Request Rework",
+  "workflow_action_name": "Request Rework"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2023-02-21 18:24:43.347957",
+  "name": "Approve",
+  "workflow_action_name": "Approve"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-04-13 02:47:26.903370",
+  "name": "Cancel",
+  "workflow_action_name": "Cancel"
+ }
+]

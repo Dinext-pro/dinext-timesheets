@@ -1,0 +1,13 @@
+[
+ {
+  "all_day": 1,
+  "docstatus": 0,
+  "doctype": "Calendar View",
+  "end_date_field": "alto_date",
+  "modified": "2025-06-16 11:41:35.614206",
+  "name": "AFL",
+  "reference_doctype": "Application For Leave",
+  "start_date_field": "alfrom_date",
+  "subject_field": "lauser_name"
+ }
+]

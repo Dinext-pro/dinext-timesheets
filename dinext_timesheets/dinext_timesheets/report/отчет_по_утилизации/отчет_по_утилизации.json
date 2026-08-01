@@ -1,0 +1,72 @@
+{
+ "add_total_row": 1,
+ "add_translate_data": 0,
+ "columns": [
+  {
+   "fieldname": "timesheet_from_name",
+   "fieldtype": "Data",
+   "label": "\u0410\u0432\u0442\u043e\u0440",
+   "width": 0
+  },
+  {
+   "fieldname": "ts_valid_from",
+   "fieldtype": "Date",
+   "label": "\u0421",
+   "width": 0
+  },
+  {
+   "fieldname": "ts_valid_for",
+   "fieldtype": "Date",
+   "label": "\u041f\u043e",
+   "width": 0
+  },
+  {
+   "fieldname": "utilization",
+   "fieldtype": "Float",
+   "label": "\u0423\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u044f",
+   "width": 0
+  }
+ ],
+ "creation": "2026-01-09 12:40:32.564659",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "fieldname": "timesheet_from",
+   "fieldtype": "Link",
+   "label": "\u0410\u0432\u0442\u043e\u0440",
+   "mandatory": 0,
+   "options": "User",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "json": "{\"filters\":[],\"fields\":[[\"name\",\"User Timesheet\"],[\"docstatus\",\"User Timesheet\"],[\"timesheet_from_name\",\"User Timesheet\"],[\"total_hours_schedule\",\"User Timesheet\"],[\"total_hours_to_work\",\"User Timesheet\"],[\"total_hours_worked\",\"User Timesheet\"],[\"total_hours_leave\",\"User Timesheet\"],[\"total_hours_util_leave\",\"User Timesheet\"],[\"total_hours_utilized\",\"User Timesheet\"],[\"utilization\",\"User Timesheet\"],[\"utilization_hours_plan\",\"User Timesheet\"],[\"utilization_fulfillment\",\"User Timesheet\"],[\"ut_status\",\"User Timesheet\"]],\"order_by\":\"`tabUser Timesheet`.`modified` desc\",\"add_totals_row\":true,\"page_length\":100,\"column_widths\":{\"name\":385,\"docstatus\":120,\"timesheet_from_name\":178,\"total_hours_schedule\":120,\"total_hours_to_work\":120,\"total_hours_worked\":120,\"total_hours_leave\":120,\"total_hours_util_leave\":120,\"total_hours_utilized\":120,\"utilization\":120,\"utilization_hours_plan\":120,\"utilization_fulfillment\":120,\"ut_status\":120},\"group_by\":null}",
+ "letter_head": null,
+ "modified": "2026-07-30 02:23:13.541132",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "\u041e\u0442\u0447\u0435\u0442 \u043f\u043e \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "User Timesheet",
+ "report_name": "\u041e\u0442\u0447\u0435\u0442 \u043f\u043e \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+ "report_type": "Report Builder",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Dinext_Financier"
+  },
+  {
+   "role": "Dinext_Team_Lead"
+  },
+  {
+   "role": "Dinext_Project_Manager"
+  }
+ ],
+ "timeout": 0
+}

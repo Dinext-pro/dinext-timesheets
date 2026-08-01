@@ -1,0 +1,31 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-01-09 12:40:32.510880",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-07-30 02:23:35.016271",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "\u041e\u0442\u0447\u0435\u0442 \u0434\u043b\u044f \u041f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a\u043e\u0432",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "User Timesheet Position",
+ "report_name": "\u041e\u0442\u0447\u0435\u0442 \u0434\u043b\u044f \u041f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a\u043e\u0432",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Dinext_Worker"
+  }
+ ],
+ "timeout": 0
+}

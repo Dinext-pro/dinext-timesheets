@@ -1,0 +1,31 @@
+{
+ "attach_print": 0,
+ "channel": "Email",
+ "creation": "2025-05-27 11:32:39.508909",
+ "days_in_advance": 0,
+ "docstatus": 0,
+ "doctype": "Notification",
+ "document_type": "ToDo",
+ "enabled": 0,
+ "event": "Method",
+ "idx": 24,
+ "is_standard": 1,
+ "message": "<div style=\"background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545;\">\n    <h3 style=\"color: #dc3545;\">\u041f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u043b\u0438\u043c\u0438\u0442\u0430 \u043f\u043e \u0417\u0430\u0434\u0430\u0447\u0435!</h3>\n    <p>\u0417\u0430\u0434\u0430\u0447\u0430: <strong>{{ doc.flags.context.task_name }}</strong></p>\n    <p>\u041f\u0440\u043e\u0435\u043a\u0442: <strong>{{ doc.flags.context.project }}</strong></p>\n    <p>\u0420\u043e\u043b\u044c: <strong>{{ doc.flags.context.project_role }}</strong></p>\n    <p>\u041f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435: <strong>{{ doc.flags.context.completion_percentage|round(2) }}%</strong></p>\n    <p>\u0427\u0430\u0441\u044b: {{ doc.flags.context.actual_hours|round(2) }}/{{ doc.flags.context.planned_hours|round(2) }}</p>\n    {{ frappe.utils.get_link_to_form( \"User Timesheet Position\", doc.flags.context.timesheet_position, \"\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u043a \u0442\u0430\u0431\u0435\u043b\u044e\" ) }}\n    <p><small>ToDo: \n    {{ frappe.utils.get_link_to_form( \"ToDo\", doc.name, doc.name ) }}\n    </small></p>\n</div>\n",
+ "message_type": "Markdown",
+ "method": "task_limit_notification",
+ "modified": "2026-07-30 03:02:52.206740",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "\u041b\u0438\u043c\u0438\u0442 \u043f\u043e \u0417\u0430\u0434\u0430\u0447\u0435",
+ "owner": "Administrator",
+ "recipients": [
+  {
+   "receiver_by_document_field": "allocated_to"
+  }
+ ],
+ "send_system_notification": 0,
+ "send_to_all_assignees": 0,
+ "sender": "Dinext",
+ "sender_email": "administrator@dinext.invalid",
+ "subject": "\" \u0412\u043d\u0438\u043c\u0430\u043d\u0438\u0435! \u041f\u0440\u0435\u0432\u044b\u0448\u0435\u043d \u043b\u0438\u043c\u0438\u0442 \u043f\u043e \u0417\u0430\u0434\u0430\u0447\u0435 \u041f\u0440\u043e\u0435\u043a\u0442\u0430\""
+}

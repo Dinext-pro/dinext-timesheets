@@ -73,7 +73,17 @@ fixtures = [
     {
         "doctype": "Custom DocPerm",
         "filters": [
-            ["parent", "in", ["Timesheet Template", "User Timesheet", "User Timesheet Position", "Application For Leave", "Type Of Leave", "Working Hours Table"]]
+            ["parent", "in", [
+                "Timesheet Template",
+                "User Timesheet",
+                "User Timesheet Position",
+                "User Timesheet Position Details",
+                "Application For Leave",
+                "Type Of Leave",
+                "Working Hours Table",
+                "Doctype For Timesheet",
+                "User Projects",
+            ]]
         ]
     },    
     {
@@ -92,7 +102,7 @@ fixtures = [
     }
 ]
 
-# required_apps = []
+required_apps = ["dinext_projects", "doctype_permission"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [

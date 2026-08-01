@@ -1,0 +1,309 @@
+{
+ "actions": [
+  {
+   "action": "process_journal_entries_for_timesheet",
+   "action_type": "Server Action",
+   "custom": 1,
+   "group": "\u0424\u0438\u043d. \u043f\u0440\u043e\u0432\u043e\u0434\u043a\u0438",
+   "label": "\u041f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0441\u0442\u0438"
+  }
+ ],
+ "autoname": "format: {timesheet_from_name} - {ts_valid_from} - {ts_valid_for}",
+ "creation": "2024-12-28 09:34:54.479071",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ts_date_of_dispatch",
+  "timesheet_from_name",
+  "ts_from_template",
+  "ts_valid_from",
+  "ts_valid_for",
+  "section_break_enepo",
+  "timesheet_from",
+  "total_hours_schedule",
+  "user_group",
+  "column_break_67rx",
+  "ut_approval_date",
+  "ut_status",
+  "is_overdue",
+  "reporting_period",
+  "total_hours_to_work",
+  "column_break_txmy",
+  "total_hours_worked",
+  "total_hours_utilized",
+  "total_hours_leave",
+  "total_hours_util_leave",
+  "column_break_1afe",
+  "approved_by_all_users",
+  "the_current_date",
+  "utilization",
+  "column_break_oujj",
+  "utilization_fulfillment",
+  "normalization",
+  "section_break_lpi9h",
+  "utilization_hours_plan",
+  "column_break_zapo",
+  "section_break_1mtw",
+  "timesheet_details"
+ ],
+ "fields": [
+  {
+   "fieldname": "ts_date_of_dispatch",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Date of dispatch",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:(!doc.__islocal)",
+   "fetch_from": "timesheet_from.full_name",
+   "fetch_if_empty": 1,
+   "fieldname": "timesheet_from_name",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "\u0410\u0432\u0442\u043e\u0440 \u0422\u0428",
+   "read_only": 1,
+   "width": "10"
+  },
+  {
+   "fieldname": "ts_from_template",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "From Template",
+   "options": "Timesheet Template"
+  },
+  {
+   "depends_on": "eval:(doc.__islocal)",
+   "fieldname": "ts_valid_from",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Valid from",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:(doc.__islocal)",
+   "fieldname": "ts_valid_for",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Valid for"
+  },
+  {
+   "fieldname": "section_break_enepo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:(doc.__islocal)",
+   "fieldname": "timesheet_from",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "\u0410\u0432\u0442\u043e\u0440",
+   "options": "User",
+   "read_only_depends_on": "eval:!(doc.__islocal)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_hours_schedule",
+   "fieldtype": "Float",
+   "label": "\u0427\u0430\u0441\u043e\u0432 \u043f\u043e \u0440\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044e ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user_group",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_67rx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ut_approval_date",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Approval Date",
+   "read_only": 1
+  },
+  {
+   "default": "\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a",
+   "fieldname": "ut_status",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "State",
+   "options": "\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a\n\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\n\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e\n\u041d\u0430 \u0434\u043e\u0440\u0430\u0431\u043e\u0442\u043a\u0435\n\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d"
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "fieldname": "is_overdue",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "in_filter": 1,
+   "label": "Is Overdue",
+   "print_width": "1",
+   "width": "1"
+  },
+  {
+   "fieldname": "reporting_period",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Reporting period",
+   "options": "\u041d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439\n\u041c\u0435\u0441\u044f\u0447\u043d\u044b\u0439\n\u041d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u043e \u043a\u043e\u043d\u0435\u0446 \u043c\u0435\u0441\u044f\u0446\u0430\n\u041f\u043e\u043b\u0443\u043c\u0435\u0441\u044f\u0447\u043d\u044b\u0439"
+  },
+  {
+   "fieldname": "total_hours_to_work",
+   "fieldtype": "Float",
+   "label": "\u0424\u043e\u043d\u0434 \u0440\u0430\u0431\u043e\u0447\u0438\u0445 \u0447\u0430\u0441\u043e\u0432",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_txmy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_hours_worked",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u0440\u0430\u0431\u043e\u0447\u0438\u0445",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_hours_utilized",
+   "fieldtype": "Float",
+   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_hours_leave",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0439",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_hours_util_leave",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u0435\u043c\u044b\u0445 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0439",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1afe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "approved_by_all_users",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Approved by all users"
+  },
+  {
+   "fieldname": "the_current_date",
+   "fieldtype": "Button",
+   "hidden": 1,
+   "label": " The \u0421urrent date"
+  },
+  {
+   "fieldname": "utilization",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "% \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "precision": "1",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_oujj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "utilization_fulfillment",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "% \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f \u041a\u0423",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "normalization",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "\u041a\u043e\u044d\u0444\u0444. \u043d\u043e\u0440\u043c\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_lpi9h",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "utilization_hours_plan",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "\u041f\u043b\u0430\u043d \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0432 \u0447\u0430\u0441\u0430\u0445",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_zapo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_1mtw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "timesheet_details",
+   "fieldtype": "HTML",
+   "label": "Timesheet Details"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "custom": 1,
+   "link_doctype": "Journal Entry",
+   "link_fieldname": "custom_user_timesheet"
+  }
+ ],
+ "modified": "2026-07-30 00:11:12.792101",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "User Timesheet",
+ "naming_rule": "Expression (old style)",
+ "owner": "iodyshev@dinord.email",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

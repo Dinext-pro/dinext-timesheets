@@ -1,0 +1,30 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Type Of Leave",
+  "modified": "2025-08-01 13:00:12.789058",
+  "name": "Отпуск / отгул за свой счет",
+  "tldescription": "Без сохранения заработной платы"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Type Of Leave",
+  "modified": "2025-04-08 22:09:57.019590",
+  "name": "Отгул",
+  "tldescription": "За сверхурочный труд, за работу в выходной или праздничный день, донорам крови"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Type Of Leave",
+  "modified": "2025-03-27 18:44:01.045508",
+  "name": "Больничный",
+  "tldescription": null
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Type Of Leave",
+  "modified": "2025-01-09 09:25:14.146559",
+  "name": "Ежегодный отпуск",
+  "tldescription": null
+ }
+]

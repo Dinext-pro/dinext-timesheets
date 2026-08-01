@@ -1,0 +1,443 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "question-sign",
+  "modified": "2023-02-21 18:24:43.331120",
+  "name": "Pending",
+  "style": "",
+  "workflow_state_name": "Pending"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2022-10-06 14:42:11.826126",
+  "name": "На оценке",
+  "style": "",
+  "workflow_state_name": "На оценке"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 18:12:13.619061",
+  "name": "На оценку",
+  "style": "",
+  "workflow_state_name": "На оценку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 18:45:15.504332",
+  "name": "В ожидании отзыва",
+  "style": "Info",
+  "workflow_state_name": "В ожидании отзыва"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 20:35:47.580939",
+  "name": "Запрос на консультацию",
+  "style": "Info",
+  "workflow_state_name": "Запрос на консультацию"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 20:34:13.994988",
+  "name": "Передать в очередь",
+  "style": "Primary",
+  "workflow_state_name": "Передать в очередь"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-26 10:36:35.705090",
+  "name": "Отложено7",
+  "style": "",
+  "workflow_state_name": "Отложено7"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:16:58.573847",
+  "name": "Уточнение постановки1",
+  "style": "",
+  "workflow_state_name": "Уточнение постановки1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 19:41:33.739510",
+  "name": "Уточнение постановки",
+  "style": "Warning",
+  "workflow_state_name": "Уточнение постановки"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:07:08.838745",
+  "name": "Оценка согласована",
+  "style": "",
+  "workflow_state_name": "Оценка согласована"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 20:04:10.080576",
+  "name": "Отменено",
+  "style": "Danger",
+  "workflow_state_name": "Отменено"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-19 15:47:14.253955",
+  "name": "Подтверждение выполнения",
+  "style": "Info",
+  "workflow_state_name": "Подтверждение выполнения"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:14:36.402088",
+  "name": "Отложено6",
+  "style": "",
+  "workflow_state_name": "Отложено6"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 15:53:06.935546",
+  "name": "Отложено3",
+  "style": "",
+  "workflow_state_name": "Отложено3"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:11:57.808507",
+  "name": "Отложено5",
+  "style": "",
+  "workflow_state_name": "Отложено5"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-19 17:14:19.605547",
+  "name": "Отоложено2",
+  "style": "Info",
+  "workflow_state_name": "Отоложено2"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-19 15:45:17.109995",
+  "name": "Отложено",
+  "style": "Danger",
+  "workflow_state_name": "Отложено"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:01:48.453196",
+  "name": "Отложено4",
+  "style": "",
+  "workflow_state_name": "Отложено4"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 19:07:08.220549",
+  "name": "Выполнено",
+  "style": "Success",
+  "workflow_state_name": "Выполнено"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:04:46.665276",
+  "name": "Согласование оценки",
+  "style": "",
+  "workflow_state_name": "Согласование оценки"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:18:31.849814",
+  "name": "Тестирование",
+  "style": "",
+  "workflow_state_name": "Тестирование"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 19:06:12.061413",
+  "name": "В очереди на консультацию",
+  "style": "Info",
+  "workflow_state_name": "В очереди на консультацию"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-16 19:06:39.858122",
+  "name": "В работе",
+  "style": "Info",
+  "workflow_state_name": "В работе"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 15:51:29.242881",
+  "name": "В очереди на оценку",
+  "style": "",
+  "workflow_state_name": "В очереди на оценку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:11:02.227184",
+  "name": "В очереди на разработку",
+  "style": "",
+  "workflow_state_name": "В очереди на разработку"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 15:54:33.009024",
+  "name": "Анализ и оценка",
+  "style": "",
+  "workflow_state_name": "Анализ и оценка"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-25 16:13:00.015564",
+  "name": "В разработке",
+  "style": "",
+  "workflow_state_name": "В разработке"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2025-01-18 17:48:27.392665",
+  "name": "Черновик",
+  "style": "",
+  "workflow_state_name": "Черновик"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2023-07-24 09:50:36.982011",
+  "name": "_______",
+  "style": "",
+  "workflow_state_name": "_______"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2024-12-22 23:57:55.085131",
+  "name": "Отклонено",
+  "style": "Warning",
+  "workflow_state_name": "Отклонено"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2024-12-22 23:58:14.112112",
+  "name": "Согласовано",
+  "style": "Success",
+  "workflow_state_name": "Согласовано"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2025-02-11 15:56:17.172869",
+  "name": "Редактирование",
+  "style": "",
+  "workflow_state_name": "Редактирование"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2024-12-22 23:59:36.662934",
+  "name": "На согласовании",
+  "style": "Info",
+  "workflow_state_name": "На согласовании"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-11 20:07:32.190438",
+  "name": "Waived",
+  "style": "Info",
+  "workflow_state_name": "Waived"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-11 20:07:32.280624",
+  "name": "Blocked",
+  "style": "Danger",
+  "workflow_state_name": "Blocked"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-17 01:12:54.771510",
+  "name": "Planned",
+  "style": "",
+  "workflow_state_name": "Planned"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-19 00:52:11.149440",
+  "name": "Active",
+  "style": "Primary",
+  "workflow_state_name": "Active"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-19 00:52:34.264725",
+  "name": "Skipped",
+  "style": "Inverse",
+  "workflow_state_name": "Skipped"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-19 00:52:20.321041",
+  "name": "Completed",
+  "style": "Success",
+  "workflow_state_name": "Completed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-11 20:06:07.191871",
+  "name": "In Review",
+  "style": "Primary",
+  "workflow_state_name": "In Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-05-28 02:44:20.977201",
+  "name": "Pending Approval",
+  "style": "Warning",
+  "workflow_state_name": "Pending Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-05-28 02:44:20.985226",
+  "name": "Cancelled Draft",
+  "style": "Inverse",
+  "workflow_state_name": "Cancelled Draft"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-05-28 02:44:20.988878",
+  "name": "Cancelled Approved",
+  "style": "Danger",
+  "workflow_state_name": "Cancelled Approved"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "remove",
+  "modified": "2023-02-21 18:24:43.335944",
+  "name": "Rejected",
+  "style": "Danger",
+  "workflow_state_name": "Rejected"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-19 00:54:21.044680",
+  "name": "Canceled",
+  "style": "Warning",
+  "workflow_state_name": "Canceled"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-06-04 02:21:06.964883",
+  "name": "Submitted for Review",
+  "style": "Warning",
+  "workflow_state_name": "Submitted for Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-06-04 02:21:08.048100",
+  "name": "Reviewed",
+  "style": "Info",
+  "workflow_state_name": "Reviewed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "ok-sign",
+  "modified": "2023-02-21 18:24:43.333321",
+  "name": "Approved",
+  "style": "Success",
+  "workflow_state_name": "Approved"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-05-28 02:44:20.961763",
+  "name": "Draft",
+  "style": "Info",
+  "workflow_state_name": "Draft"
+ }
+]

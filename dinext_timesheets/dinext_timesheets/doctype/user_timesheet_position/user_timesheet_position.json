@@ -1,0 +1,169 @@
+{
+ "actions": [],
+ "autoname": "UTP-.YYYY.-.#####",
+ "creation": "2024-12-28 09:59:45.471848",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user_timesheet",
+  "user",
+  "custom_username",
+  "user_group",
+  "project_role",
+  "status",
+  "period",
+  "column_break_pfaz",
+  "project",
+  "document_type",
+  "document_name",
+  "all_hours",
+  "section_break_s6ky",
+  "table",
+  "reject_reason",
+  "custom_data"
+ ],
+ "fields": [
+  {
+   "fieldname": "user_timesheet",
+   "fieldtype": "Link",
+   "label": "User Timesheet",
+   "options": "User Timesheet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "user.full_name",
+   "fieldname": "custom_username",
+   "fieldtype": "Data",
+   "label": "User Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user_group",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "in_standard_filter": 1,
+   "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project_role",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Project Role",
+   "options": "Project Role",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "\n\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435\n\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\n\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e\n\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Period",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_pfaz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1
+  },
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Link",
+   "label": "Document Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "document_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Document Name",
+   "options": "document_type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "all_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "All Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_s6ky",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Table",
+   "label": "Table",
+   "options": "User Timesheet Position Details",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reject_reason",
+   "fieldtype": "Data",
+   "label": "Reject Reason"
+  },
+  {
+   "fieldname": "custom_data",
+   "fieldtype": "Data",
+   "label": "Custom Data"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-30 00:11:13.309587",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "User Timesheet Position",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "user",
+ "track_changes": 1
+}

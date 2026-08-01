@@ -1,0 +1,33 @@
+{
+ "attach_print": 0,
+ "channel": "Email",
+ "condition": "doc.ut_status==\"\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a\" or doc.ut_status==\"\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e\" or doc.ut_status==\"\u041d\u0430 \u0434\u043e\u0440\u0430\u0431\u043e\u0442\u043a\u0435\"",
+ "creation": "2025-04-10 19:47:19.212037",
+ "date_changed": "ts_valid_for",
+ "days_in_advance": 1,
+ "docstatus": 0,
+ "doctype": "Notification",
+ "document_type": "User Timesheet",
+ "enabled": 0,
+ "event": "Days After",
+ "idx": 0,
+ "is_standard": 1,
+ "message": "<h2>\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u044c\u0442\u0435 \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0435 \u0422\u0428 \u0437\u0430 \u043f\u0440\u043e\u0448\u043b\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e!</h2>\n\n<h3>\n    {{ frappe.utils.get_link_to_form( \"User Timesheet\", doc.name, doc.name ) }}\n</h3>\n\n<h4>\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u0441\u0442\u0430\u0442\u0443\u0441: {{ doc.ut_status }}</h4>\n",
+ "message_type": "Markdown",
+ "modified": "2026-07-30 03:01:47.308774",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "\u0422\u0430\u0439\u043c\u0448\u0438\u0442 \u043d\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d",
+ "owner": "Administrator",
+ "recipients": [
+  {
+   "receiver_by_document_field": "timesheet_from",
+   "receiver_by_role": ""
+  }
+ ],
+ "send_system_notification": 1,
+ "send_to_all_assignees": 0,
+ "sender": "Dinext",
+ "sender_email": "administrator@dinext.invalid",
+ "subject": "\ud83d\udfe1 \u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u044c\u0442\u0435 \u0422\u0428"
+}

@@ -1,0 +1,28 @@
+[
+ {
+  "desk_access": 1,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Role",
+  "home_page": null,
+  "is_custom": 0,
+  "modified": "2026-02-13 11:43:19.105056",
+  "name": "Dinext_UT_Full_Access",
+  "restrict_to_domain": null,
+  "role_name": "Dinext_UT_Full_Access",
+  "two_factor_auth": 0
+ },
+ {
+  "desk_access": 1,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Role",
+  "home_page": null,
+  "is_custom": 0,
+  "modified": "2026-04-25 14:57:06.874294",
+  "name": "Dinext_UTP_Appoval",
+  "restrict_to_domain": null,
+  "role_name": "Dinext_UTP_Appoval",
+  "two_factor_auth": 0
+ }
+]

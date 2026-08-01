@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{alfrom_date} - {alto_date} -{lauser}",
+ "creation": "2025-01-09 09:26:07.371569",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "lauser",
+  "alworker",
+  "lauser_name",
+  "column_break_pzt2s",
+  "status",
+  "altype_of_leave",
+  "dates_and_reasons_section",
+  "alfrom_date",
+  "alto_date",
+  "column_break_mkxx",
+  "alfrom_hours",
+  "alto_hours",
+  "al_total_hours",
+  "column_break_bmkmy",
+  "alreasons",
+  "projects_section",
+  "user_projects"
+ ],
+ "fields": [
+  {
+   "fetch_from": "alworker.wuser",
+   "fieldname": "lauser",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "User",
+   "options": "User"
+  },
+  {
+   "fieldname": "alworker",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Worker",
+   "options": "Worker",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "alworker.wfullname",
+   "fieldname": "lauser_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "in_preview": 1,
+   "label": "\u0410\u0432\u0442\u043e\u0440 \u0437\u0430\u044f\u0432\u043a\u0438",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_pzt2s",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435\n\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\n\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e\n\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "altype_of_leave",
+   "fieldtype": "Link",
+   "label": "\u0422\u0438\u043f \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f",
+   "options": "Type Of Leave",
+   "reqd": 1
+  },
+  {
+   "fieldname": "dates_and_reasons_section",
+   "fieldtype": "Section Break",
+   "label": "Dates And Reasons"
+  },
+  {
+   "fieldname": "alfrom_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "\u041d\u0430\u0447\u0430\u043b\u043e",
+   "reqd": 1
+  },
+  {
+   "fieldname": "alto_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "\u041e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u0435",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_mkxx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "8",
+   "fieldname": "alfrom_hours",
+   "fieldtype": "Data",
+   "label": "\u0427\u0430\u0441\u043e\u0432 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0432 \u043f\u0435\u0440\u0432\u044b\u0439 \u0434\u0435\u043d\u044c"
+  },
+  {
+   "default": "8",
+   "depends_on": "eval:(doc.alfrom_date && doc.alto_date && frappe.datetime.get_day_diff(doc.alfrom_date,doc.alto_date)!=0)",
+   "fieldname": "alto_hours",
+   "fieldtype": "Data",
+   "label": "\u0427\u0430\u0441\u043e\u0432 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0432 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0434\u0435\u043d\u044c"
+  },
+  {
+   "fieldname": "al_total_hours",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "\u0418\u0442\u043e\u0433\u043e \u0447\u0430\u0441\u043e\u0432 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_bmkmy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "alreasons",
+   "fieldtype": "Small Text",
+   "label": "Reasons"
+  },
+  {
+   "fieldname": "projects_section",
+   "fieldtype": "Section Break",
+   "label": "User Projects",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user_projects",
+   "fieldtype": "Table",
+   "options": "User Projects",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_calendar_and_gantt": 1,
+ "links": [],
+ "modified": "2026-07-30 00:21:42.524084",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Application For Leave",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

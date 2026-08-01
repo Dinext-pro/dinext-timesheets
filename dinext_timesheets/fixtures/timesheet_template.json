@@ -1,0 +1,26 @@
+[
+ {
+  "_is_mandatory": 1,
+  "automatically": 1,
+  "docstatus": 0,
+  "doctype": "Timesheet Template",
+  "doctype_for_timesheet": [
+   {
+    "dtdoctype": "Task",
+    "parent": "Внутренняя команда РФ",
+    "parentfield": "doctype_for_timesheet",
+    "parenttype": "Timesheet Template"
+   }
+  ],
+  "enabled": 1,
+  "hours_on_date": 8.0,
+  "maximum_hours": 8.0,
+  "minimum_hours": 0.0,
+  "modified": "2026-02-08 17:25:01.038701",
+  "name": "Внутренняя команда РФ",
+  "tt_working_hours_on_date": "Сокращенные рабочие дни РФ",
+  "ttreporting_period": "Недельный",
+  "ttsubject": "Внутренняя команда РФ",
+  "working_days": 1
+ }
+]

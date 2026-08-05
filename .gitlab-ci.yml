@@ -1,10 +1,10 @@
 # Managed by dinext_control_center — do not copy policy scripts into this repo.
 # Required MR jobs from /ci/dinext-app.yml: gitflow:mr-guard, app:smoke, app:unit
-# Temporarily pin to smoke ping fix until it lands on control-center main.
+# Pin to smoke ping fix branch until merged to control-center main.
 include:
   - project: erpnext/dinext/dinext_control_center
-    ref: 4b825761d25dc2fa1e7f888a74da8c051a1e2e99
+    ref: fix/ci-smoke-frappe-ping
     file: /ci/dinext-app.yml
 
 variables:
-  DINEXT_CONTROL_CENTER_REF: "4b825761d25dc2fa1e7f888a74da8c051a1e2e99"
+  DINEXT_CONTROL_CENTER_REF: "fix/ci-smoke-frappe-ping"

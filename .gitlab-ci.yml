@@ -1,9 +1,10 @@
 # Managed by dinext_control_center — do not copy policy scripts into this repo.
 # Required MR jobs from /ci/dinext-app.yml: gitflow:mr-guard, app:smoke, app:unit
+# Temporarily pin to smoke ping fix until it lands on control-center main.
 include:
   - project: erpnext/dinext/dinext_control_center
-    ref: main
+    ref: 4b825761d25dc2fa1e7f888a74da8c051a1e2e99
     file: /ci/dinext-app.yml
 
 variables:
-  DINEXT_CONTROL_CENTER_REF: "main"
+  DINEXT_CONTROL_CENTER_REF: "4b825761d25dc2fa1e7f888a74da8c051a1e2e99"

@@ -55,7 +55,13 @@ fixtures = [
         "filters": [
             ["name", "in", "Внутренняя команда РФ"]
         ]
-    },    
+    },
+    {
+        "doctype": "Working Hours On Date",
+        "filters": [
+            ["name", "in", ["Сокращенные рабочие дни РФ"]]
+        ]
+    },
     {
         "doctype": "Workflow",
         "filters": [
@@ -83,6 +89,8 @@ fixtures = [
                 "Working Hours Table",
                 "Doctype For Timesheet",
                 "User Projects",
+                "Worker",
+                "Working Hours On Date",
             ]]
         ]
     },    
@@ -94,7 +102,8 @@ fixtures = [
                     "Timesheet Template",
                     "User Timesheet",
                     "User Timesheet Position",
-                    "Application For Leave"
+                    "Application For Leave",
+                    "Worker",
                 ]
             ],
             ["docstatus", "!=", 2]            
@@ -102,7 +111,7 @@ fixtures = [
     }
 ]
 
-required_apps = ["dinext_projects", "doctype_permission"]
+required_apps = ["dinext_common", "dinext_projects", "dinext_projects_pl", "doctype_permission"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [

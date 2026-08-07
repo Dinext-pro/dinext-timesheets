@@ -2,8 +2,8 @@
 # Required MR jobs from /ci/dinext-app.yml: gitflow:mr-guard, app:smoke, app:unit
 include:
   - project: erpnext/dinext/dinext_control_center
-    ref: fix/timesheets-ci-deps-pl
+    ref: main
     file: /ci/dinext-app.yml
 
 variables:
-  DINEXT_CONTROL_CENTER_REF: "fix/timesheets-ci-deps-pl"
+  DINEXT_CONTROL_CENTER_REF: "main"

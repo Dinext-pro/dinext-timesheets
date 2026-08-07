@@ -3,6 +3,59 @@
   "amended_from": null,
   "conditions": [
    {
+    "parent": "Worker_Permissions-1",
+    "parentfield": "conditions",
+    "parenttype": "DocType Permission",
+    "perm_level": "Owner's Docs",
+    "role": "Dinext_Worker",
+    "script": "conditions = \"wuser   = %s\" % frappe.db.escape(user)"
+   },
+   {
+    "parent": "Worker_Permissions-1",
+    "parentfield": "conditions",
+    "parenttype": "DocType Permission",
+    "perm_level": "Full Access",
+    "role": "System Manager",
+    "script": "conditions = \"true\""
+   },
+   {
+    "parent": "Worker_Permissions-1",
+    "parentfield": "conditions",
+    "parenttype": "DocType Permission",
+    "perm_level": "Full Access",
+    "role": "Dinext_UTP_Appoval",
+    "script": "conditions = \"true\""
+   },
+   {
+    "parent": "Worker_Permissions-1",
+    "parentfield": "conditions",
+    "parenttype": "DocType Permission",
+    "perm_level": "Full Access",
+    "role": "Dinext_Financier",
+    "script": "conditions = \"true\""
+   },
+   {
+    "parent": "Worker_Permissions-1",
+    "parentfield": "conditions",
+    "parenttype": "DocType Permission",
+    "perm_level": "Full Access",
+    "role": "Dinext_Management",
+    "script": "conditions = \"true\""
+   }
+  ],
+  "description": "Пользователь с базовой ролью имеет доступ на чтение своей карточки Worker (необходимо для корректной работы связанного клиентского скрипта для User Timesheet)\n\n",
+  "docstatus": 0,
+  "doctype": "DocType Permission",
+  "modified": "2025-12-16 09:19:18.554826",
+  "name": "Worker_Permissions-1",
+  "ref_doctype": "Worker",
+  "testing": 1,
+  "title": "Worker_Permissions-1"
+ },
+ {
+  "amended_from": null,
+  "conditions": [
+   {
     "parent": "UTP_Permissions-1",
     "parentfield": "conditions",
     "parenttype": "DocType Permission",

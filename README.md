@@ -2,9 +2,9 @@
 
 ## 📖 Обзор
 
-**Dinext Timesheets** — приложение на платформе Frappe для стека ERPNext Dinext. Оно отвечает за учёт рабочего времени (таймшиты), утилизацию, заявки на отсутствие и связанные согласования. Модуль **Dinext Timesheets** выделен из **dinext_projects** и содержит типы документов таймшитного контура, рабочие процессы, отчёты, рабочее пространство, числовые карточки, уведомления и автоматизации.
+**Dinext Timesheets** — приложение на платформе Frappe для стека ERPNext Dinext. Оно отвечает за учёт рабочего времени (таймшиты), заявки на отсутствие и связанные согласования. Модуль **Dinext Timesheets** владеет базовыми сущностями контура: **Worker**, **Working Hours On Date**, UT/AFL DocType, workflow, отчёты и workspace **Мои Таймшиты**.
 
-Большая часть поведения задаётся метаданными Frappe (фикстуры: клиентские и серверные скрипты, workflow, пользовательские поля, права), а не объёмными Python-контроллерами. Приложение рассчитано на совместную работу с **dinext_projects** (Worker, Project Team, Limit Control, **Working Hours On Date** и др.) и **doctype_permission**. Публикуется в GitLab Dinext, устанавливается через bench.
+Большая часть поведения задаётся метаданными Frappe (фикстуры: клиентские и серверные скрипты, workflow, пользовательские поля, права), а не объёмными Python-контроллерами. Зависимости: **dinext_projects**, **dinext_projects_pl** (child DocTypes ставок/ЦФО, на которые ссылается Worker), **doctype_permission**. Плановые трудозатраты и project utilization принадлежат **project_workload_assignment**. Публикуется в GitLab Dinext, устанавливается через bench.
 
 ## ✨ Возможности
 
@@ -49,6 +49,7 @@
   - `Task.custom_include`, `Issue.custom_include`
   - `Journal Entry.custom_user_timesheet`
   - `Project.custom_holidays_and_working_days`, `Project.custom_working_hours_on_date`
+  - базовый DocType `Worker` (table fields `worker_level` / `cost_center_table` / `utilization` остаются на Worker; child DocTypes — у PL/PWA)
 - Права: `Custom DocPerm` и `DocType Permission` (`UT_Permissions-1`, `UTP_Permissions-1`, `Timesheet_Template_Permissions-1`, `AFL_Permissions-1`).
 - Переводы: `dinext_timesheets/translations/ru.csv`.
 
@@ -103,7 +104,9 @@ bench --site <site> clear-cache
 | User Timesheet Position Details | Часы по датам |
 | Timesheet Template | Шаблон норм и правил |
 | Doctype for Timesheet | Допустимые объекты списания |
-| Working Hours Table | Дочерняя таблица: часы на дату (родитель Working Hours On Date — в projects) |
+| Working Hours On Date | Справочник сокращённых/особых рабочих дней |
+| Working Hours Table | Дочерняя таблица: часы на дату |
+| Worker | Карточка исполнителя / identity таймшитного контура |
 | Application For Leave | Заявка на отсутствие |
 | User Projects | Дочерняя таблица AFL: проекты заявки |
 | Type Of Leave | Тип отсутствия |
@@ -127,7 +130,7 @@ bench --site <site> clear-cache
 |----------|----------|
 | `app_*` | Метаданные приложения (имя, издатель, MIT) |
 | `fixtures` | Экспорт и импорт Type Of Leave, Workflow*, Calendar View, Custom Field / Property Setter, клиентских и серверных скриптов, Timesheet Template, Role, Custom DocPerm, DocType Permission |
-| `required_apps` | В hooks пока не задан (мягкая зависимость от dinext_projects и doctype_permission) |
+| `required_apps` | `dinext_common`, `dinext_projects`, `dinext_projects_pl`, `doctype_permission` |
 
 Окружение: стандартный сайт Frappe (`site_config.json` bench). Отдельных переменных окружения приложение не вводит.
 

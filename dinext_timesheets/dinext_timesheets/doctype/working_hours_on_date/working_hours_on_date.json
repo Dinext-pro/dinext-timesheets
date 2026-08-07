@@ -1,0 +1,66 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-03-13 12:25:15.838696",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "hod_from_date",
+  "column_break_2qvi",
+  "hod_to_date",
+  "section_break_f5to",
+  "hod_working_hours_table"
+ ],
+ "fields": [
+  {
+   "fieldname": "hod_from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "fieldname": "column_break_2qvi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hod_to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
+  },
+  {
+   "fieldname": "section_break_f5to",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "hod_working_hours_table",
+   "fieldtype": "Table",
+   "options": "Working Hours Table"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-06 02:38:43.266826",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Working Hours On Date",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

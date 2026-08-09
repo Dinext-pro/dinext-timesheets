@@ -2,6 +2,17 @@
  {
   "docstatus": 0,
   "doctype": "Client Script",
+  "dt": "Project",
+  "enabled": 1,
+  "modified": "2026-08-10 01:30:27.321411",
+  "module": "Dinext Timesheets",
+  "name": "Project_Team_Worker_UI",
+  "script": "\nfrappe.ui.form.on(\"Project\", {\n\trefresh(frm) {\n\t\tapply_worker_team_ui(frm);\n\t},\n\tcustom_ts_details_add(frm) {\n\t\tapply_worker_team_ui(frm);\n\t}\n});\n\nfrappe.ui.form.on(\"Project Team Details\", {\n\tpt_worker(frm, cdt, cdn) {\n\t\tconst row = locals[cdt][cdn];\n\t\tif (!row.pt_worker) {\n\t\t\treturn;\n\t\t}\n\t\tfrappe.db.get_value(\"Worker\", row.pt_worker, [\"wuser\", \"wtype\"]).then((r) => {\n\t\t\tif (!r.message) {\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (r.message.wuser) {\n\t\t\t\tfrappe.model.set_value(cdt, cdn, \"pt_participant_type\", \"User\");\n\t\t\t\tfrappe.model.set_value(cdt, cdn, \"pt_participant\", r.message.wuser);\n\t\t\t}\n\t\t\tif (r.message.wtype) {\n\t\t\t\tfrappe.model.set_value(cdt, cdn, \"worker_type\", r.message.wtype);\n\t\t\t}\n\t\t});\n\t},\n\tvirtual_worker(frm, cdt, cdn) {\n\t\tif (!frappe.meta.get_docfield(\"Project Team Details\", \"virtual_worker\")) {\n\t\t\treturn;\n\t\t}\n\t\tconst row = locals[cdt][cdn];\n\t\tif (row.virtual_worker) {\n\t\t\tfrappe.model.set_value(cdt, cdn, \"pt_worker\", null);\n\t\t\tfrappe.model.set_value(cdt, cdn, \"pt_participant_type\", null);\n\t\t\tfrappe.model.set_value(cdt, cdn, \"pt_participant\", null);\n\t\t}\n\t\tapply_worker_team_ui(frm);\n\t}\n});\n\nfunction apply_worker_team_ui(frm) {\n\tconst grid = frm.fields_dict.custom_ts_details && frm.fields_dict.custom_ts_details.grid;\n\tif (!grid) {\n\t\treturn;\n\t}\n\tif (!frappe.meta.get_docfield(\"Project Team Details\", \"pt_worker\")) {\n\t\treturn;\n\t}\n\t// Worker is the primary control when timesheets is installed.\n\tgrid.update_docfield_property(\"pt_worker\", \"hidden\", 0);\n\tgrid.update_docfield_property(\"pt_worker\", \"in_list_view\", 1);\n\tgrid.update_docfield_property(\"pt_participant\", \"hidden\", 1);\n\tgrid.update_docfield_property(\"pt_participant_type\", \"hidden\", 1);\n\tfrm.refresh_field(\"custom_ts_details\");\n}\n",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
   "dt": "Application For Leave",
   "enabled": 1,
   "modified": "2026-07-30 00:27:21.155012",

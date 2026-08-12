@@ -186,7 +186,8 @@ required_apps = ["dinext_common", "dinext_projects", "dinext_projects_pl", "doct
 # ------------
 
 # before_install = "dinext_timesheets.install.before_install"
-# after_install = "dinext_timesheets.install.after_install"
+after_install = "dinext_timesheets.install.after_install"
+after_migrate = "dinext_timesheets.install.after_migrate"
 
 # Uninstallation
 # ------------

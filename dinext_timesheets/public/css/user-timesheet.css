@@ -1,0 +1,344 @@
+/* User Timesheet — DinextTable shell (ISS-2026-00926 try3) */
+
+/* Start submit: dirty → disabled look, title tooltip still works (no prop:disabled) */
+.page-head .btn.ut-btn--need-save,
+.form-dashboard .btn.ut-btn--need-save {
+	opacity: 0.55;
+	cursor: not-allowed;
+	pointer-events: auto;
+}
+
+/* Flush only UT table section (section_break_1mtw → timesheet_details) */
+.form-section.card-section[data-fieldname="section_break_1mtw"] {
+	padding: 0;
+}
+
+.form-section[data-fieldname="section_break_1mtw"] .section-body:first-child {
+	margin-top: 0;
+}
+
+.form-section[data-fieldname="section_break_1mtw"] .form-column {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.user-timesheet-shell {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	gap: 8px;
+}
+
+/* Beat .dinext-table { height: 100% } — иначе host без высоты → ag-root ~1px */
+.user-timesheet-table.dinext-table,
+.user-timesheet-table {
+	width: 100%;
+	height: min(50vh, 560px);
+	min-height: 280px;
+	max-height: 560px;
+}
+
+.user-timesheet-shell--fullscreen {
+	height: 100%;
+	min-height: 0;
+}
+
+.user-timesheet-shell--fullscreen .user-timesheet-table {
+	flex: 1 1 auto;
+	height: auto;
+	min-height: 0;
+}
+
+/* Weekends / holidays — translucent blue */
+.user-timesheet-table .ut-holiday-col {
+	background-color: rgba(33, 150, 243, 0.14);
+}
+
+.user-timesheet-table .ag-header-cell.ut-holiday-col {
+	background-color: rgba(33, 150, 243, 0.2);
+}
+
+/* Validator marks — inset border on .ag-cell (not renderer wrappers) */
+.user-timesheet-table .ag-cell.ut-cell--invalid {
+	box-shadow: inset 0 0 0 1.5px var(--red-500, #e24c4c);
+}
+
+.user-timesheet-table .ag-ltr .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing),
+.user-timesheet-table .ag-ltr .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing):focus-within,
+.user-timesheet-table .ag-rtl .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing),
+.user-timesheet-table .ag-rtl .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing):focus-within {
+	border-color: var(--red-500, #e24c4c) !important;
+	box-shadow: inset 0 0 0 1.5px var(--red-500, #e24c4c);
+}
+
+/* Day + Итого — horizontal center (beats number type align-right).
+ * Vertical center for summary/body comes from dinext-table floating-bottom flex. */
+.user-timesheet-table .ag-cell.ut-num-col {
+	text-align: center;
+}
+
+.user-timesheet-table .ag-cell.ut-num-col .ag-cell-wrapper {
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.user-timesheet-table .ag-cell.ut-num-col.ag-cell-inline-editing input,
+.user-timesheet-table .ag-cell.ut-num-col input {
+	text-align: center;
+}
+
+.user-timesheet-table .ag-header-cell.ut-num-col .ag-header-cell-label {
+	justify-content: center;
+	width: 100%;
+}
+
+.user-timesheet-table .ut-section-row {
+	font-weight: 600;
+	background-color: var(--bg-gray, rgba(0, 0, 0, 0.04));
+}
+
+.user-timesheet-table .ut-leave-row {
+	opacity: 0.92;
+	cursor: pointer;
+}
+
+.user-timesheet-table .ut-rejected-row {
+	background-color: var(--bg-red, rgba(255, 0, 0, 0.08));
+}
+
+.user-timesheet-table .ut-reject-label {
+	cursor: help;
+	text-decoration: underline dotted;
+}
+
+/* Plan/fact — square cell = row height, button fills cell */
+.user-timesheet-table .ag-cell.ut-info-cell {
+	padding: 0 !important;
+}
+
+.user-timesheet-table .ut-info-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border-radius: 0;
+	line-height: 1;
+}
+
+/* demodev Check Limits_V2 setButtonStyle — color on button + icon */
+.user-timesheet-table .ut-info-btn i {
+	color: inherit;
+}
+
+.user-timesheet-table .ut-limit-row-block .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-block {
+	color: #f44336 !important;
+	border-color: #f44336 !important;
+}
+
+/* warning = yellow; message = orange (legacy Check Limits_V2) */
+.user-timesheet-table .ut-limit-row-warning .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-warning {
+	color: #ffeb3b !important;
+	border-color: #ffeb3b !important;
+}
+
+.user-timesheet-table .ut-limit-row-message .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-message {
+	color: #ff9800 !important;
+	border-color: #ff9800 !important;
+}
+
+.user-timesheet-table .ut-limit-row-normal .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-normal {
+	color: #4caf50 !important;
+	border-color: #4caf50 !important;
+}
+
+.user-timesheet-table .ut-limit-row-no-plan .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-no-plan {
+	color: #9e9e9e !important;
+	border-color: #9e9e9e !important;
+}
+
+/* Inline Select — fill cell; center caret */
+.user-timesheet-table .ut-select-cell {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	min-height: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.user-timesheet-table .ut-select-cell--editable {
+	cursor: pointer;
+}
+
+.user-timesheet-table .ag-cell:has(.ut-select-cell--editing) {
+	padding: 0 !important;
+}
+
+.user-timesheet-table .ut-select-cell--editing {
+	align-items: stretch;
+	height: 100%;
+	min-height: 100%;
+}
+
+.user-timesheet-table .ut-select-edit,
+.user-timesheet-table .ut-select-control,
+.user-timesheet-table .ut-select-control .form-group,
+.user-timesheet-table .ut-select-control .control-input-wrapper,
+.user-timesheet-table .ut-select-control .control-input {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	margin: 0 !important;
+	padding: 0 !important;
+	display: flex;
+	align-items: stretch;
+}
+
+.user-timesheet-table .ut-select-control .form-control,
+.user-timesheet-table .ut-select-control select {
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+	min-height: 100%;
+	margin: 0;
+	padding: 0 22px 0 4px;
+	font-size: var(--text-xs, 11px);
+	line-height: normal;
+	border-radius: 0;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+
+/* Desk Select puts .select-icon at top: 3px — center in row cell */
+.user-timesheet-table .ut-select-control .select-icon {
+	top: 50% !important;
+	right: 6px !important;
+	transform: translateY(-50%);
+	padding: 0 !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: auto;
+	line-height: 0;
+}
+
+.user-timesheet-table .ut-select-control .select-icon .icon {
+	width: 12px;
+	height: 12px;
+}
+
+/* Day description popover under cell */
+.ut-descr-popover {
+	--caret-left: 50%;
+	position: fixed;
+	z-index: 1100;
+	box-sizing: border-box;
+	width: 252px;
+	padding: 8px 10px 10px;
+	border-radius: 8px;
+	background: var(--fg-color, var(--card-bg, #fff));
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	box-shadow: var(--shadow-base, 0 6px 20px rgba(0, 0, 0, 0.22));
+	color: var(--text-color, inherit);
+}
+
+.ut-descr-popover__caret {
+	position: absolute;
+	left: var(--caret-left);
+	width: 10px;
+	height: 10px;
+	background: inherit;
+	border: inherit;
+	border-bottom: none;
+	border-right: none;
+	transform: translateX(-50%) rotate(45deg);
+	pointer-events: none;
+}
+
+.ut-descr-popover--below .ut-descr-popover__caret {
+	top: -6px;
+	box-shadow: -1px -1px 0 var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.ut-descr-popover--above .ut-descr-popover__caret {
+	bottom: -6px;
+	top: auto;
+	transform: translateX(-50%) rotate(225deg);
+	box-shadow: -1px -1px 0 var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.ut-descr-popover__foot {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 8px;
+}
+
+.ut-descr-popover__stepper {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	border-radius: 6px;
+	background: var(--control-bg, var(--bg-color, transparent));
+	overflow: hidden;
+}
+
+.ut-descr-popover__step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--text-color, inherit);
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.ut-descr-popover__step:hover {
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
+}
+
+.ut-descr-popover__step:active {
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.22));
+}
+
+.ut-descr-popover__hours {
+	min-width: 40px;
+	padding: 0 4px;
+	text-align: center;
+	font-size: var(--text-sm, 12px);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.ut-descr-popover__input.form-control {
+	display: block;
+	width: 100%;
+	min-height: 72px;
+	margin: 0;
+	padding: 6px 8px;
+	resize: vertical;
+	font-size: var(--text-sm, 12px);
+	line-height: 1.35;
+	border-radius: 6px;
+}

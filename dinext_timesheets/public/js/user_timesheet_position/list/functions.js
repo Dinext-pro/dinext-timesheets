@@ -1,7 +1,7 @@
 /** Port from demodev Client Script User Timesheet Position Function_V3.js — ISS-2026-00926 phase 3 */
 async function refresh_list_limits(positions) {
     frappe.call({
-        method: 'project_workload_assignment.api.calculate_timesheet_limits',
+        method: 'project_workload_assignment.api.calculate_user_timesheet_limits',
         args: {
             timesheet_name: "",
             positions: positions
@@ -64,7 +64,7 @@ async function getHoursData(position) {
     try {
         // Используем серверный метод для получения данных
         const result = await frappe.call({
-            method: 'project_workload_assignment.api.calculate_timesheet_limits',
+            method: 'project_workload_assignment.api.calculate_user_timesheet_limits',
             args: {
                 timesheet_name: '', // Пустое значение, так как мы работаем с отдельными позициями
                 positions: [position]

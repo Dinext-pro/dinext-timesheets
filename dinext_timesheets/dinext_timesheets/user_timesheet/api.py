@@ -1,7 +1,7 @@
 """Whitelist facades for User Timesheet (ISS-2026-00926 try3).
 
 Port from demodev Server Scripts — see try3/timesheet/inventory-demodev.md.
-Limits: call project_workload_assignment.api.calculate_timesheet_limits (do not duplicate).
+Limits: call project_workload_assignment.api.calculate_user_timesheet_limits (do not duplicate).
 """
 
 from __future__ import annotations

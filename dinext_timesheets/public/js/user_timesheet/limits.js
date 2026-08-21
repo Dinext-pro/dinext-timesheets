@@ -3,7 +3,7 @@
  * Single path: PWA whitelist only. No SS / bare-method fallback.
  */
 const LIMITS_METHOD =
-	"project_workload_assignment.api.calculate_timesheet_limits";
+	"project_workload_assignment.api.calculate_user_timesheet_limits";
 
 const LIMIT_COLORS = {
 	block: "#f44336",

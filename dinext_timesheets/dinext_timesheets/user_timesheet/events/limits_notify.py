@@ -1,8 +1,8 @@
 """Notify project team when UTP enters approval with limit overrun (phase 2 C).
 
 Port of demodev Server Script ``Task Limit Exceeded_V4`` (After Save / on_update).
-Calculate via PWA ``project_workload_assignment.api.calculate_timesheet_limits``
-(not SS Calculate Timesheet Limits_V4).
+Calculate via PWA ``project_workload_assignment.api.calculate_user_timesheet_limits``
+(SS V4 rules; not WE monthly ``calculate_timesheet_limits``).
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import json
 import frappe
 from frappe.utils.safe_exec import call_whitelisted_function
 
-LIMITS_METHOD = "project_workload_assignment.api.calculate_timesheet_limits"
+LIMITS_METHOD = "project_workload_assignment.api.calculate_user_timesheet_limits"
 
 
 def notify_task_limit_exceeded(doc) -> None:

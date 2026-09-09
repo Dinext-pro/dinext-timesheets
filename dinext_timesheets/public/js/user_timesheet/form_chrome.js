@@ -10,6 +10,15 @@ import { applyToolbarChrome } from "./toolbar.js";
 import { showTimesheetDashboard } from "./dashboard.js";
 import { resolveTeamLeadAccess } from "./team_lead.js";
 import { applyNewTimesheetDefaults } from "./new_doc.js";
+import { applyTimesheetSidebarHide } from "./sidebar.js";
+
+function hideTimesheetConnections(frm) {
+	frm?.dashboard?.links_area?.hide?.();
+	const $root = frm?.$wrapper?.closest(".page-container") || frm?.$wrapper;
+	$root
+		?.find(".form-dashboard-connections, .form-links")
+		.addClass("ut-hide-connections");
+}
 
 function applyReadonlyChrome(frm) {
 	if (canEdit(frm)) {
@@ -30,6 +39,8 @@ export async function setupFormChrome(frm) {
 	if (!frm) {
 		return;
 	}
+	applyTimesheetSidebarHide();
+	hideTimesheetConnections(frm);
 	applyNewTimesheetDefaults(frm);
 	if (frm.is_new() || frm.doc?.__islocal) {
 		return;
@@ -47,6 +58,7 @@ export async function setupFormChrome(frm) {
 		setupSubmitButtons(frm);
 		await processUTWorkflow(frm);
 		await showTimesheetDashboard(frm);
+		hideTimesheetConnections(frm);
 		if (frm.ut?.table) {
 			await refreshLimits(frm);
 		}

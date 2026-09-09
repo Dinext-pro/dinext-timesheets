@@ -1,4 +1,5 @@
 import { closeDescriptionPopover } from "./editors/description-popover.js";
+import { unbindTimesheetTableFit } from "./fit.js";
 
 /**
  * Table runtime state on frm.ut (WE uses frm.we).
@@ -46,6 +47,7 @@ export function destroyTable(frm) {
 		return;
 	}
 	closeDescriptionPopover();
+	unbindTimesheetTableFit(frm);
 	if (state.table?.destroy) {
 		state.table.destroy();
 	}

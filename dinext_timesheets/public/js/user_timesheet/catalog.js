@@ -1,41 +1,85 @@
-/** Flat project/task catalog from get_timesheet_tasks payload. */
+/** Customer → project → task catalog from get_timesheet_tasks (remap2). */
 
 const SEP = " · ";
+
+/** Empty Project.customer (0..1 Link) → internal/presale bucket. */
+export const EMPTY_CLIENT = __("Без Клиента");
 
 function safeLevel(level) {
 	const n = cint(level);
 	return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** @returns {Array<{name: string, project_name: string, tasks_issues: any[], roles: string[], client?: string}>} */
-export function listProjects(frm) {
-	const customers = frm.ut?.tasksData || frm.tasks_data;
-	if (!customers || typeof customers !== "object") {
-		return [];
+function normalizeClient(label) {
+	const s = String(label || "").trim();
+	return s || EMPTY_CLIENT;
+}
+
+/** Tree is [{ "Client": [projects] }, ...] or { Client: [projects] }. */
+function forEachClientProjects(frm, fn) {
+	const raw = frm.ut?.tasksData || frm.tasks_data;
+	if (!raw || typeof raw !== "object") {
+		return;
 	}
+	const blocks = Array.isArray(raw) ? raw : [raw];
+	for (const block of blocks) {
+		if (!block || typeof block !== "object" || Array.isArray(block)) {
+			continue;
+		}
+		for (const [clientLabel, projects] of Object.entries(block)) {
+			if (!Array.isArray(projects)) {
+				continue;
+			}
+			fn(normalizeClient(clientLabel), projects);
+		}
+	}
+}
+
+/**
+ * @param {string} [clientLabel] filter by Project.customer bucket
+ * @returns {Array<{name: string, project_name: string, tasks_issues: any[], roles: string[], client: string}>}
+ */
+export function listProjects(frm, clientLabel) {
+	const want = clientLabel ? normalizeClient(clientLabel) : "";
 	const out = [];
 	const seen = new Set();
-	Object.values(customers).forEach((clientObj) => {
-		if (!clientObj || typeof clientObj !== "object") {
+	forEachClientProjects(frm, (client, projects) => {
+		if (want && client !== want) {
 			return;
 		}
-		Object.entries(clientObj).forEach(([clientLabel, projects]) => {
-			for (const p of projects || []) {
-				if (!p?.name || seen.has(p.name)) {
-					continue;
-				}
-				seen.add(p.name);
-				out.push({
-					name: p.name,
-					project_name: p.project_name || p.name,
-					tasks_issues: p.tasks_issues || [],
-					roles: p.roles || [],
-					client: clientLabel,
-				});
+		for (const p of projects || []) {
+			if (!p?.name || seen.has(p.name)) {
+				continue;
 			}
-		});
+			seen.add(p.name);
+			out.push({
+				name: p.name,
+				project_name: p.project_name || p.name,
+				tasks_issues: p.tasks_issues || [],
+				roles: p.roles || [],
+				client,
+			});
+		}
 	});
 	return out;
+}
+
+export function taskLabelFromCatalog(frm, documentName) {
+	if (!documentName) {
+		return "";
+	}
+	for (const p of listProjects(frm)) {
+		const t = (p.tasks_issues || []).find((x) => x.name === documentName);
+		if (t) {
+			return t.subject || t.name;
+		}
+	}
+	return "";
+}
+
+export function projectLabelFromCatalog(frm, projectName) {
+	const p = findProject(frm, projectName);
+	return p?.project_name || "";
 }
 
 export function findProject(frm, projectName) {
@@ -57,19 +101,18 @@ export function parseOptionName(optionLabel) {
 }
 
 /**
- * Frappe Select has no separate label/value — option text is the value.
- * Prefer human label; append " · name" only when label collides.
+ * Dropdown label = client/project. Option value = Project.name (unique).
+ * Empty customer → Без Клиента (same bucket as prod remap2).
  */
 export function buildProjectSelectOptions(projects) {
-	const counts = {};
-	for (const p of projects) {
-		const label = p.project_name || p.name;
-		counts[label] = (counts[label] || 0) + 1;
-	}
 	return projects.map((p) => {
+		const client = p.client || EMPTY_CLIENT;
 		const label = p.project_name || p.name;
-		const option = counts[label] > 1 ? `${label}${SEP}${p.name}` : label;
-		return { option, project: p };
+		return {
+			option: `${client}/${label}`,
+			value: p.name,
+			project: p,
+		};
 	});
 }
 
@@ -134,6 +177,7 @@ export function projectOptionsForRow(frm, row) {
 			project_name: row.project_label || row.project,
 			tasks_issues: [],
 			roles: row.project_role ? [row.project_role] : [],
+			client: EMPTY_CLIENT,
 		});
 	}
 	return projects;

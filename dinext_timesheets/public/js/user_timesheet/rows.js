@@ -4,6 +4,7 @@ import {
 	getDatesBetween,
 	sumDayHours,
 } from "./model.js";
+import { taskLabelFromCatalog } from "./catalog.js";
 
 function leaveHoursForDate(frm, leave, date) {
 	const leaveDates = getDatesBetween(leave.alfrom_date, leave.alto_date);
@@ -30,7 +31,11 @@ export function positionToRow(frm, position) {
 		project_label: position.project_label || position.project || "",
 		document_type: position.document_type || "Task",
 		document_name: position.document_name || "",
-		document_label: position.document_label || position.document_name || "",
+		document_label:
+			position.document_label ||
+			taskLabelFromCatalog(frm, position.document_name) ||
+			position.document_name ||
+			"",
 		project_role: position.project_role || "",
 		status: position.status || "",
 		reject_reason: position.reject_reason || "",

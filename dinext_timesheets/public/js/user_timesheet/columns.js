@@ -1,10 +1,11 @@
 import { canEdit, dayField, isHoliday } from "./model.js";
 import { limitIconColor, showTaskPlanFact } from "./limits.js";
 import {
+	CascadeSelectCellEditor,
 	FIELD_PROJECT,
 	FIELD_ROLE,
 	FIELD_TASK,
-	openCascadeSelect,
+	onCascadeActiveClickEdit,
 } from "./editors/cascade-select.js";
 import { getCascadeColDefWidth } from "./column-layout.js";
 import { invalidCellClassRules } from "./invalid-cells.js";
@@ -45,27 +46,22 @@ function limitIconRenderer(frm) {
 	};
 }
 
-function wireSelectCell(frm, wrap, row, params, field) {
+function markSelectCellEditable(frm, wrap, row) {
 	if (!canEdit(frm) || row?.rowType !== "position") {
 		return;
 	}
 	wrap.classList.add("ut-select-cell--editable");
-	/* mousedown + preventDefault: same click must not land on freshly mounted <select>
-	 * (native open → blur → instant collapse). */
-	wrap.addEventListener("mousedown", (ev) => {
-		if (ev.button !== 0) {
-			return;
-		}
-		ev.preventDefault();
-		ev.stopPropagation();
-		/* Always open list; deferActivate avoids same-pointer open→blur collapse. */
-		openCascadeSelect(frm, {
-			params,
-			field,
-			openList: true,
-			deferActivate: true,
-		});
-	});
+}
+
+function cascadeColDef(frm, editable) {
+	return {
+		edit: (row) => editable && row?.rowType === "position",
+		/* AG must not start text editor on dblclick (form navigation lives). */
+		suppressClickEdit: true,
+		onActiveClickEdit: onCascadeActiveClickEdit,
+		cellEditor: CascadeSelectCellEditor,
+		cellEditorParams: { frm },
+	};
 }
 
 function projectSelectRenderer(frm) {
@@ -76,7 +72,7 @@ function projectSelectRenderer(frm) {
 		const text = row.project_label || "";
 		wrap.textContent = text;
 		wrap.title = text;
-		wireSelectCell(frm, wrap, row, params, FIELD_PROJECT);
+		markSelectCellEditable(frm, wrap, row);
 		return wrap;
 	};
 }
@@ -94,7 +90,7 @@ function taskSelectRenderer(frm) {
 			wrap.title = text;
 		}
 		wrap.textContent = text;
-		wireSelectCell(frm, wrap, row, params, FIELD_TASK);
+		markSelectCellEditable(frm, wrap, row);
 		return wrap;
 	};
 }
@@ -107,7 +103,7 @@ function roleSelectRenderer(frm) {
 		const text = row.project_role || "";
 		wrap.textContent = text;
 		wrap.title = text;
-		wireSelectCell(frm, wrap, row, params, FIELD_ROLE);
+		markSelectCellEditable(frm, wrap, row);
 		return wrap;
 	};
 }
@@ -120,6 +116,7 @@ export function getColumns(frm) {
 
 	const saved = frm.ut?._cascadeColWidths || {};
 	const invalidRules = invalidCellClassRules(frm);
+	const cascadeEdit = cascadeColDef(frm, editable);
 
 	/** @type {import("dinext_common/table").DinextTableColumn[]} */
 	const cols = [
@@ -128,8 +125,9 @@ export function getColumns(frm) {
 			headerName: __("Проект"),
 			pinned: "left",
 			width: saved[FIELD_PROJECT] || getCascadeColDefWidth(FIELD_PROJECT),
-			minWidth: 140,
-			edit: false,
+			minWidth: getCascadeColDefWidth(FIELD_PROJECT),
+			...cascadeEdit,
+			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
 			cellRenderer: projectSelectRenderer(frm),
 		},
@@ -138,8 +136,9 @@ export function getColumns(frm) {
 			headerName: __("Задача"),
 			pinned: "left",
 			width: saved[FIELD_TASK] || getCascadeColDefWidth(FIELD_TASK),
-			minWidth: 160,
-			edit: false,
+			minWidth: getCascadeColDefWidth(FIELD_TASK),
+			...cascadeEdit,
+			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
 			cellRenderer: taskSelectRenderer(frm),
 		},
@@ -148,8 +147,9 @@ export function getColumns(frm) {
 			headerName: __("Проектная роль"),
 			pinned: "left",
 			width: saved[FIELD_ROLE] || getCascadeColDefWidth(FIELD_ROLE),
-			minWidth: 120,
-			edit: false,
+			minWidth: getCascadeColDefWidth(FIELD_ROLE),
+			...cascadeEdit,
+			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
 			cellRenderer: roleSelectRenderer(frm),
 		},

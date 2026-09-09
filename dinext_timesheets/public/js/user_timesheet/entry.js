@@ -20,6 +20,20 @@ async function loadAndMount(frm) {
 	}
 }
 
+document.body.classList.add("ut-hide-desk-sidebar");
+if (!window._utSidebarRouteBound) {
+	window._utSidebarRouteBound = true;
+	frappe.router.on("change", () => {
+		const route = frappe.get_route() || [];
+		const ut =
+			(route[0] === "Form" || route[0] === "List") &&
+			route[1] === "User Timesheet";
+		if (!ut) {
+			document.body.classList.remove("ut-hide-desk-sidebar");
+		}
+	});
+}
+
 frappe.require(
 	[
 		"/assets/dinext_timesheets/css/user-timesheet.css",
@@ -30,6 +44,7 @@ frappe.require(
 			console.error("[UserTimesheet] user-timesheet.bundle: API missing");
 			return;
 		}
+		window.UserTimesheet.applyTimesheetSidebarHide?.();
 		if (cur_frm?.doctype === "User Timesheet") {
 			loadAndMount(cur_frm);
 		}
@@ -38,6 +53,7 @@ frappe.require(
 
 frappe.ui.form.on("User Timesheet", {
 	refresh(frm) {
+		window.UserTimesheet?.applyTimesheetSidebarHide?.();
 		if ((frm.is_new() || frm.doc?.__islocal) && !frm.doc.timesheet_from) {
 			frm.set_value("timesheet_from", frappe.session.user);
 		}

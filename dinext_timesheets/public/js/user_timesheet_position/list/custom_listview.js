@@ -682,7 +682,7 @@ function updatePositions(updatedPositions, pos_status) {
     
     _active_request = true;
     frappe.call({
-        method: "set_timesheet_status",
+        method: "dinext_timesheets.dinext_timesheets.user_timesheet.api.set_timesheet_status",
         args: {
             positions: updatedPositions,
             pos_status: pos_status,

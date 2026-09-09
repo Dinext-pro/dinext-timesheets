@@ -183,6 +183,19 @@ export function collectDuplicatePositionErrors(positionRows, errors, invalidCell
 	}
 }
 
+/** New row with no cascade and no hours/descriptions — skip insert. */
+function isFullyEmptyPositionRow(row, dates) {
+	if (row.project || row.document_name || row.project_role) {
+		return false;
+	}
+	for (const date of dates || []) {
+		if (flt(row[dayField(date)]) || String(row[descField(date)] || "").trim()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 /** Build insert/update docs from current rows (model, not DOM). */
 export function buildSavePayload(frm) {
 	const state = frm.ut;
@@ -195,21 +208,7 @@ export function buildSavePayload(frm) {
 	const positionRows = (state?.rows || []).filter((r) => r.rowType === "position");
 	collectDuplicatePositionErrors(positionRows, errors, invalidCells);
 
-	positionRows.forEach((row, idx) => {
-		const line = idx + 1;
-		if (!row.project) {
-			errors.push(__("Выберите проект в строке {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT });
-		}
-		if (!row.document_name) {
-			errors.push(__("Выберите запрос или задачу в строке {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: FIELD_TASK });
-		}
-		if (!row.project_role) {
-			errors.push(__("Выберите проектную роль в строке {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: FIELD_ROLE });
-		}
-
+	positionRows.forEach((row) => {
 		const table = [];
 		for (const date of dates) {
 			const hours = flt(row[dayField(date)]) || 0;
@@ -217,19 +216,10 @@ export function buildSavePayload(frm) {
 			if (hours > 0 || description) {
 				table.push({ date, hours, description });
 			}
-			if (
-				hours > 0 &&
-				!description &&
-				frm.template_doc?._is_mandatory
-			) {
-				errors.push(
-					__(
-						"{0} по задаче {1} не заполнено описание.",
-						[date, row.document_label || row.document_name || line]
-					)
-				);
-				invalidCells.push({ rowId: row.id, field: dayField(date) });
-			}
+		}
+
+		if (row.isNew && isFullyEmptyPositionRow(row, dates)) {
+			return;
 		}
 
 		const doc = {
@@ -238,9 +228,9 @@ export function buildSavePayload(frm) {
 			user_timesheet: frm.doc.name,
 			user: frm.doc.timesheet_from,
 			document_type: row.document_type || "Task",
-			document_name: row.document_name,
-			project: row.project,
-			project_role: row.project_role,
+			document_name: row.document_name || "",
+			project: row.project || "",
+			project_role: row.project_role || "",
 			status: positionStatusForSave(frm),
 			all_hours: sumDayHours(row, dates),
 			table,

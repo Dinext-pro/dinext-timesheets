@@ -11,6 +11,7 @@ import {
 	showTaskPlanFact,
 } from "./limits.js";
 import { setupSubmitButtons, sendTimesheet } from "./submit.js";
+import { applyTimesheetSidebarHide, removeTimesheetSidebarHide } from "./sidebar.js";
 
 let ready = false;
 
@@ -32,6 +33,8 @@ const UserTimesheet = {
 	alertLimitWarnings,
 	refreshLimits,
 	showTaskPlanFact,
+	applyTimesheetSidebarHide,
+	removeTimesheetSidebarHide,
 };
 
 ready = true;

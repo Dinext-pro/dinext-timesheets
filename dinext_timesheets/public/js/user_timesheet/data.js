@@ -2,6 +2,10 @@ import { initState } from "./state.js";
 import { getDatesBetween } from "./model.js";
 import { buildRows } from "./rows.js";
 import { buildSummaryRows } from "./summary.js";
+import {
+	projectLabelFromCatalog,
+	taskLabelFromCatalog,
+} from "./catalog.js";
 
 async function loadTemplate(frm) {
 	const r = await frappe.db.get_value(
@@ -133,28 +137,41 @@ async function loadPositions(frm) {
 	return positions;
 }
 
-export async function loadTitles(positions) {
+export async function loadTitles(positions, frm) {
 	const projectIds = [...new Set(positions.map((p) => p.project).filter(Boolean))];
 	const projectNames = {};
 	await Promise.all(
 		projectIds.map(async (name) => {
+			const catalog = frm ? projectLabelFromCatalog(frm, name) : "";
 			const r = await frappe.db.get_value("Project", name, "project_name");
-			projectNames[name] = r?.message?.project_name || name;
+			projectNames[name] = r?.message?.project_name || catalog || name;
 		})
 	);
 
 	await Promise.all(
 		positions.map(async (p) => {
-			p.project_label = projectNames[p.project] || p.project || "";
+			p.project_label =
+				projectNames[p.project] ||
+				(frm ? projectLabelFromCatalog(frm, p.project) : "") ||
+				p.project ||
+				"";
 			if (!p.document_type || !p.document_name) {
 				p.document_label = "";
 				return;
 			}
-			const meta = frappe.meta.get_docfield(p.document_type, "subject")
-				? "subject"
-				: "name";
-			const r = await frappe.db.get_value(p.document_type, p.document_name, meta);
-			p.document_label = r?.message?.[meta] || p.document_name;
+			const catalog = frm ? taskLabelFromCatalog(frm, p.document_name) : "";
+			let subject = "";
+			try {
+				const r = await frappe.db.get_value(
+					p.document_type,
+					p.document_name,
+					"subject"
+				);
+				subject = r?.message?.subject || "";
+			} catch (_err) {
+				subject = "";
+			}
+			p.document_label = subject || catalog || p.document_name;
 		})
 	);
 }
@@ -193,17 +210,17 @@ export async function loadGridData(frm) {
 		loadTasksData(frm),
 	]);
 
-	await loadTitles(positions);
+	state.tasksData = tasksData;
+	frm.tasks_data = tasksData;
+	await loadTitles(positions, frm);
 
 	state.dates = dates;
 	state.workHours = workHours;
 	state.holidays = holidays;
 	state.leaves = leaves;
-	state.tasksData = tasksData;
 	frm.dates = dates;
 	frm.holidays = holidays;
 	frm.work_hours = workHours;
-	frm.tasks_data = tasksData;
 	frm.ts_positions = positions;
 
 	state.rows = buildRows(frm);

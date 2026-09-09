@@ -10,6 +10,8 @@ import { layoutCascadeColumns } from "./column-layout.js";
 import { scheduleRefreshLimits } from "./limits.js";
 import { listProjects } from "./catalog.js";
 import { syncStartButtonState } from "./submit.js";
+import { fitTimesheetTable, growTimesheetTableForNewRow, scheduleFitTimesheetTable } from "./fit.js";
+import { FIELD_PROJECT, openCascadeSelect } from "./editors/cascade-select.js";
 
 function syncTableSource(frm, rows) {
 	const table = frm.ut?.table;
@@ -70,6 +72,29 @@ function moveRowBeforeLeaves(sourceData, rowId) {
 	return true;
 }
 
+function insertIndexBeforeLeaves(sourceData) {
+	const leaveIdx = sourceData.findIndex(
+		(r) => r?.rowType === "section" || r?.rowType === "leave"
+	);
+	return leaveIdx >= 0 ? leaveIdx : sourceData.length;
+}
+
+/**
+ * Insert one row via AG applyTransaction. Returning a row from onAddRow lets
+ * core addRow call syncRowCheckGrid → setGridOption("rowData", [...]) and
+ * remount every cell. Abort core by returning false after this.
+ */
+function spliceTimesheetRow(table, row, idx) {
+	const source = table.sourceData;
+	source.splice(idx, 0, row);
+	if (table.options) {
+		table.options.data = source;
+	}
+	if (Array.isArray(table.rowData)) {
+		table.rowData = source;
+	}
+}
+
 function focusNewRowProject(frm, rowId) {
 	requestAnimationFrame(() => {
 		const api = frm.ut?.table?.api;
@@ -85,18 +110,16 @@ function focusNewRowProject(frm, rowId) {
 		if (!targetNode) {
 			return;
 		}
-		api.ensureIndexVisible?.(targetNode.rowIndex);
-		api.setFocusedCell?.(targetNode.rowIndex, "project_label");
-		const rowEl = document.querySelector(
-			`.user-timesheet-table .ag-row[row-index="${targetNode.rowIndex}"]`
-		);
-		const cell =
-			rowEl?.querySelector?.('.ag-cell[col-id="project_label"]') ||
-			rowEl?.querySelector?.('[col-id="project_label"]');
-		const target = cell?.querySelector?.(".ut-select-cell") || cell;
-		target?.dispatchEvent?.(
-			new MouseEvent("click", { bubbles: true, cancelable: true })
-		);
+		openCascadeSelect(frm, {
+			params: {
+				api,
+				node: targetNode,
+				data: targetNode.data,
+			},
+			field: FIELD_PROJECT,
+			openList: true,
+			deferActivate: true,
+		});
 	});
 }
 
@@ -110,6 +133,7 @@ export function refreshRows(frm) {
 	syncTableSource(frm, state.rows);
 	state.table.refresh?.(state.rows);
 	syncSummary(frm);
+	scheduleFitTimesheetTable(frm);
 }
 
 /** Full rebuild incl. day columns (period / chrome change). */
@@ -130,14 +154,20 @@ export function applyToolbarChrome(frm) {
 		return;
 	}
 	const editable = canEdit(frm);
-	table.setOption("rowCheck", { enabled: editable, unit: "row", selectAll: true });
+	table.setOption("rowCheck", {
+		enabled: editable,
+		unit: "row",
+		selectAll: true,
+		checkNewRow: false,
+		width: 26,
+	});
+	table.setOption("filter", { enabled: false });
 	table.setOption("toolbar", {
 		enabled: true,
 		defaultPinned: true,
+		lockPinned: true,
 		persistKey: `user-timesheet:${frm.doc?.name || "new"}`,
-		presets: editable
-			? ["history", "rows", "fullscreen"]
-			: ["history", "fullscreen"],
+		presets: editable ? ["history", "rows"] : ["history"],
 	});
 }
 
@@ -169,23 +199,89 @@ export function onAddTimesheetRow(frm) {
 	};
 	frm.ts_positions.push(position);
 	const row = positionToRow(frm, position);
-
-	queueMicrotask(() => {
-		const table = frm.ut?.table;
-		if (!table) {
-			return;
-		}
-		if (moveRowBeforeLeaves(table.sourceData, id)) {
-			table.refresh?.(table.sourceData);
-		}
-		syncRowsFromTable(frm);
-		scheduleRefreshLimits(frm);
+	const table = state.table;
+	const source = table?.sourceData;
+	if (table?.api?.applyTransaction && Array.isArray(source)) {
+		const beforeBody = source.slice();
+		const beforeChecked = table.getCheckedRowIds?.() || [];
+		const idx = insertIndexBeforeLeaves(source);
+		state._addingRow = true;
+		spliceTimesheetRow(table, row, idx);
+		state.rows = source;
+		syncTableSource(frm, source);
+		fitTimesheetTable(frm);
+		table.api.applyTransaction({
+			add: [row],
+			addIndex: idx,
+		});
+		table.recordRowCheckUndo?.({
+			beforeBody,
+			afterBody: source.slice(),
+			beforeSummary: null,
+			afterSummary: null,
+			beforeChecked,
+			afterChecked: beforeChecked,
+			syncSummary: false,
+		});
 		frm.dirty();
 		syncStartButtonState(frm);
 		focusNewRowProject(frm, id);
-	});
+		requestAnimationFrame(() => {
+			if (frm.ut) {
+				frm.ut._addingRow = false;
+			}
+		});
+		return false;
+	}
 
+	/* Fallback: core addRow appends + full rowData replace (blinks). */
+	state._addingRow = true;
+	growTimesheetTableForNewRow(frm);
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => afterAddTimesheetRow(frm, id));
+	});
 	return row;
+}
+
+function afterAddTimesheetRow(frm, id) {
+	const table = frm.ut?.table;
+	if (!table) {
+		if (frm.ut) {
+			frm.ut._addingRow = false;
+		}
+		return;
+	}
+	if (moveRowBeforeLeaves(table.sourceData, id) && table.api?.applyTransaction) {
+		const idx = table.sourceData.findIndex((r) => String(r?.id) === String(id));
+		const row = idx >= 0 ? table.sourceData[idx] : null;
+		if (row) {
+			table.api.applyTransaction({
+				remove: [row],
+				add: [row],
+				addIndex: idx,
+			});
+			syncTableSource(frm, table.sourceData);
+		}
+	}
+	if (table.toggleRowCheck) {
+		table.toggleRowCheck(id, false);
+	} else if (table.setCheckedRowIds && table.getCheckedRowIds) {
+		table.setCheckedRowIds(
+			table.getCheckedRowIds().filter((x) => String(x) !== String(id))
+		);
+	}
+	const rows = Array.isArray(table.sourceData) ? table.sourceData : frm.ut.rows || [];
+	frm.ut.rows = rows;
+	syncTableSource(frm, rows);
+	fitTimesheetTable(frm);
+	frm.dirty();
+	syncStartButtonState(frm);
+	focusNewRowProject(frm, id);
+	requestAnimationFrame(() => {
+		if (frm.ut) {
+			frm.ut._addingRow = false;
+		}
+	});
 }
 
 export function onValidateDeleteTimesheetRows(frm, ctx) {
@@ -216,6 +312,7 @@ export function onDeleteTimesheetRows(frm, ctx) {
 	);
 	syncRowsFromTable(frm);
 	scheduleRefreshLimits(frm);
+	scheduleFitTimesheetTable(frm);
 	frm.dirty();
 	syncStartButtonState(frm);
 }

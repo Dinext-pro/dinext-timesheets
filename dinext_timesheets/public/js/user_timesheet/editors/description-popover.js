@@ -59,10 +59,57 @@ function focusColId(column) {
 /** Live focused day cell — AG Grid marks it with .ag-cell-focus after navigation. */
 function focusedDayCellEl(api) {
 	const gui = api?.getGui?.();
-	if (gui) {
-		return gui.querySelector(".ag-cell-focus");
+	const root = gui || document.querySelector(".user-timesheet-table");
+	if (!root) {
+		return null;
 	}
-	return document.querySelector(".user-timesheet-table .ag-cell-focus");
+	const summaryFocus = root.querySelector(
+		".dinext-table-row--summary .ag-cell-focus, .ag-floating-bottom .ag-cell-focus, .ag-pinned-left-floating-bottom .ag-cell-focus, .ag-pinned-right-floating-bottom .ag-cell-focus"
+	);
+	if (summaryFocus) {
+		return summaryFocus;
+	}
+	return root.querySelector(".ag-cell-focus");
+}
+
+function resolveFocusNode(api, event) {
+	if (event?.node?.data) {
+		return event.node;
+	}
+	if (event?.rowPinned === "bottom") {
+		return api.getPinnedBottomRow?.(event.rowIndex) || null;
+	}
+	if (event?.rowPinned === "top") {
+		return api.getPinnedTopRow?.(event.rowIndex) || null;
+	}
+	return api.getDisplayedRowAtIndex?.(event.rowIndex) || null;
+}
+
+/** Pinned summary reports rowIndex 0 — same as first body row. */
+function isSummaryFocus(event, node, row, cellEl) {
+	if (event?.rowPinned === "bottom" || event?.rowPinned === "top") {
+		return true;
+	}
+	if (node?.rowPinned === "bottom" || node?.rowPinned === "top") {
+		return true;
+	}
+	if (event?.node?.rowPinned === "bottom" || event?.node?.rowPinned === "top") {
+		return true;
+	}
+	if (row?.id === "ut_day_totals") {
+		return true;
+	}
+	if (row?._section === "summary" || row?.section === "summary") {
+		return true;
+	}
+	if (
+		cellEl?.closest?.(
+			".dinext-table-row--summary, .ag-floating-bottom, .ag-pinned-left-floating-bottom, .ag-pinned-right-floating-bottom"
+		)
+	) {
+		return true;
+	}
+	return false;
 }
 
 function resolveAnchorEl(api, anchor) {
@@ -335,6 +382,14 @@ export function handleDayDescrCellFocused(frm, event) {
 		return;
 	}
 
+	const node = resolveFocusNode(api, event);
+	const row = node?.data;
+	const cellEl = focusedDayCellEl(api);
+	if (isSummaryFocus(event, node, row, cellEl)) {
+		closeDescriptionPopover();
+		return;
+	}
+
 	const field = focusColId(event.column);
 	if (!field.startsWith("day_")) {
 		if (!$(document.activeElement).closest(POPOVER_SEL).length) {
@@ -343,25 +398,21 @@ export function handleDayDescrCellFocused(frm, event) {
 		return;
 	}
 
-	const node = api.getDisplayedRowAtIndex?.(event.rowIndex);
-	const row = node?.data;
 	if (!row || row.rowType !== "position") {
 		closeDescriptionPopover();
 		return;
 	}
 
-	openDescriptionPopover(
-		frm,
-		row,
-		field.slice("day_".length),
-		focusedDayCellEl(api)
-	);
+	openDescriptionPopover(frm, row, field.slice("day_".length), cellEl);
 }
 
 /** Alt+↓ / F2 on day cell → focus comment textarea. */
 export function handleDayDescrKeyDown(frm, event) {
 	const field = event?.colDef?.field || event?.column?.getColId?.() || "";
 	if (!field.startsWith("day_")) {
+		return;
+	}
+	if (isSummaryFocus(event, event.node, event.data, event.eGridCell)) {
 		return;
 	}
 	const dom = event.event;

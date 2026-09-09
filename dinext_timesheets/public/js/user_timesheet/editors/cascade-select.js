@@ -1,6 +1,6 @@
 /**
- * Inline Frappe Select: Project → Task → Role.
- * UI = custom select; data commit = DinextTable.commitCellChanges (undo/redo).
+ * Project → Task → Role as AG in-cell editor (Frappe Select).
+ * Core owns click / arrows / Enter / F2. Auto-open next list only after commit.
  */
 import { canEdit } from "../model.js";
 import {
@@ -18,6 +18,11 @@ export const FIELD_TASK = "document_label";
 export const FIELD_ROLE = "project_role";
 
 const CASCADE_FIELDS = [FIELD_PROJECT, FIELD_TASK, FIELD_ROLE];
+
+/** True while cascade editor GUI is mounted — skip refresh/fit that would unmount it. */
+export function isCascadeSelectOpen() {
+	return !!document.querySelector(".user-timesheet-table .ut-select-edit");
+}
 
 /** Row fields touched by cascade (display + ids). */
 export const CASCADE_DATA_FIELDS = [
@@ -95,17 +100,6 @@ function commitCascadePatch(frm, params, patch) {
 	return applied > 0;
 }
 
-function queryCell(api, rowIndex, field) {
-	const root =
-		api?.getGridElement?.() ||
-		document.querySelector(".user-timesheet-table");
-	if (!root || rowIndex == null) {
-		return null;
-	}
-	const col = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(field) : field;
-	return root.querySelector(`.ag-row[row-index="${rowIndex}"] .ag-cell[col-id="${col}"]`);
-}
-
 function showNativeList(selectEl) {
 	if (!selectEl || selectEl.tagName !== "SELECT") {
 		return;
@@ -160,32 +154,46 @@ function buildTaskPatch(frm, row, task) {
 	return patch;
 }
 
-/** Build options + display + commit for one cascade field. */
+function scheduleStartEdit(api, rowIndex, field) {
+	if (!api || rowIndex == null || !field) {
+		return;
+	}
+	/* After current editor teardown; timeout keeps change-gesture closer than rAF. */
+	setTimeout(() => {
+		api.ensureColumnVisible?.(field);
+		api.setFocusedCell?.(rowIndex, field);
+		api.startEditingCell?.({ rowIndex, colKey: field });
+	}, 0);
+}
+
+/** Build options + display + commit. onCommit returns next field or null. */
 function resolveField(frm, row, params, field) {
 	if (field === FIELD_PROJECT) {
 		const projects = projectOptionsForRow(frm, row);
 		const mapped = buildProjectSelectOptions(projects);
 		const current = mapped.find((m) => m.project.name === row.project);
 		return {
-			options: mapped.map((m) => m.option),
-			displayValue: current?.option || row.project_label || "",
+			options: mapped.map((m) => ({
+				value: m.value,
+				label: m.option,
+			})),
+			displayValue: current?.value || row.project || "",
 			onCommit: (next) => {
 				const project = resolveProjectOption(projects, next);
 				if (!project) {
 					frappe.msgprint(__("Проект не найден"));
 					refreshCells(params, [FIELD_PROJECT]);
-					return;
+					return null;
 				}
 				const patch = buildProjectPatch(project);
 				if (!commitCascadePatch(frm, params, patch)) {
 					refreshCells(params, [FIELD_PROJECT, FIELD_TASK, FIELD_ROLE]);
-					return;
+					return null;
 				}
-				openCascadeSelect(frm, {
-					params,
-					field: patch.document_name ? FIELD_ROLE : FIELD_TASK,
-					openList: !patch.document_name || !patch.project_role,
-				});
+				if (patch.document_name && patch.project_role) {
+					return null;
+				}
+				return patch.document_name ? FIELD_ROLE : FIELD_TASK;
 			},
 		};
 	}
@@ -205,18 +213,17 @@ function resolveField(frm, row, params, field) {
 				if (!task) {
 					frappe.msgprint(__("Задача не найдена"));
 					refreshCells(params, [FIELD_TASK]);
-					return;
+					return null;
 				}
 				const patch = buildTaskPatch(frm, row, task);
 				if (!commitCascadePatch(frm, params, patch)) {
 					refreshCells(params, [FIELD_TASK, FIELD_ROLE]);
-					return;
+					return null;
 				}
-				openCascadeSelect(frm, {
-					params,
-					field: FIELD_ROLE,
-					openList: !(patch.project_role || row.project_role),
-				});
+				if (patch.project_role || row.project_role) {
+					return null;
+				}
+				return FIELD_ROLE;
 			},
 		};
 	}
@@ -232,113 +239,187 @@ function resolveField(frm, row, params, field) {
 			if (!commitCascadePatch(frm, params, { project_role: next })) {
 				refreshCells(params, [FIELD_ROLE]);
 			}
+			return null;
 		},
 	};
-}
-
-function mountSelect(frm, wrap, row, params, field, { openList: shouldOpenList, deferActivate }) {
-	if (wrap.querySelector(".ut-select-edit")) {
-		return;
-	}
-	const spec = resolveField(frm, row, params, field);
-	if (spec.needProject) {
-		frappe.show_alert({
-			message: __("Сначала выберите проект"),
-			indicator: "orange",
-		});
-		openCascadeSelect(frm, { params, field: FIELD_PROJECT, openList: true });
-		return;
-	}
-	if (!spec.options?.length) {
-		frappe.show_alert({
-			message: __("Нет доступных вариантов"),
-			indicator: "orange",
-		});
-		return;
-	}
-
-	const oldValue = spec.displayValue || "";
-	wrap.classList.add("ut-select-cell--editing");
-	wrap.replaceChildren();
-	const host = document.createElement("div");
-	host.className = "ut-select-edit";
-	wrap.appendChild(host);
-
-	let finished = false;
-	let blurArmed = !deferActivate;
-
-	const finish = async (commit) => {
-		if (finished) {
-			return;
-		}
-		finished = true;
-		const control = host._control;
-		const next = control ? control.get_value() : oldValue;
-		if (commit && next != null && String(next) !== String(oldValue)) {
-			await spec.onCommit(String(next));
-		} else {
-			refreshCells(params, [field]);
-		}
-		host._control = null;
-	};
-
-	const control = frappe.ui.form.make_control({
-		parent: $(host),
-		only_input: true,
-		df: {
-			fieldname: field,
-			fieldtype: "Select",
-			label: "",
-			options: spec.options.join("\n"),
-		},
-		render_input: true,
-	});
-	host._control = control;
-	if (oldValue) {
-		control.set_value(oldValue);
-	}
-	control.$wrapper?.addClass?.("ut-select-control");
-	control.$wrapper?.find?.(".control-label, .help-box, .clearfix")?.hide?.();
-
-	const selectEl = control.$input?.get?.(0);
-	const activate = () => {
-		if (finished) {
-			return;
-		}
-		blurArmed = true;
-		selectEl?.focus?.({ preventScroll: true });
-		if (shouldOpenList) {
-			showNativeList(selectEl);
-		}
-	};
-	if (deferActivate) {
-		setTimeout(activate, 0);
-	} else {
-		activate();
-	}
-
-	control.$input?.on?.("change", () => void finish(true));
-	control.$input?.on?.("keydown", (ev) => {
-		if (ev.key === "Escape") {
-			ev.preventDefault();
-			ev.stopPropagation();
-			void finish(false);
-		} else if (ev.key === "ArrowDown" && ev.altKey) {
-			ev.preventDefault();
-			ev.stopPropagation();
-			showNativeList(selectEl);
-		}
-	});
-	control.$input?.on?.("blur", () => {
-		setTimeout(() => {
-			if (blurArmed) {
-				void finish(false);
-			}
-		}, 150);
-	});
 }
 
 /**
+ * AG Grid in-cell editor. Core starts it (2nd click / Enter / F2 / startEditingCell).
+ * Domain commit stays on commitCellChanges. AG write cancelled (display ≠ option key).
+ */
+export class CascadeSelectCellEditor {
+	init(params) {
+		this.params = params;
+		this.frm = params.colDef?.cellEditorParams?.frm;
+		this.field = params.colDef?.field;
+		this._stopped = false;
+		this._nextField = null;
+		this._abort = false;
+		this._needProject = false;
+		this._empty = false;
+
+		this.host = document.createElement("div");
+		this.host.className = "ut-select-edit";
+
+		const row = params.node?.data || params.data;
+		if (!this.frm || !canEdit(this.frm) || !CASCADE_FIELDS.includes(this.field)) {
+			this._abort = true;
+			return;
+		}
+		if (!row || row.rowType !== "position") {
+			this._abort = true;
+			return;
+		}
+		if (!ensureCatalog(this.frm)) {
+			this._abort = true;
+			return;
+		}
+
+		const spec = resolveField(this.frm, row, params, this.field);
+		if (spec.needProject) {
+			this._needProject = true;
+			return;
+		}
+		if (!spec.options?.length) {
+			this._empty = true;
+			return;
+		}
+
+		this._mountControl(spec);
+	}
+
+	_mountControl(spec) {
+		const oldValue = spec.displayValue || "";
+		const structured = spec.options.some((o) => o && typeof o === "object");
+		const control = frappe.ui.form.make_control({
+			parent: $(this.host),
+			only_input: true,
+			df: {
+				fieldname: this.field,
+				fieldtype: "Select",
+				label: "",
+				options: structured ? spec.options : spec.options.join("\n"),
+			},
+			render_input: true,
+		});
+		this._control = control;
+		if (oldValue) {
+			control.set_value(oldValue);
+		}
+		control.$wrapper?.addClass?.("ut-select-control");
+		control.$wrapper?.find?.(".control-label, .help-box, .clearfix")?.hide?.();
+
+		const selectEl = control.$input?.get?.(0);
+		this._selectEl = selectEl;
+
+		control.$input?.on?.("change", () => {
+			if (this._stopped) {
+				return;
+			}
+			const next = control.get_value();
+			if (next != null && String(next) !== String(oldValue)) {
+				this._nextField = spec.onCommit(String(next));
+			}
+			this.stopEditing();
+		});
+		control.$input?.on?.("keydown", (ev) => {
+			if (ev.key === "Escape") {
+				ev.preventDefault();
+				ev.stopPropagation();
+				this.stopEditing();
+			} else if (ev.key === "ArrowDown" && ev.altKey) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				showNativeList(selectEl);
+			}
+		});
+	}
+
+	getGui() {
+		return this.host;
+	}
+
+	afterGuiAttached() {
+		if (this._abort) {
+			this.params?.stopEditing?.(true);
+			return;
+		}
+		if (this._needProject) {
+			frappe.show_alert({
+				message: __("Сначала выберите проект"),
+				indicator: "orange",
+			});
+			const api = this.params?.api;
+			const rowIndex = this.params?.node?.rowIndex;
+			this.params?.stopEditing?.(true);
+			scheduleStartEdit(api, rowIndex, FIELD_PROJECT);
+			return;
+		}
+		if (this._empty) {
+			frappe.show_alert({
+				message: __("Нет доступных вариантов"),
+				indicator: "orange",
+			});
+			this.params?.stopEditing?.(true);
+			return;
+		}
+		/* Defer picker: same-tick mount + showPicker can blur-close (core focus). */
+		setTimeout(() => {
+			if (this._stopped) {
+				return;
+			}
+			showNativeList(this._selectEl);
+		}, 0);
+	}
+
+	focusIn() {
+		this._selectEl?.focus?.({ preventScroll: true });
+	}
+
+	getValue() {
+		return this.params?.value;
+	}
+
+	isCancelAfterEnd() {
+		return true;
+	}
+
+	stopEditing() {
+		if (this._stopped) {
+			return;
+		}
+		this._stopped = true;
+		const api = this.params?.api;
+		const rowIndex = this.params?.node?.rowIndex;
+		const nextField = this._nextField;
+		this.params?.stopEditing?.(true);
+		if (nextField) {
+			scheduleStartEdit(api, rowIndex, nextField);
+		}
+	}
+
+	destroy() {
+		this._control = null;
+		this._selectEl = null;
+		this.host = null;
+		this.params = null;
+		this.frm = null;
+	}
+}
+
+/** Second click (click-when-active) → core startEditingCell. */
+export function onCascadeActiveClickEdit(event) {
+	const field = event?.colDef?.field || event?.column?.getColId?.();
+	const rowIndex = event?.node?.rowIndex;
+	if (rowIndex == null || !CASCADE_FIELDS.includes(field)) {
+		return;
+	}
+	event.api?.startEditingCell?.({ rowIndex, colKey: field });
+}
+
+/**
+ * Programmatic open (add-row, post-commit). `openList: false` = focus only.
  * @param {{
  *   frm: object,
  *   params: object,
@@ -366,47 +447,15 @@ export function openCascadeSelect(
 
 	api.ensureColumnVisible?.(field);
 	api.setFocusedCell?.(rowNode.rowIndex, field);
-
-	const tryMount = () => {
-		const cell = queryCell(api, rowNode.rowIndex, field);
-		const wrap = cell?.querySelector?.(".ut-select-cell");
-		if (!wrap) {
-			return false;
-		}
-		const liveRow = rowNode.data || row;
-		mountSelect(frm, wrap, liveRow, { ...params, eGridCell: cell, data: liveRow, node: rowNode }, field, {
-			openList,
-			deferActivate,
-		});
-		return true;
+	if (!openList) {
+		return;
+	}
+	const start = () => {
+		api.startEditingCell?.({ rowIndex: rowNode.rowIndex, colKey: field });
 	};
-
-	if (!tryMount()) {
-		requestAnimationFrame(() => tryMount());
+	if (deferActivate) {
+		setTimeout(start, 0);
+	} else {
+		start();
 	}
-}
-
-/** Enter / F2 / Space / Alt+↓ on focused cascade cell. */
-export function handleCascadeCellKeyDown(frm, event) {
-	const dom = event?.event;
-	const key = dom?.key;
-	const field = event.colDef?.field || event.column?.getColId?.();
-	if (!key || !CASCADE_FIELDS.includes(field)) {
-		return;
-	}
-	if (dom.target?.closest?.(".ut-select-edit")) {
-		return;
-	}
-	if (
-		key !== "Enter" &&
-		key !== "F2" &&
-		key !== " " &&
-		!(key === "ArrowDown" && dom.altKey)
-	) {
-		return;
-	}
-
-	dom.preventDefault?.();
-	dom.stopPropagation?.();
-	openCascadeSelect(frm, { params: event, field, openList: true });
 }

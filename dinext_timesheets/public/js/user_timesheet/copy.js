@@ -117,7 +117,7 @@ async function applyCopiedPositions(frm, positions) {
 		frm.ts_positions.push(row);
 		added.push(row);
 	}
-	await loadTitles(added);
+	await loadTitles(added, frm);
 	refreshRows(frm);
 	scheduleRefreshLimits(frm);
 	frm.dirty();

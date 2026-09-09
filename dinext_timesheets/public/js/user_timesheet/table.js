@@ -13,7 +13,7 @@ import { showTaskPlanFact } from "./limits.js";
 import {
 	FIELD_PROJECT,
 	FIELD_TASK,
-	handleCascadeCellKeyDown,
+	isCascadeSelectOpen,
 } from "./editors/cascade-select.js";
 import { layoutCascadeColumns } from "./column-layout.js";
 import {
@@ -23,6 +23,7 @@ import {
 	onDeleteTimesheetRows,
 	onValidateDeleteTimesheetRows,
 } from "./toolbar.js";
+import { bindTimesheetTableFit, scheduleFitTimesheetTable } from "./fit.js";
 
 let _layoutTimer = null;
 function scheduleCascadeLayout(frm) {
@@ -132,19 +133,22 @@ function buildTableOptions(frm, state) {
 		selection: { enabled: true },
 		clipboard: { enabled: editable },
 		fillHandle: { enabled: editable },
-		rowReorder: { enabled: true },
+		rowReorder: { enabled: true, width: 22 },
+		canReorderRow: (ctx) => ctx?.row?.rowType === "position",
 		rowCheck: {
 			enabled: editable,
 			unit: "row",
 			selectAll: true,
+			checkNewRow: false,
+			width: 26,
 		},
+		filter: { enabled: false },
 		toolbar: {
 			enabled: true,
 			defaultPinned: true,
+			lockPinned: true,
 			persistKey: `user-timesheet:${frm.doc?.name || "new"}`,
-			presets: editable
-				? ["history", "rows", "fullscreen"]
-				: ["history", "fullscreen"],
+			presets: editable ? ["history", "rows"] : ["history"],
 		},
 		navigation: {
 			enabled: editable,
@@ -174,13 +178,18 @@ function buildTableOptions(frm, state) {
 			getRowClass,
 			/* Domain callbacks chain with selection/clipboard/fillHandle (mergeGridOptions). */
 			onCellKeyDown: (event) => {
-				handleCascadeCellKeyDown(frm, event);
 				handleDayDescrKeyDown(frm, event);
 			},
 			/* demodev hours focus → companion; covers mouse + keyboard (no separate onCellClicked). */
 			onCellFocused: (event) => handleDayDescrCellFocused(frm, event),
 			onBodyScroll: () => closeDescriptionPopoverOnScroll(),
-			onGridSizeChanged: () => scheduleCascadeLayout(frm),
+			onGridSizeChanged: () => {
+				if (frm.ut?._addingRow || isCascadeSelectOpen()) {
+					return;
+				}
+				scheduleCascadeLayout(frm);
+				scheduleFitTimesheetTable(frm);
+			},
 		},
 	};
 
@@ -216,9 +225,10 @@ export async function initTable(frm) {
 			state.columns = getColumns(frm);
 			const table = await DinextTable.create(buildTableOptions(frm, state));
 			state.table = table;
+			bindTimesheetTableFit(frm);
 			requestAnimationFrame(() => {
 				layoutCascadeColumns(frm);
-				window.dispatchEvent(new Event("resize"));
+				scheduleFitTimesheetTable(frm);
 			});
 			return table;
 		} finally {
@@ -250,6 +260,7 @@ export async function refreshRuntime(frm) {
 	state.table.setSummaryRows?.(state.summaryRows || []);
 	state.table.refresh?.(state.rows);
 	scheduleCascadeLayout(frm);
+	scheduleFitTimesheetTable(frm);
 }
 
 export { reloadTable };

@@ -2,6 +2,7 @@
  * Plan/fact limits (demodev Check Limits_V2 + Show Plan-Actual Data_V2).
  * Single path: PWA whitelist only. No SS / bare-method fallback.
  */
+import { isCascadeSelectOpen } from "./editors/cascade-select.js";
 const LIMITS_METHOD =
 	"project_workload_assignment.api.calculate_user_timesheet_limits";
 
@@ -127,8 +128,8 @@ export async function checkPlannedHoursAndLimits(frm) {
 }
 
 /**
- * demodev apply_limit_styles: write status/tooltip onto rows, force AG Grid redraw.
- * Same rowData ref is ignored by AG Grid — replace rows + refreshCells/redrawRows.
+ * Write status/tooltip onto existing row objects. No table.refresh —
+ * a full rowData replace remounts cascade editors and flashes cells.
  */
 export function applyLimitStyles(frm, results) {
 	const byPos = {};
@@ -137,31 +138,42 @@ export function applyLimitStyles(frm, results) {
 	});
 	frm.ut.limitResults = byPos;
 
-	const nextRows = (frm.ut.rows || []).map((row) => {
+	const api = frm.ut.table?.api;
+	const changedNodes = [];
+	for (const row of frm.ut.rows || []) {
 		if (row.rowType !== "position") {
-			return row;
+			continue;
 		}
 		const r = byPos[String(row.id)];
-		return {
-			...row,
-			limit_status: r?.status || "",
-			limit_icon: r?.status || "",
-			limit_tooltip: limitTooltipForResult(r),
-		};
-	});
-	frm.ut.rows = nextRows;
+		const nextStatus = r?.status || "";
+		const nextTooltip = limitTooltipForResult(r);
+		const changed =
+			row.limit_status !== nextStatus ||
+			row.limit_icon !== nextStatus ||
+			row.limit_tooltip !== nextTooltip;
+		row.limit_status = nextStatus;
+		row.limit_icon = nextStatus;
+		row.limit_tooltip = nextTooltip;
+		if (!changed) {
+			continue;
+		}
+		const node = api?.getRowNode?.(String(row.id));
+		if (node) {
+			changedNodes.push(node);
+		}
+	}
 
-	const table = frm.ut.table;
-	if (!table) {
+	if (!api) {
 		return;
 	}
-	table.refresh?.(nextRows);
-	const api = table.api;
-	if (api?.refreshCells) {
-		api.refreshCells({ columns: ["limit_icon"], force: true });
-	}
-	if (api?.redrawRows) {
-		api.redrawRows();
+	api.refreshCells?.({
+		rowNodes: changedNodes.length ? changedNodes : undefined,
+		columns: ["limit_icon"],
+		force: true,
+	});
+	/* redrawRows remounts the whole row — skip while cascade <select> is open. */
+	if (!isCascadeSelectOpen() && changedNodes.length && api.redrawRows) {
+		api.redrawRows({ rowNodes: changedNodes });
 	}
 }
 
@@ -184,6 +196,10 @@ export function scheduleRefreshLimits(frm, delayMs = 400) {
 	}
 	frm.ut._limitsTimer = setTimeout(() => {
 		frm.ut._limitsTimer = null;
+		if (isCascadeSelectOpen()) {
+			scheduleRefreshLimits(frm, delayMs);
+			return;
+		}
 		refreshLimits(frm).catch((err) => {
 			console.error("[UserTimesheet] scheduleRefreshLimits", err);
 		});

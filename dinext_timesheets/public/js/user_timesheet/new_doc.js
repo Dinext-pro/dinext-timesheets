@@ -47,6 +47,17 @@ function applyTemplatePeriod(frm, templateDoc) {
 	}
 }
 
+/** Prefill owner on new form so validate does not fail on empty timesheet_from. */
+export function applyNewTimesheetDefaults(frm) {
+	if (!frm || !(frm.is_new() || frm.doc?.__islocal)) {
+		return;
+	}
+	if (frm.doc.timesheet_from) {
+		return;
+	}
+	frm.set_value("timesheet_from", frappe.session.user);
+}
+
 /**
  * @returns {Promise<boolean>} true if validate may continue
  */

@@ -38,6 +38,9 @@ frappe.require(
 
 frappe.ui.form.on("User Timesheet", {
 	refresh(frm) {
+		if ((frm.is_new() || frm.doc?.__islocal) && !frm.doc.timesheet_from) {
+			frm.set_value("timesheet_from", frappe.session.user);
+		}
 		if (window.UserTimesheet?.ensureMounted) {
 			loadAndMount(frm);
 			return;

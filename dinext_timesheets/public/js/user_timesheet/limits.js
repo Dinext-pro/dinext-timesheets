@@ -207,15 +207,23 @@ function getCompletionTableHtml(result) {
 			: 0;
 	const rows = [];
 	for (const key in result.hours_data || {}) {
-		if (key === "users") {
+		if (key === "users" || key === "user_hours") {
+			continue;
+		}
+		const raw = result.hours_data[key];
+		if (raw != null && typeof raw === "object") {
+			continue;
+		}
+		const hours = Number.parseFloat(raw);
+		if (!Number.isFinite(hours)) {
 			continue;
 		}
 		rows.push({
 			status: key === "total" ? __("Всего") : key,
 			isTotal: key === "total",
 			plan: Number.parseFloat(result.planned_hours).toFixed(1),
-			fact: `${Number.parseFloat(result.hours_data[key]).toFixed(1)} ч.`,
-			percent: calculatePercentage(result.hours_data[key]),
+			fact: `${hours.toFixed(1)} ч.`,
+			percent: calculatePercentage(hours),
 		});
 	}
 	return `
@@ -277,13 +285,71 @@ function getHoursNoteHtml(result) {
 	return __("Фактические данные: только текущая задача");
 }
 
-function getParentTaskInfoHtml(result) {
-	if (result.planned_hours > 0) {
-		return `<div class="hours-note">${__(
-			"Плановые данные определены на уровне:"
-		)} ${frappe.utils.escape_html(result.plan_task_subject || "")}</div>`;
+function getCurrentUserHoursHtml(result, frm) {
+	const ownerFullName = frm.doc.timesheet_from_name;
+	if (!ownerFullName) {
+		return "";
 	}
-	return "";
+	const ownerHoursByStatus = result.hours_data?.user_hours?.[ownerFullName] || {};
+	let totalOwnerHours = 0;
+	for (const status in ownerHoursByStatus) {
+		if (typeof ownerHoursByStatus[status] !== "number") {
+			continue;
+		}
+		totalOwnerHours += ownerHoursByStatus[status];
+	}
+	if (totalOwnerHours === 0) {
+		return "";
+	}
+	const percentage =
+		result.planned_hours > 0
+			? Math.round((totalOwnerHours / result.planned_hours) * 100)
+			: 0;
+	const statuses = Object.keys(ownerHoursByStatus);
+	let statusBreakdown = "";
+	if (statuses.length > 1) {
+		statusBreakdown = `<br><small style="color: #6c757d;">${statuses
+			.map(
+				(status) =>
+					`${frappe.utils.escape_html(status)}: ${ownerHoursByStatus[status].toFixed(2)} ${__("ч.")}`
+			)
+			.join(" | ")}</small>`;
+	} else if (statuses.length === 1) {
+		statusBreakdown = `<br><small style="color: #6c757d;">${__("Статус")}: ${frappe.utils.escape_html(
+			statuses[0]
+		)}</small>`;
+	}
+	return `
+		<div style="margin: 15px 0; padding: 8px 10px; background-color: #f0f7ff; border-radius: 4px; border-left: 4px solid #007bff;">
+			<strong>${frappe.utils.escape_html(ownerFullName)}:</strong>
+			<span style="font-size: 16px; font-weight: bold; color: #007bff;">${totalOwnerHours.toFixed(2)} ${__("ч.")}</span>
+			${
+				result.planned_hours > 0
+					? `<span style="color: #6c757d;"> (${percentage}% ${__("от плана")})</span>`
+					: ""
+			}
+			${statusBreakdown}
+		</div>`;
+}
+
+function getParentTaskInfoHtml(result) {
+	if (result.planned_hours <= 0) {
+		return "";
+	}
+	let html = `<div class="hours-note">${__(
+		"Плановые данные определены на уровне:"
+	)} ${frappe.utils.escape_html(result.plan_task_subject || "")}</div>`;
+	const sources = result.plan_sources || [];
+	if (sources.length) {
+		html += `<div class="hours-note">${__("Источники плана:")}<ul>`;
+		for (const source of sources) {
+			html += `<li>${frappe.utils.escape_html(source.subject || "")} (${frappe.utils.escape_html(
+				source.task_name || ""
+			)}): ${source.planned_hours} ${__("ч.")}</li>`;
+		}
+		html += `</ul></div>`;
+	}
+	return html;
 }
 
 /** Plan/fact modal for a position row (demodev showTaskPlanFact). */
@@ -321,6 +387,7 @@ export async function showTaskPlanFact(frm, position) {
 			: "") +
 		getCompletionTableHtml(result) +
 		getHoursNoteHtml(result) +
+		getCurrentUserHoursHtml(result, frm) +
 		getHoursUsers(result, frm) +
 		getParentTaskInfoHtml(result);
 	d.fields_dict.body.$wrapper.html(html);

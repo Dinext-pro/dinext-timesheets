@@ -202,9 +202,18 @@ function handleCopyRequest(frm, methodName, validTasks) {
 }
 
 export function disableCopyButtons(frm) {
-	const group = copyGroupLabel();
-	frm.remove_custom_button(__("Позиции из предыдущего ТШ"), group);
-	frm.remove_custom_button(__("Данные из плановой загрузки"), group);
+	const prevLabel = __("Позиции из предыдущего ТШ");
+	const pwaLabel = __("Данные из плановой загрузки");
+	// Group label has an icon; remove_custom_button(label, group) misses it.
+	frm.remove_custom_button(prevLabel);
+	frm.remove_custom_button(pwaLabel);
+	const $menu = frm.page?.inner_toolbar?.find(".inner-group-button .dropdown-menu");
+	if ($menu?.length) {
+		$menu.find("li, a").filter((_, el) => {
+			const text = (el.textContent || "").trim();
+			return text === prevLabel || text === pwaLabel;
+		}).remove();
+	}
 }
 
 /** Form custom buttons in group «Скопировать». */

@@ -1,7 +1,6 @@
 import { canEdit, dayField, isHoliday } from "./model.js";
 import { limitIconColor, showTaskPlanFact } from "./limits.js";
 import { FIELD_PROJECT, FIELD_ROLE, FIELD_TASK } from "./editors/cascade-commit.js";
-import { PickerCellEditor, onPickerActiveClick } from "./editors/cascade-select.js";
 import { roleOptionsForRow } from "./catalog.js";
 import { getCascadeColDefWidth } from "./column-layout.js";
 import { invalidCellClassRules } from "./invalid-cells.js";
@@ -49,16 +48,10 @@ function markSelectCellEditable(frm, wrap, row) {
 	wrap.classList.add("ut-select-cell--editable");
 }
 
-function pickerColDef(frm, editable) {
-	return {
-		edit: (row) => editable && row?.rowType === "position",
-		suppressClickEdit: true,
-		suppressDoubleClickEdit: true,
-		onActiveClickEdit: onPickerActiveClick,
-		cellEditor: PickerCellEditor,
-		cellEditorParams: { frm },
-	};
-}
+const PICKER_COL_DEF = {
+	edit: false,
+	suppressFillHandle: true,
+};
 
 function projectSelectRenderer(frm) {
 	return function (params) {
@@ -112,7 +105,6 @@ export function getColumns(frm) {
 
 	const saved = frm.ut?._cascadeColWidths || {};
 	const invalidRules = invalidCellClassRules(frm);
-	const pickerEdit = pickerColDef(frm, editable);
 
 	/** @type {import("dinext_common/table").DinextTableColumn[]} */
 	const cols = [
@@ -122,7 +114,7 @@ export function getColumns(frm) {
 			pinned: "left",
 			width: saved[FIELD_PROJECT] || getCascadeColDefWidth(FIELD_PROJECT),
 			minWidth: getCascadeColDefWidth(FIELD_PROJECT),
-			...pickerEdit,
+			...PICKER_COL_DEF,
 			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
 			cellRenderer: projectSelectRenderer(frm),
@@ -133,7 +125,7 @@ export function getColumns(frm) {
 			pinned: "left",
 			width: saved[FIELD_TASK] || getCascadeColDefWidth(FIELD_TASK),
 			minWidth: getCascadeColDefWidth(FIELD_TASK),
-			...pickerEdit,
+			...PICKER_COL_DEF,
 			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
 			cellRenderer: taskSelectRenderer(frm),

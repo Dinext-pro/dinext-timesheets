@@ -367,6 +367,11 @@ body.ut-hide-desk-sidebar .form-dashboard .form-links,
 	cursor: pointer;
 }
 
+.user-timesheet-table .ag-cell[col-id="project_label"] .dinext-table-fill-handle,
+.user-timesheet-table .ag-cell[col-id="document_label"] .dinext-table-fill-handle {
+	display: none !important;
+}
+
 /* Client → Project → Task picker */
 .ut-task-picker {
 	--ut-picker-shadow: var(--shadow-md, 0 12px 32px rgba(0, 0, 0, 0.28));

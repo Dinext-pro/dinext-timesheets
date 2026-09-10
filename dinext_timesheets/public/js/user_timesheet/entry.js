@@ -21,18 +21,6 @@ async function loadAndMount(frm) {
 }
 
 document.body.classList.add("ut-hide-desk-sidebar");
-if (!window._utSidebarRouteBound) {
-	window._utSidebarRouteBound = true;
-	frappe.router.on("change", () => {
-		const route = frappe.get_route() || [];
-		const ut =
-			(route[0] === "Form" || route[0] === "List") &&
-			route[1] === "User Timesheet";
-		if (!ut) {
-			document.body.classList.remove("ut-hide-desk-sidebar");
-		}
-	});
-}
 
 frappe.require(
 	[

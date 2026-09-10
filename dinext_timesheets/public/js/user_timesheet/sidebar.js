@@ -18,7 +18,7 @@ function bindRouteLeave() {
 		return;
 	}
 	window._utSidebarRouteBound = true;
-	frappe.router.on("change", () => {
+	$(document).on("page-change.utTimesheetSidebar", () => {
 		if (!isUserTimesheetRoute()) {
 			removeTimesheetSidebarHide();
 		}

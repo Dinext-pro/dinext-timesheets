@@ -11,7 +11,10 @@ import {
 
 import { showTaskPlanFact } from "./limits.js";
 import { FIELD_PROJECT, FIELD_TASK } from "./editors/cascade-commit.js";
-import { cancelPendingPicker } from "./editors/cascade-select.js";
+import {
+	cancelPendingPicker,
+	onPickerCellClicked,
+} from "./editors/cascade-select.js";
 import { closeTaskPicker, isTaskPickerOpen } from "./editors/task-picker-modal.js";
 import { layoutCascadeColumns } from "./column-layout.js";
 import {
@@ -179,6 +182,7 @@ function buildTableOptions(frm, state) {
 			suppressMovableColumns: true,
 			getRowClass,
 			/* Domain callbacks chain with selection/clipboard/fillHandle (mergeGridOptions). */
+			onCellClicked: (event) => onPickerCellClicked(frm, event),
 			onCellKeyDown: (event) => {
 				handleDayDescrKeyDown(frm, event);
 			},

@@ -1,0 +1,30 @@
+.dinext-utp-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--margin-xs);
+	margin-inline-start: auto;
+}
+
+.dinext-utp-actions .indicator-pill {
+	white-space: nowrap;
+}
+
+.dinext-utp-action-select {
+	width: auto;
+	min-width: 10rem;
+}
+
+.dinext-pending-approvers .dinext-approver-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--margin-sm);
+	padding-block: var(--padding-xs);
+	border-bottom: 1px solid var(--border-color);
+}
+
+.dinext-pending-approvers .dinext-approver-row:last-child {
+	border-bottom: 0;
+}

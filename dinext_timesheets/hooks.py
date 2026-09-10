@@ -96,6 +96,7 @@ fixtures = [
                 "User Projects",
                 "Worker",
                 "Working Hours On Date",
+                "Workflow Task",
             ]]
         ]
     },    
@@ -152,9 +153,17 @@ required_apps = ["dinext_common", "dinext_projects", "dinext_projects_pl", "doct
 
 # include js in doctype views
 # User Timesheet UI → public/js/user_timesheet (ISS-2026-00926 try3)
+# Parallel approval scripts load before the modular form (feat/dinext_workflow).
 doctype_js = {
-	"User Timesheet": "public/js/user_timesheet/entry.js",
-	"User Timesheet Position": "public/js/user_timesheet_position/form/route.js",
+	"User Timesheet": [
+		"public/js/user_timesheet_approvals.js",
+		"public/js/user_timesheet_form.js",
+		"public/js/user_timesheet/entry.js",
+	],
+	"User Timesheet Position": [
+		"public/js/user_timesheet_position_form.js",
+		"public/js/user_timesheet_position/form/route.js",
+	],
 }
 doctype_list_js = {
 	"User Timesheet": [
@@ -163,6 +172,7 @@ doctype_list_js = {
 		"public/js/user_timesheet/list/status_color.js",
 	],
 	"User Timesheet Position": [
+		"public/js/user_timesheet_position_list.js",
 		"public/js/user_timesheet_position/list/style.js",
 		"public/js/user_timesheet_position/list/period_filter.js",
 		"public/js/user_timesheet_position/list/functions.js",
@@ -277,14 +287,33 @@ doc_events = {
 		"before_save": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.before_save",
 		# Server Script "After Save" ≡ Document.on_update
 		# Layer 3 ISS-2026-03288: UTP→UT rollup + Task act_* (SS UTP_UT_Status_V3 disabled local)
-		"on_update": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.on_update",
+		"on_update": [
+			"dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.on_update",
+			"dinext_timesheets.workflow_approval.on_utp_update",
+		],
 		"on_trash": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.on_trash",
 	},
 	"Comment": {
 		# Server Script "After Insert" ≡ Document.after_insert
-		"after_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.comment.transfer_utp_comment_to_ut",
+		"after_insert": [
+			"dinext_timesheets.dinext_timesheets.user_timesheet.events.comment.transfer_utp_comment_to_ut",
+			"dinext_timesheets.workflow_approval.mirror_utp_comment",
+		],
 	},
 }
+
+workflow_approval_lock_dependencies = [
+	"dinext_timesheets.workflow_approval.lock_dependencies",
+]
+workflow_approval_pending_approvers = [
+	"dinext_timesheets.workflow_approval.pending_approvers",
+]
+workflow_approval_vote_completed = [
+	"dinext_timesheets.workflow_approval.on_vote_completed",
+]
+workflow_approval_digest_item = [
+	"dinext_timesheets.workflow_approval.digest_item",
+]
 
 # Scheduled Tasks
 # ---------------

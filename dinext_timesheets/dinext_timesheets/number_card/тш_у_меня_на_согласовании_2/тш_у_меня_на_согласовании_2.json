@@ -13,7 +13,7 @@
  "is_public": 1,
  "is_standard": 1,
  "label": "\u0422\u0428 \u0443 \u043c\u0435\u043d\u044f \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438",
- "method": "Get_my_working_WT",
+ "method": "dinext_common.workflow_approval.api.get_legacy_number_card_result",
  "modified": "2026-07-30 02:39:05.159901",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",

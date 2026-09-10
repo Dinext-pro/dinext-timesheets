@@ -2,7 +2,7 @@
  * Table height: hug content when few rows; else fill to viewport bottom.
  * Measure live toolbar/header/summary; grow before add so AG does not flash overflow.
  */
-import { isCascadeSelectOpen } from "./editors/cascade-select.js";
+import { isTaskPickerOpen } from "./editors/task-picker-modal.js";
 
 const ROW_H = 30;
 const HEADER_H = 30;
@@ -93,9 +93,8 @@ export function fitTimesheetTable(frm) {
 		return;
 	}
 
-	/* Skip while cascade <select> is open — height swap can close the picker.
-	   Add-row calls fit once before opening the select. */
-	if (!frm.ut?._addingRow && isCascadeSelectOpen()) {
+	/* Keep the anchored picker stable while it is open. */
+	if (!frm.ut?._addingRow && isTaskPickerOpen()) {
 		el.classList.remove(FITTING_CLASS);
 		return;
 	}

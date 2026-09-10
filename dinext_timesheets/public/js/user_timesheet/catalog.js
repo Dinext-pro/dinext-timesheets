@@ -1,14 +1,7 @@
 /** Customer → project → task catalog from get_timesheet_tasks (remap2). */
 
-const SEP = " · ";
-
 /** Empty Project.customer (0..1 Link) → internal/presale bucket. */
 export const EMPTY_CLIENT = __("Без Клиента");
-
-function safeLevel(level) {
-	const n = cint(level);
-	return Number.isFinite(n) && n > 0 ? n : 0;
-}
 
 function normalizeClient(label) {
 	const s = String(label || "").trim();
@@ -89,117 +82,7 @@ export function findProject(frm, projectName) {
 	return listProjects(frm).find((p) => p.name === projectName) || null;
 }
 
-export function parseOptionName(optionLabel) {
-	if (!optionLabel) {
-		return "";
-	}
-	const idx = String(optionLabel).lastIndexOf(SEP);
-	if (idx >= 0) {
-		return String(optionLabel).slice(idx + SEP.length).trim();
-	}
-	return "";
-}
-
-/**
- * Dropdown label = client/project. Option value = Project.name (unique).
- * Empty customer → Без Клиента (same bucket as prod remap2).
- */
-export function buildProjectSelectOptions(projects) {
-	return projects.map((p) => {
-		const client = p.client || EMPTY_CLIENT;
-		const label = p.project_name || p.name;
-		return {
-			option: `${client}/${label}`,
-			value: p.name,
-			project: p,
-		};
-	});
-}
-
-export function buildTaskSelectOptions(tasks) {
-	const counts = {};
-	for (const t of tasks) {
-		const label = t.subject || t.name;
-		counts[label] = (counts[label] || 0) + 1;
-	}
-	return tasks.map((t) => {
-		const indent = " ".repeat(safeLevel(t.level));
-		const label = t.subject || t.name;
-		const option =
-			counts[label] > 1
-				? `${indent}${label}${SEP}${t.name}`
-				: `${indent}${label}`;
-		return { option, task: t };
-	});
-}
-
-export function resolveProjectOption(projects, selected) {
-	if (!selected) {
-		return null;
-	}
-	const byId = parseOptionName(selected);
-	if (byId) {
-		return projects.find((p) => p.name === byId) || null;
-	}
-	const exactId = projects.find((p) => p.name === selected);
-	if (exactId) {
-		return exactId;
-	}
-	const byLabel = projects.filter(
-		(p) => (p.project_name || p.name) === selected
-	);
-	return byLabel.length === 1 ? byLabel[0] : null;
-}
-
-export function resolveTaskOption(tasks, selected) {
-	if (!selected) {
-		return null;
-	}
-	const byId = parseOptionName(selected);
-	if (byId) {
-		return tasks.find((t) => t.name === byId) || null;
-	}
-	const trimmed = String(selected).trim();
-	const exactId = tasks.find((t) => t.name === trimmed);
-	if (exactId) {
-		return exactId;
-	}
-	const byLabel = tasks.filter((t) => (t.subject || t.name) === trimmed);
-	return byLabel.length === 1 ? byLabel[0] : null;
-}
-
-/** Ensure current row value stays selectable even if not in catalog. */
-export function projectOptionsForRow(frm, row) {
-	const projects = listProjects(frm);
-	if (row?.project && !projects.some((p) => p.name === row.project)) {
-		projects.unshift({
-			name: row.project,
-			project_name: row.project_label || row.project,
-			tasks_issues: [],
-			roles: row.project_role ? [row.project_role] : [],
-			client: EMPTY_CLIENT,
-		});
-	}
-	return projects;
-}
-
-export function taskOptionsForRow(frm, row) {
-	const project = findProject(frm, row?.project);
-	const tasks = [...(project?.tasks_issues || [])];
-	if (
-		row?.document_name &&
-		!tasks.some((t) => t.name === row.document_name)
-	) {
-		tasks.unshift({
-			name: row.document_name,
-			subject: row.document_label || row.document_name,
-			tsdoctype: row.document_type || "Task",
-			level: 0,
-		});
-	}
-	return tasks;
-}
-
+/** Roles for the row project. Keep current value selectable if catalog dropped it. */
 export function roleOptionsForRow(frm, row) {
 	const project = findProject(frm, row?.project);
 	const roles = [...(project?.roles || [])];

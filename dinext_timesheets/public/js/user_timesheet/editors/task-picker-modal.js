@@ -386,9 +386,11 @@ export function openTaskPicker(frm, opts = {}) {
 		});
 	}
 
-	function dismiss() {
+	function dismiss(restoreFocus = true) {
 		closeTaskPicker();
-		restoreGridFocus();
+		if (restoreFocus) {
+			restoreGridFocus();
+		}
 	}
 
 	function caretItem($body) {
@@ -465,7 +467,7 @@ export function openTaskPicker(frm, opts = {}) {
 		paneIdx = 2;
 	});
 	$select.on("click", confirmTask);
-	$cancel.on("click", dismiss);
+	$cancel.on("click", () => dismiss());
 
 	el.addEventListener("keydown", (e) => {
 		const searchEl = taskCol.$search?.get?.(0);
@@ -552,7 +554,7 @@ export function openTaskPicker(frm, opts = {}) {
 			if ($(e.target).closest(`.${PICKER_CLASS}`).length) {
 				return;
 			}
-			dismiss();
+			dismiss(!$(e.target).closest(".user-timesheet-table .ag-cell").length);
 		});
 	}, 0);
 }

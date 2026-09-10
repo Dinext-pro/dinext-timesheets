@@ -367,63 +367,165 @@ body.ut-hide-desk-sidebar .form-dashboard .form-links,
 	cursor: pointer;
 }
 
-.user-timesheet-table .ag-cell:has(.ut-select-cell--editing),
-.user-timesheet-table .ag-cell-inline-editing:has(.ut-select-edit) {
-	padding: 0 !important;
-}
-
-.user-timesheet-table .ut-select-cell--editing {
-	align-items: stretch;
-	height: 100%;
-	min-height: 100%;
-}
-
-.user-timesheet-table .ut-select-edit,
-.user-timesheet-table .ut-select-control,
-.user-timesheet-table .ut-select-control .form-group,
-.user-timesheet-table .ut-select-control .control-input-wrapper,
-.user-timesheet-table .ut-select-control .control-input {
-	position: relative;
-	width: 100%;
-	height: 100%;
-	margin: 0 !important;
-	padding: 0 !important;
-	display: flex;
-	align-items: stretch;
-}
-
-.user-timesheet-table .ut-select-control .form-control,
-.user-timesheet-table .ut-select-control select {
+/* Client → Project → Task picker */
+.ut-task-picker {
+	--ut-picker-shadow: var(--shadow-md, 0 12px 32px rgba(0, 0, 0, 0.28));
+	position: fixed;
+	z-index: 1200;
 	box-sizing: border-box;
-	width: 100%;
-	height: 100%;
-	min-height: 100%;
-	margin: 0;
-	padding: 0 22px 0 4px;
-	font-size: var(--text-xs, 11px);
-	line-height: normal;
-	border-radius: 0;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-}
-
-/* Desk Select puts .select-icon at top: 3px — center in row cell */
-.user-timesheet-table .ut-select-control .select-icon {
-	top: 50% !important;
-	right: 6px !important;
-	transform: translateY(-50%);
-	padding: 0 !important;
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: auto;
-	line-height: 0;
+	flex-direction: column;
+	width: min(880px, calc(100vw - 16px));
+	padding: 8px;
+	border-radius: var(--border-radius-md, 8px);
+	background: var(--fg-color, var(--card-bg, #fff));
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	box-shadow: var(--ut-picker-shadow);
+	color: var(--text-color, inherit);
+	outline: none;
+	overflow: hidden;
+	opacity: 0;
+	transform: translateY(-4px);
+	transition:
+		opacity 140ms ease,
+		transform 140ms ease;
+	pointer-events: none;
 }
 
-.user-timesheet-table .ut-select-control .select-icon .icon {
-	width: 12px;
-	height: 12px;
+/* Desk paints a focus ring on the dialog (:focus / :focus-within). Drop it. */
+.ut-task-picker:focus,
+.ut-task-picker:focus-visible,
+.ut-task-picker:focus-within {
+	outline: none !important;
+	box-shadow: var(--ut-picker-shadow) !important;
+}
+
+.ut-task-picker--open {
+	opacity: 1;
+	transform: none;
+	pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ut-task-picker {
+		transition: none;
+	}
+}
+
+.ut-task-picker__cols {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	gap: 6px;
+	width: 100%;
+	min-height: 280px;
+	height: min(360px, 50vh);
+}
+
+.ut-task-picker__col {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0;
+	min-width: 0;
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	border-radius: var(--border-radius-sm, 6px);
+	background: var(--control-bg, var(--bg-color, transparent));
+	overflow: hidden;
+}
+
+.ut-task-picker__col--wide {
+	flex: 1.45 1 0;
+}
+
+.ut-task-picker__head {
+	flex: 0 0 auto;
+	padding: 6px 10px;
+	font-size: var(--text-sm, 12px);
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--text-muted, var(--text-light, inherit));
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.08));
+	border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.ut-task-picker__search {
+	flex: 0 0 auto;
+	height: 28px;
+	margin: 6px 8px 0;
+	padding: 2px 8px;
+	font-size: var(--text-sm, 12px);
+	border-radius: var(--border-radius-sm, 6px);
+	box-shadow: none;
+}
+
+.ut-task-picker__search:focus,
+.ut-task-picker__search:focus-visible {
+	outline: none;
+	border-color: var(--primary, #2490ef);
+	box-shadow: none;
+}
+
+.ut-task-picker__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	padding: 4px;
+}
+
+.ut-task-picker__item {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	margin: 0 0 1px;
+	padding: 6px 10px;
+	border: 1px solid transparent;
+	border-radius: calc(var(--border-radius-sm, 4px) / 2);
+	background: transparent;
+	color: inherit;
+	text-align: left;
+	font: inherit;
+	font-size: var(--text-sm, 12px);
+	line-height: 1.35;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: pointer;
+	outline: none;
+	box-shadow: none;
+}
+
+.ut-task-picker__item:hover {
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
+}
+
+.ut-task-picker__item--selected,
+.ut-task-picker__item--selected:hover {
+	background: var(--fg-hover, rgba(36, 144, 239, 0.16));
+	color: inherit;
+}
+
+.ut-task-picker__item:focus,
+.ut-task-picker__item:focus-visible {
+	background: var(--fg-hover, rgba(36, 144, 239, 0.16));
+	color: inherit;
+	border-color: var(--dinext-table-accent, var(--blue-500, #0289f7));
+	outline: none;
+}
+
+.ut-task-picker__empty {
+	padding: 16px 10px;
+	text-align: center;
+	font-size: var(--text-sm, 12px);
+	color: var(--text-muted, var(--text-light, inherit));
+}
+
+.ut-task-picker__actions {
+	display: flex;
+	flex-direction: row-reverse;
+	gap: 8px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
 }
 
 /* Day description popover under cell */

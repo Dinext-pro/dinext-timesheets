@@ -10,11 +10,9 @@ import {
 } from "./editors/description-popover.js";
 
 import { showTaskPlanFact } from "./limits.js";
-import {
-	FIELD_PROJECT,
-	FIELD_TASK,
-	isCascadeSelectOpen,
-} from "./editors/cascade-select.js";
+import { FIELD_PROJECT, FIELD_TASK } from "./editors/cascade-commit.js";
+import { cancelPendingPicker } from "./editors/cascade-select.js";
+import { closeTaskPicker, isTaskPickerOpen } from "./editors/task-picker-modal.js";
 import { layoutCascadeColumns } from "./column-layout.js";
 import {
 	applyToolbarChrome,
@@ -61,6 +59,10 @@ function resolveFullscreenOpts(container) {
 }
 
 function onCellDoubleClicked(frm, params) {
+	cancelPendingPicker();
+	if (isTaskPickerOpen()) {
+		closeTaskPicker();
+	}
 	const row = params?.data;
 	if (!row) {
 		return;
@@ -184,7 +186,7 @@ function buildTableOptions(frm, state) {
 			onCellFocused: (event) => handleDayDescrCellFocused(frm, event),
 			onBodyScroll: () => closeDescriptionPopoverOnScroll(),
 			onGridSizeChanged: () => {
-				if (frm.ut?._addingRow || isCascadeSelectOpen()) {
+				if (frm.ut?._addingRow || isTaskPickerOpen()) {
 					return;
 				}
 				scheduleCascadeLayout(frm);

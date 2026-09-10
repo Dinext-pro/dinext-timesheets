@@ -2,7 +2,7 @@
  * Plan/fact limits (demodev Check Limits_V2 + Show Plan-Actual Data_V2).
  * Single path: PWA whitelist only. No SS / bare-method fallback.
  */
-import { isCascadeSelectOpen } from "./editors/cascade-select.js";
+import { isTaskPickerOpen } from "./editors/task-picker-modal.js";
 const LIMITS_METHOD =
 	"project_workload_assignment.api.calculate_user_timesheet_limits";
 
@@ -171,8 +171,8 @@ export function applyLimitStyles(frm, results) {
 		columns: ["limit_icon"],
 		force: true,
 	});
-	/* redrawRows remounts the whole row — skip while cascade <select> is open. */
-	if (!isCascadeSelectOpen() && changedNodes.length && api.redrawRows) {
+	/* redrawRows remounts the anchor row — skip while picker is open. */
+	if (!isTaskPickerOpen() && changedNodes.length && api.redrawRows) {
 		api.redrawRows({ rowNodes: changedNodes });
 	}
 }
@@ -196,7 +196,7 @@ export function scheduleRefreshLimits(frm, delayMs = 400) {
 	}
 	frm.ut._limitsTimer = setTimeout(() => {
 		frm.ut._limitsTimer = null;
-		if (isCascadeSelectOpen()) {
+		if (isTaskPickerOpen()) {
 			scheduleRefreshLimits(frm, delayMs);
 			return;
 		}

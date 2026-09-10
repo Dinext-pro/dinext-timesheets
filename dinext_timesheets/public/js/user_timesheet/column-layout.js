@@ -3,7 +3,8 @@
  * AG Grid ignores flex on pinned cols — explicit widths instead.
  */
 import { canEdit } from "./model.js";
-import { FIELD_PROJECT, FIELD_ROLE, FIELD_TASK, isCascadeSelectOpen } from "./editors/cascade-select.js";
+import { FIELD_PROJECT, FIELD_ROLE, FIELD_TASK } from "./editors/cascade-commit.js";
+import { isTaskPickerOpen } from "./editors/task-picker-modal.js";
 
 const DAY_W = 54;
 const LIMIT_W = 30;
@@ -111,7 +112,7 @@ function remember(frm, widths) {
 
 /** Measure grid, subtract fixed cols, set pinned cascade widths. */
 export function layoutCascadeColumns(frm) {
-	if (frm.ut?._addingRow || isCascadeSelectOpen()) {
+	if (frm.ut?._addingRow || isTaskPickerOpen()) {
 		return;
 	}
 	const api = frm.ut?.table?.api;

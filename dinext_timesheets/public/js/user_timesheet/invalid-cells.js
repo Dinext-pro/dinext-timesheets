@@ -7,7 +7,7 @@ import {
 	FIELD_PROJECT,
 	FIELD_ROLE,
 	FIELD_TASK,
-} from "./editors/cascade-select.js";
+} from "./editors/cascade-commit.js";
 
 function key(rowId, field) {
 	return `${rowId}::${field}`;

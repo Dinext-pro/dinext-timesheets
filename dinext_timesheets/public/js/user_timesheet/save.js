@@ -1,7 +1,7 @@
 import { applyCellChanges, buildSavePayload, canEdit } from "./model.js";
 import { buildSummaryRows } from "./summary.js";
 import { scheduleRefreshLimits } from "./limits.js";
-import { CASCADE_DATA_FIELDS } from "./editors/cascade-select.js";
+import { CASCADE_DATA_FIELDS } from "./editors/cascade-commit.js";
 import {
 	clearInvalidCells,
 	clearInvalidFields,

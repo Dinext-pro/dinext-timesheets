@@ -11,7 +11,8 @@ import { scheduleRefreshLimits } from "./limits.js";
 import { listProjects } from "./catalog.js";
 import { syncStartButtonState } from "./submit.js";
 import { fitTimesheetTable, growTimesheetTableForNewRow, scheduleFitTimesheetTable } from "./fit.js";
-import { FIELD_PROJECT, openCascadeSelect } from "./editors/cascade-select.js";
+import { FIELD_PROJECT } from "./editors/cascade-commit.js";
+import { openTaskPicker } from "./editors/task-picker-modal.js";
 
 function syncTableSource(frm, rows) {
 	const table = frm.ut?.table;
@@ -107,18 +108,32 @@ function focusNewRowProject(frm, rowId) {
 				targetNode = node;
 			}
 		});
-		if (!targetNode) {
+		if (!targetNode || targetNode.rowIndex == null) {
 			return;
 		}
-		openCascadeSelect(frm, {
-			params: {
-				api,
-				node: targetNode,
-				data: targetNode.data,
-			},
+		api.ensureIndexVisible?.(targetNode.rowIndex, "middle");
+		api.ensureColumnVisible?.(FIELD_PROJECT);
+		api.setFocusedCell?.(targetNode.rowIndex, FIELD_PROJECT);
+		api.clearRangeSelection?.();
+		api.addCellRange?.({
+			rowStartIndex: targetNode.rowIndex,
+			rowEndIndex: targetNode.rowIndex,
+			columnStart: FIELD_PROJECT,
+			columnEnd: FIELD_PROJECT,
+		});
+		const cellEl =
+			api.getCellRendererInstances?.({
+				rowNodes: [targetNode],
+				columns: [FIELD_PROJECT],
+			})?.[0]?.eGui?.closest?.(".ag-cell") ||
+			frm.ut?.container?.querySelector?.(
+				`.ag-row[row-index="${targetNode.rowIndex}"] .ag-cell[col-id="${FIELD_PROJECT}"]`
+			);
+		openTaskPicker(frm, {
+			node: targetNode,
+			data: targetNode.data,
 			field: FIELD_PROJECT,
-			openList: true,
-			deferActivate: true,
+			anchor: cellEl || frm.ut?.container,
 		});
 	});
 }

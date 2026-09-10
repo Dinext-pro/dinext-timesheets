@@ -16,7 +16,7 @@ import {
 	FIELD_PROJECT,
 	FIELD_ROLE,
 	FIELD_TASK,
-} from "./editors/cascade-select.js";
+} from "./editors/cascade-commit.js";
 import { clearInvalidCells, setInvalidCells } from "./invalid-cells.js";
 
 const SET_STATUS =

@@ -535,7 +535,7 @@
   "allow_guest": 0,
   "api_method": "calculate_timesheet_limits",
   "cron_format": null,
-  "disabled": 0,
+  "disabled": 1,
   "docstatus": 0,
   "doctype": "Server Script",
   "doctype_event": "Before Insert",

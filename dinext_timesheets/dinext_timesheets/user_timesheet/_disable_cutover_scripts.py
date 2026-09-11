@@ -1,7 +1,7 @@
 """Disable legacy UT Client/Server Scripts after app cutover.
 
 ISS-2026-00926 try3. List: try3/timesheet/cutover-disable-scripts.md
-Does not touch JE API SS or Calculate Timesheet Limits_V4.
+Does not touch JE API SS. Limits calculator is PWA.
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ SERVER_SCRIPTS = (
 	"UTP_UT_Status_V3",
 	"UTP_UT_Status_V3_OLD",
 	"Task Limit Exceeded_V4",
+	"Calculate Timesheet Limits_V4",
 	"UTP_comm_2_UT_transfer",
 	"TSCrW2",
 )

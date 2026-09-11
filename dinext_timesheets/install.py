@@ -33,4 +33,11 @@ def after_install() -> None:
 
 
 def after_migrate() -> None:
+	from dinext_timesheets.dinext_timesheets.user_timesheet._disable_cutover_scripts import (
+		run as disable_cutover_scripts,
+	)
+
 	register_dinext_hub_items()
+	# Fixtures still ship enabled=1 CS/SS; without this, migrate re-enables
+	# V10 / UT_Accept_WF / Set Timesheet Status and form RPC goes bare again.
+	disable_cutover_scripts()

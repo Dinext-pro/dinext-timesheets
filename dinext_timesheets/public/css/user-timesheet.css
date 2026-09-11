@@ -1,0 +1,636 @@
+/* User Timesheet — DinextTable shell (ISS-2026-00926 try3) */
+
+/* Start submit: dirty → disabled look, title tooltip still works (no prop:disabled) */
+.page-head .btn.ut-btn--need-save,
+.form-dashboard .btn.ut-btn--need-save {
+	opacity: 0.55;
+	cursor: not-allowed;
+	pointer-events: auto;
+}
+
+/* Flush only UT table section (section_break_1mtw → timesheet_details) */
+.form-section.card-section[data-fieldname="section_break_1mtw"] {
+	padding: 0;
+}
+
+.form-section[data-fieldname="section_break_1mtw"] .section-body:first-child {
+	margin-top: 0;
+}
+
+.form-section[data-fieldname="section_break_1mtw"] .form-column {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.user-timesheet-shell {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	gap: 8px;
+}
+
+/* Desk + Dinext workspace rail — hidden on UT form/list (body class). Toggle cannot reopen. */
+body.ut-hide-desk-sidebar .layout-side-section,
+body.ut-hide-desk-sidebar .sidebar-toggle-btn,
+body.ut-hide-desk-sidebar .dinext-ws-rail-section,
+body.ut-hide-desk-sidebar .page-head .sidebar-toggle-btn {
+	display: none !important;
+}
+
+body.ut-hide-desk-sidebar .layout-main-section-wrapper {
+	flex: 1 1 0% !important;
+	max-width: 100% !important;
+	width: 100% !important;
+}
+
+/* UT form only — drop Frappe .container max-width (1090px lg).
+   Wide form, exactly 32px L/R. Desk .layout-main margin -15px cancelled below. */
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	> .page-head
+	> .container,
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	> .page-body,
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	> .page-body.container {
+	max-width: none;
+	width: 100%;
+	padding-left: 32px;
+	padding-right: 32px;
+}
+
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.layout-main {
+	margin-left: 0;
+	margin-right: 0;
+}
+
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.layout-main-section-wrapper {
+	padding-right: 0;
+}
+
+/* Desk .title-text { max-width: 25vw } + .ellipsis + col-md-4 cuts UT name.
+   Grow title column; wrap up to 2 lines; no ellipsis. */
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.page-head
+	.page-head-content {
+	height: auto;
+	min-height: var(--page-head-height);
+}
+
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.page-head
+	.page-title {
+	flex: 1 1 auto;
+	max-width: none;
+	width: auto;
+}
+
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.page-head
+	.title-area {
+	min-width: 0;
+	align-items: flex-start;
+}
+
+body.ut-hide-desk-sidebar
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.page-head
+	.title-text {
+	max-width: none;
+	white-space: normal;
+	overflow: visible;
+	text-overflow: unset;
+	line-height: 1.25;
+}
+
+/* Connections / form-links — UT form only (body class + data-doctype). */
+body.ut-hide-desk-sidebar .form-dashboard-section.form-dashboard-connections,
+body.ut-hide-desk-sidebar .form-dashboard .form-links,
+[data-doctype="User Timesheet"] .form-dashboard-section.form-dashboard-connections,
+[data-doctype="User Timesheet"] .form-links,
+.ut-hide-connections {
+	display: none !important;
+}
+
+/* Height set by fitTimesheetTable — hug rows or fill to viewport bottom. */
+.user-timesheet-table.dinext-table,
+.user-timesheet-table {
+	width: 100%;
+	min-height: 0;
+}
+
+/* Bottom AG scrollbar is enough here. The duplicate top bar mounts after the
+   first height fit and makes the body 12px too short until the next action. */
+.user-timesheet-table .dinext-table-hscroll-top {
+	display: none;
+}
+
+/* Suppress Y-overflow while height is recalculated (add-row flash). */
+.user-timesheet-table.ut-table--fitting,
+.user-timesheet-table.ut-table--fitting .ag-body-viewport,
+.user-timesheet-table.ut-table--fitting .ag-center-cols-viewport,
+.user-timesheet-table.ut-table--hug .ag-body-viewport,
+.user-timesheet-table.ut-table--hug .ag-center-cols-viewport,
+.user-timesheet-table.ut-table--hug .ag-body-vertical-scroll {
+	overflow-y: hidden !important;
+}
+
+/* DnD gutter: common 18px + border-box ate pad (icon 10px + pl 6). Domain width 22. */
+.user-timesheet-table .ag-cell.dinext-table-row-reorder-cell,
+.user-timesheet-table .ag-header-cell.dinext-table-row-reorder-header {
+	padding-right: 4px !important;
+}
+
+.user-timesheet-table .dinext-table-row-reorder-handle-host {
+	justify-content: flex-start;
+	padding-right: 2px;
+	box-sizing: border-box;
+}
+
+/* rowCheck: Desk input[type=checkbox] { margin-right: 5px } shifts glyph left.
+   Domain width 26 = 6+14+6 (matches cellHorizontalPadding). */
+.user-timesheet-table .dinext-table-row-check-input {
+	margin: 0 !important;
+}
+
+.user-timesheet-table .ag-cell.dinext-table-row-check-cell,
+.user-timesheet-table .ag-header-cell.dinext-table-row-check-header {
+	padding-left: 6px !important;
+	padding-right: 6px !important;
+}
+
+/* Header same gray as pinned summary; all titles centered. */
+.user-timesheet-table.dinext-table {
+	--ag-header-background-color: color-mix(
+		in srgb,
+		var(--text-muted, #748094) 8%,
+		var(--card-bg, #fff)
+	);
+}
+
+.user-timesheet-table .ag-header,
+.user-timesheet-table .ag-header-cell,
+.user-timesheet-table .ag-header-group-cell,
+.user-timesheet-table .ag-pinned-left-header,
+.user-timesheet-table .ag-pinned-right-header {
+	background-color: color-mix(
+		in srgb,
+		var(--text-muted, #748094) 8%,
+		var(--card-bg, #fff)
+	);
+}
+
+.user-timesheet-table .ag-header-cell .ag-header-cell-label,
+.user-timesheet-table .ag-header-group-cell .ag-header-cell-label {
+	justify-content: center;
+	width: 100%;
+}
+
+.user-timesheet-table .ag-header-cell .ag-header-cell-text,
+.user-timesheet-table .ag-header-group-cell .ag-header-group-text {
+	text-align: center;
+	width: 100%;
+}
+
+.user-timesheet-shell--fullscreen {
+	height: 100%;
+	min-height: 0;
+}
+
+.user-timesheet-shell--fullscreen .user-timesheet-table {
+	flex: 1 1 auto;
+	height: auto;
+	min-height: 0;
+}
+
+/* Weekends / holidays — translucent blue */
+.user-timesheet-table .ut-holiday-col {
+	background-color: rgba(33, 150, 243, 0.14);
+}
+
+.user-timesheet-table .ag-header-cell.ut-holiday-col {
+	background-color: rgba(33, 150, 243, 0.2);
+}
+
+/* Validator marks — inset border on .ag-cell (not renderer wrappers) */
+.user-timesheet-table .ag-cell.ut-cell--invalid {
+	box-shadow: inset 0 0 0 1.5px var(--red-500, #e24c4c);
+}
+
+.user-timesheet-table .ag-ltr .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing),
+.user-timesheet-table .ag-ltr .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing):focus-within,
+.user-timesheet-table .ag-rtl .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing),
+.user-timesheet-table .ag-rtl .ag-cell-focus.ut-cell--invalid:not(.ag-cell-inline-editing):focus-within {
+	border-color: var(--red-500, #e24c4c) !important;
+	box-shadow: inset 0 0 0 1.5px var(--red-500, #e24c4c);
+}
+
+/* Summary focused: AG may twin-mark body row 0 (same rowIndex). Don't paint it. */
+.user-timesheet-table:has(.dinext-table-row--summary .ag-cell-focus)
+	.ag-body-viewport
+	.ag-row[row-index="0"]
+	.ag-cell.ag-cell-focus:not(.ag-cell-inline-editing),
+.user-timesheet-table:has(.dinext-table-row--summary .ag-cell-focus)
+	.ag-body-viewport
+	.ag-row[row-index="0"]
+	.ag-cell.ag-cell-focus:not(.ag-cell-inline-editing):focus-within {
+	border-color: var(--ag-border-color, #dde2eb) !important;
+	box-shadow: none !important;
+	outline: none;
+}
+
+.user-timesheet-table:has(.dinext-table-row--summary .ag-cell-focus)
+	.ag-body-viewport
+	.ag-row[row-index="0"]
+	.ag-cell.dinext-table-cell-in-range {
+	background-color: transparent;
+}
+
+/* Day + Итого — horizontal center (beats number type align-right).
+ * Vertical center for summary/body comes from dinext-table floating-bottom flex. */
+.user-timesheet-table .ag-cell.ut-num-col {
+	text-align: center;
+}
+
+.user-timesheet-table .ag-cell.ut-num-col .ag-cell-wrapper {
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.user-timesheet-table .ag-cell.ut-num-col.ag-cell-inline-editing input,
+.user-timesheet-table .ag-cell.ut-num-col input {
+	text-align: center;
+}
+
+.user-timesheet-table .ag-header-cell.ut-num-col .ag-header-cell-label {
+	justify-content: center;
+	width: 100%;
+}
+
+.user-timesheet-table .ut-section-row {
+	font-weight: 600;
+	background-color: var(--bg-gray, rgba(0, 0, 0, 0.04));
+}
+
+.user-timesheet-table .ut-leave-row {
+	opacity: 0.92;
+	cursor: pointer;
+}
+
+.user-timesheet-table .ut-rejected-row {
+	background-color: var(--bg-red, rgba(255, 0, 0, 0.08));
+}
+
+.user-timesheet-table .ut-reject-label {
+	cursor: help;
+	text-decoration: underline dotted;
+}
+
+/* Plan/fact — square cell = row height, button fills cell */
+.user-timesheet-table .ag-cell.ut-info-cell {
+	padding: 0 !important;
+}
+
+.user-timesheet-table .ut-info-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border-radius: 0;
+	line-height: 1;
+}
+
+/* demodev Check Limits_V2 setButtonStyle — color on button + icon */
+.user-timesheet-table .ut-info-btn i {
+	color: inherit;
+}
+
+.user-timesheet-table .ut-limit-row-block .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-block {
+	color: #f44336 !important;
+	border-color: #f44336 !important;
+}
+
+/* warning = yellow; message = orange (legacy Check Limits_V2) */
+.user-timesheet-table .ut-limit-row-warning .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-warning {
+	color: #ffeb3b !important;
+	border-color: #ffeb3b !important;
+}
+
+.user-timesheet-table .ut-limit-row-message .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-message {
+	color: #ff9800 !important;
+	border-color: #ff9800 !important;
+}
+
+.user-timesheet-table .ut-limit-row-normal .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-normal {
+	color: #4caf50 !important;
+	border-color: #4caf50 !important;
+}
+
+.user-timesheet-table .ut-limit-row-no-plan .ut-info-btn,
+.user-timesheet-table .ut-info-btn.ut-limit-no-plan {
+	color: #9e9e9e !important;
+	border-color: #9e9e9e !important;
+}
+
+/* Inline Select — fill cell; center caret */
+.user-timesheet-table .ut-select-cell {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	min-height: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.user-timesheet-table .ut-select-cell--editable {
+	cursor: pointer;
+}
+
+.user-timesheet-table .ag-cell[col-id="project_label"] .dinext-table-fill-handle,
+.user-timesheet-table .ag-cell[col-id="document_label"] .dinext-table-fill-handle {
+	display: none !important;
+}
+
+/* Client → Project → Task picker */
+.ut-task-picker {
+	--ut-picker-shadow: var(--shadow-md, 0 12px 32px rgba(0, 0, 0, 0.28));
+	position: fixed;
+	z-index: 1200;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	width: min(880px, calc(100vw - 16px));
+	padding: 8px;
+	border-radius: var(--border-radius-md, 8px);
+	background: var(--fg-color, var(--card-bg, #fff));
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	box-shadow: var(--ut-picker-shadow);
+	color: var(--text-color, inherit);
+	outline: none;
+	overflow: hidden;
+	opacity: 0;
+	transform: translateY(-4px);
+	transition:
+		opacity 140ms ease,
+		transform 140ms ease;
+	pointer-events: none;
+}
+
+/* Desk paints a focus ring on the dialog (:focus / :focus-within). Drop it. */
+.ut-task-picker:focus,
+.ut-task-picker:focus-visible,
+.ut-task-picker:focus-within {
+	outline: none !important;
+	box-shadow: var(--ut-picker-shadow) !important;
+}
+
+.ut-task-picker--open {
+	opacity: 1;
+	transform: none;
+	pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ut-task-picker {
+		transition: none;
+	}
+}
+
+.ut-task-picker__cols {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	gap: 6px;
+	width: 100%;
+	min-height: 280px;
+	height: min(360px, 50vh);
+}
+
+.ut-task-picker__col {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0;
+	min-width: 0;
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	border-radius: var(--border-radius-sm, 6px);
+	background: var(--control-bg, var(--bg-color, transparent));
+	overflow: hidden;
+}
+
+.ut-task-picker__col--wide {
+	flex: 1.45 1 0;
+}
+
+.ut-task-picker__head {
+	flex: 0 0 auto;
+	padding: 6px 10px;
+	font-size: var(--text-sm, 12px);
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--text-muted, var(--text-light, inherit));
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.08));
+	border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.ut-task-picker__search {
+	flex: 0 0 auto;
+	height: 28px;
+	margin: 6px 8px 0;
+	padding: 2px 8px;
+	font-size: var(--text-sm, 12px);
+	border-radius: var(--border-radius-sm, 6px);
+	box-shadow: none;
+}
+
+.ut-task-picker__search:focus,
+.ut-task-picker__search:focus-visible {
+	outline: none;
+	border-color: var(--primary, #2490ef);
+	box-shadow: none;
+}
+
+.ut-task-picker__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	padding: 4px;
+}
+
+.ut-task-picker__item {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	margin: 0 0 1px;
+	padding: 6px 10px;
+	border: 1px solid transparent;
+	border-radius: calc(var(--border-radius-sm, 4px) / 2);
+	background: transparent;
+	color: inherit;
+	text-align: left;
+	font: inherit;
+	font-size: var(--text-sm, 12px);
+	line-height: 1.35;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: pointer;
+	outline: none;
+	box-shadow: none;
+}
+
+.ut-task-picker__item:hover {
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
+}
+
+.ut-task-picker__item--selected,
+.ut-task-picker__item--selected:hover {
+	background: var(--fg-hover, rgba(36, 144, 239, 0.16));
+	color: inherit;
+}
+
+.ut-task-picker__item:focus,
+.ut-task-picker__item:focus-visible {
+	background: var(--fg-hover, rgba(36, 144, 239, 0.16));
+	color: inherit;
+	border-color: var(--dinext-table-accent, var(--blue-500, #0289f7));
+	outline: none;
+}
+
+.ut-task-picker__empty {
+	padding: 16px 10px;
+	text-align: center;
+	font-size: var(--text-sm, 12px);
+	color: var(--text-muted, var(--text-light, inherit));
+}
+
+.ut-task-picker__actions {
+	display: flex;
+	flex-direction: row-reverse;
+	gap: 8px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+/* Day description popover under cell */
+.ut-descr-popover {
+	--caret-left: 50%;
+	position: fixed;
+	z-index: 1100;
+	box-sizing: border-box;
+	width: 252px;
+	padding: 8px 10px 10px;
+	border-radius: 8px;
+	background: var(--fg-color, var(--card-bg, #fff));
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	box-shadow: var(--shadow-base, 0 6px 20px rgba(0, 0, 0, 0.22));
+	color: var(--text-color, inherit);
+}
+
+.ut-descr-popover__caret {
+	position: absolute;
+	left: var(--caret-left);
+	width: 10px;
+	height: 10px;
+	background: inherit;
+	border: inherit;
+	border-bottom: none;
+	border-right: none;
+	transform: translateX(-50%) rotate(45deg);
+	pointer-events: none;
+}
+
+.ut-descr-popover--below .ut-descr-popover__caret {
+	top: -6px;
+	box-shadow: -1px -1px 0 var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.ut-descr-popover--above .ut-descr-popover__caret {
+	bottom: -6px;
+	top: auto;
+	transform: translateX(-50%) rotate(225deg);
+	box-shadow: -1px -1px 0 var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.ut-descr-popover__foot {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 8px;
+}
+
+.ut-descr-popover__stepper {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+	border-radius: 6px;
+	background: var(--control-bg, var(--bg-color, transparent));
+	overflow: hidden;
+}
+
+.ut-descr-popover__step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--text-color, inherit);
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.ut-descr-popover__step:hover {
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
+}
+
+.ut-descr-popover__step:active {
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.22));
+}
+
+.ut-descr-popover__hours {
+	min-width: 40px;
+	padding: 0 4px;
+	text-align: center;
+	font-size: var(--text-sm, 12px);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.ut-descr-popover__input.form-control {
+	display: block;
+	width: 100%;
+	min-height: 72px;
+	margin: 0;
+	padding: 6px 8px;
+	resize: vertical;
+	font-size: var(--text-sm, 12px);
+	line-height: 1.35;
+	border-radius: 6px;
+}

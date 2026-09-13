@@ -2,7 +2,7 @@
 
 Port of demodev Server Script ``Task Limit Exceeded_V4`` (After Save / on_update).
 Calculate via PWA ``project_workload_assignment.api.calculate_user_timesheet_limits``
-(SS V4 rules; not WE monthly ``calculate_timesheet_limits``).
+(ISS-2026-02105 unified calculator; same core as ``calculate_timesheet_limits``).
 """
 
 from __future__ import annotations

@@ -1,12 +1,17 @@
 /**
  * Form dashboard comments (demodev showDashboard).
  * Approvers / overdue / JE related links.
+ *
+ * Do not call dashboard.reset(): it hides Connections (links_area).
+ * add_comment appends headlines — clear first, apply once, drop stale races.
  */
 export async function showTimesheetDashboard(frm) {
-	if (!frm?.dashboard?.reset || frm.is_new()) {
+	if (!frm?.dashboard || frm.is_new()) {
 		return;
 	}
-	frm.dashboard.reset();
+
+	const gen = (frm._ut_dash_gen = (frm._ut_dash_gen || 0) + 1);
+	const comments = [];
 
 	if (frm.doc.ut_status === "На согласовании") {
 		const positionNames = (frm.ts_positions || []).map((x) => x.name).filter(Boolean);
@@ -22,6 +27,9 @@ export async function showTimesheetDashboard(frm) {
 				},
 				limit: 100,
 			});
+			if (gen !== frm._ut_dash_gen) {
+				return;
+			}
 			if (wfTasks?.length) {
 				const approvers = [
 					...new Set(
@@ -37,15 +45,17 @@ export async function showTimesheetDashboard(frm) {
 						filters: { name: ["in", approvers] },
 						limit: approvers.length,
 					});
+					if (gen !== frm._ut_dash_gen) {
+						return;
+					}
 					const names = (users || []).map((u) => u.full_name).filter(Boolean);
 					if (names.length) {
-						frm.dashboard.add_comment(
-							__("Ожидается согласование от: {0}", [
+						comments.push({
+							text: __("Ожидается согласование от: {0}", [
 								frappe.utils.comma_and(names),
 							]),
-							"blue",
-							true
-						);
+							color: "blue",
+						});
 					}
 				}
 			}
@@ -56,11 +66,19 @@ export async function showTimesheetDashboard(frm) {
 		frm.doc.is_overdue &&
 		(frm.doc.ut_status === "Черновик" || frm.doc.ut_status === "На доработке")
 	) {
-		frm.dashboard.add_comment(
-			__("Таймшит просрочен! Срочно отправьте позиции на согласование!"),
-			"orange",
-			true
-		);
+		comments.push({
+			text: __("Таймшит просрочен! Срочно отправьте позиции на согласование!"),
+			color: "orange",
+		});
+	}
+
+	if (gen !== frm._ut_dash_gen) {
+		return;
+	}
+
+	frm.dashboard.clear_headline?.();
+	for (const item of comments) {
+		frm.dashboard.add_comment(item.text, item.color, true);
 	}
 
 	if (frm.doc.ut_status === "Согласован") {

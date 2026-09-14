@@ -8,6 +8,14 @@ import {
  * Editable when draft/rework and caller is owner, System Manager, or team lead
  * (frm.ut.isTeamLead set in form_chrome via team_lead.js).
  */
+/** User Timesheet / import — dedicated bit for «Перепровести», not role names. */
+export function canReprocessJournalEntries() {
+	if (typeof frappe.model?.can_import === "function") {
+		return !!frappe.model.can_import("User Timesheet");
+	}
+	return !!(frappe.boot?.user?.can_import || []).includes("User Timesheet");
+}
+
 export function canEdit(frm) {
 	const status = frm.doc?.ut_status;
 	if (status !== "Черновик" && status !== "На доработке") {

@@ -67,6 +67,23 @@ def assert_can_set_timesheet_status(items, ts_name=None, ts_status=None) -> None
 		assert_can_write_timesheet(ts_name)
 
 
+# Dedicated UT perm bit for «Перепровести» (Role Permission Manager, not role names).
+REPROCESS_JE_PERM = "import"
+
+
+def can_reprocess_journal_entries(user: str | None = None) -> bool:
+	"""True if user has User Timesheet import (repost JE). SM/Administrator included."""
+	return bool(frappe.has_permission("User Timesheet", REPROCESS_JE_PERM, user=user))
+
+
+def assert_can_reprocess_journal_entries(user: str | None = None) -> None:
+	if not can_reprocess_journal_entries(user):
+		frappe.throw(
+			_("Not permitted to reprocess timesheet journal entries"),
+			frappe.PermissionError,
+		)
+
+
 def assert_can_write_timesheet(ts_name: str) -> None:
 	"""Caller may write User Timesheet (copy / status)."""
 	if not ts_name:

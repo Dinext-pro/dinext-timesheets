@@ -105,6 +105,11 @@ export function getColumns(frm) {
 
 	const saved = frm.ut?._cascadeColWidths || {};
 	const invalidRules = invalidCellClassRules(frm);
+	const dayRules = {
+		...invalidRules,
+		"ut-leave-hours": (params) =>
+			params?.data?.rowType === "leave" && flt(params.value) > 0,
+	};
 
 	/** @type {import("dinext_common/table").DinextTableColumn[]} */
 	const cols = [
@@ -178,7 +183,7 @@ export function getColumns(frm) {
 			maxWidth: 54,
 			resizable: false,
 			suppressSizeToFit: true,
-			cellClassRules: invalidRules,
+			cellClassRules: dayRules,
 			/* Override number type align-right → center. */
 			cellClass: ["dinext-table-cell--align-center", "ut-num-col", holiday]
 				.filter(Boolean)

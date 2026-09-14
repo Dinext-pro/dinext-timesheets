@@ -113,20 +113,45 @@ function remember(frm, widths) {
 /** Measure grid, subtract fixed cols, set pinned cascade widths. */
 export function layoutCascadeColumns(frm) {
 	if (frm.ut?._addingRow || isTaskPickerOpen()) {
-		return;
+		return false;
 	}
 	const api = frm.ut?.table?.api;
 	if (!api) {
-		return;
+		return false;
 	}
 	const viewport = gridViewportWidth(frm, api);
 	if (viewport < 80) {
-		return;
+		return false;
 	}
 	const free = viewport - fixedColumnsWidth(frm);
 	const widths = distributeCascadeWidths(free);
 	applyWidths(api, widths);
 	remember(frm, widths);
+	return true;
+}
+
+const LAYOUT_RETRY_MS = 80;
+const LAYOUT_RETRY_MAX = 12;
+let _layoutTimer = null;
+
+/** Debounced layout; retry while the form is still collapsing/expanding. */
+export function scheduleCascadeLayout(frm) {
+	if (_layoutTimer) {
+		clearTimeout(_layoutTimer);
+	}
+	let attempt = 0;
+	const run = () => {
+		_layoutTimer = null;
+		if (layoutCascadeColumns(frm)) {
+			return;
+		}
+		attempt += 1;
+		if (attempt >= LAYOUT_RETRY_MAX) {
+			return;
+		}
+		_layoutTimer = setTimeout(run, LAYOUT_RETRY_MS);
+	};
+	_layoutTimer = setTimeout(run, 50);
 }
 
 export function getCascadeColDefWidth(field) {

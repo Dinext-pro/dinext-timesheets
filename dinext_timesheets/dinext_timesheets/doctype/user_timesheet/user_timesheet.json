@@ -5,6 +5,7 @@
    "action_type": "Server Action",
    "custom": 1,
    "group": "\u0424\u0438\u043d. \u043f\u0440\u043e\u0432\u043e\u0434\u043a\u0438",
+   "hidden": 1,
    "label": "\u041f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0441\u0442\u0438"
   }
  ],
@@ -276,11 +277,12 @@
  "links": [
   {
    "custom": 1,
+   "hidden": 0,
    "link_doctype": "Journal Entry",
    "link_fieldname": "custom_user_timesheet"
   }
  ],
- "modified": "2026-07-30 00:11:12.792101",
+ "modified": "2026-09-14 17:00:00.000000",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "User Timesheet",

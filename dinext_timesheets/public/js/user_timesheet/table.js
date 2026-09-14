@@ -16,7 +16,7 @@ import {
 	onPickerCellClicked,
 } from "./editors/cascade-select.js";
 import { closeTaskPicker, isTaskPickerOpen } from "./editors/task-picker-modal.js";
-import { layoutCascadeColumns } from "./column-layout.js";
+import { scheduleCascadeLayout } from "./column-layout.js";
 import {
 	applyToolbarChrome,
 	canCheckTimesheetRow,
@@ -26,16 +26,6 @@ import {
 } from "./toolbar.js";
 import { bindTimesheetTableFit, scheduleFitTimesheetTable } from "./fit.js";
 
-let _layoutTimer = null;
-function scheduleCascadeLayout(frm) {
-	if (_layoutTimer) {
-		clearTimeout(_layoutTimer);
-	}
-	_layoutTimer = setTimeout(() => {
-		_layoutTimer = null;
-		layoutCascadeColumns(frm);
-	}, 50);
-}
 
 const FS_SHELL_CLASS = "user-timesheet-shell--fullscreen";
 
@@ -233,7 +223,7 @@ export async function initTable(frm) {
 			state.table = table;
 			bindTimesheetTableFit(frm);
 			requestAnimationFrame(() => {
-				layoutCascadeColumns(frm);
+				scheduleCascadeLayout(frm);
 				scheduleFitTimesheetTable(frm);
 			});
 			return table;

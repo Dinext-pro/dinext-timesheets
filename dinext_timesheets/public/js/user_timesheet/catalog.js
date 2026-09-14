@@ -82,6 +82,12 @@ export function findProject(frm, projectName) {
 	return listProjects(frm).find((p) => p.name === projectName) || null;
 }
 
+/** V10: autofill role only when the project has exactly one. */
+export function defaultRoleForProject(project) {
+	const roles = project?.roles || [];
+	return roles.length === 1 ? roles[0] : "";
+}
+
 /** Roles for the row project. Keep current value selectable if catalog dropped it. */
 export function roleOptionsForRow(frm, row) {
 	const project = findProject(frm, row?.project);

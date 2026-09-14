@@ -72,7 +72,12 @@ fixtures = [
     {
         "doctype": "Role",
         "filters": [
-            ["name", "in", ["Dinext_UTP_Appoval", "Dinext_UT_Full_Access"]],
+            ["name", "in", [
+                "Dinext_UTP_Appoval",
+                "Dinext_UT_Full_Access",
+                "Dinext_Projects_Director",
+                "Dinext_Projects_Admin",
+            ]],
             ["disabled", "=", 0]
         ]
     },

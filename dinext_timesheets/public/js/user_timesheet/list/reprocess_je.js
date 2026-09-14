@@ -1,6 +1,13 @@
 /** Port from demodev Client Script UT List Reprocess JE.js — ISS-2026-00926 phase 3 */
+function can_reprocess_journal_entries() {
+    if (typeof frappe.model?.can_import === "function") {
+        return !!frappe.model.can_import("User Timesheet");
+    }
+    return !!(frappe.boot?.user?.can_import || []).includes("User Timesheet");
+}
+
 function add_reprocces_button( listview ) {
-    if (frappe.user.has_role('Dinext_Projects_Director') || frappe.user.has_role('Dinext_Projects_Admin') ) {
+    if (can_reprocess_journal_entries()) {
         listview.page.add_action_item(__("Перепровести проводки"), async () => {
             let uts = listview.get_checked_items( false );
             

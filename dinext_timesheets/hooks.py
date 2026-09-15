@@ -31,20 +31,6 @@ fixtures = [
         ]
     },
     {
-        "doctype": "Client Script",
-        "filters": [
-            ["module", "in", ["Dinext Timesheets"]],
-            ["enabled", "=", 1]
-        ]
-    },
-    {
-        "doctype": "Server Script",
-        "filters": [
-            ["module", "in", ["Dinext Timesheets"]],
-            ["disabled", "=", 0]
-        ]
-    },
-    {
         "doctype": "Web Page",
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],       

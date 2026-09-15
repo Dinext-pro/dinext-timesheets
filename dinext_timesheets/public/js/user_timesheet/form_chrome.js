@@ -2,10 +2,11 @@
  * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly, dashboard).
  */
 import { canEdit, canReprocessJournalEntries } from "./model.js";
-import { setupCopyButtons } from "./copy.js";
-import { processUTWorkflow } from "./workflow.js";
+import { setupCopyButtons, disableCopyButtons } from "./copy.js";
+import { processUTWorkflow, clearWorkflowButtons } from "./workflow.js";
 import { refreshLimits } from "./limits.js";
-import { setupSubmitButtons } from "./submit.js";
+import { setupSubmitButtons, clearSubmitButtons } from "./submit.js";
+import { resetTimesheetRuntime } from "./state.js";
 import { applyToolbarChrome } from "./toolbar.js";
 import { showTimesheetDashboard } from "./dashboard.js";
 import { resolveTeamLeadAccess } from "./team_lead.js";
@@ -31,9 +32,21 @@ function applyReadonlyChrome(frm) {
 	}
 }
 
+function clearReprocessButton(frm) {
+	frm.remove_custom_button(__(REPROCESS_LABEL), __(REPROCESS_GROUP));
+	frm.remove_custom_button(REPROCESS_LABEL, REPROCESS_GROUP);
+}
+
+function clearTimesheetButtons(frm) {
+	disableCopyButtons(frm);
+	clearSubmitButtons(frm);
+	clearWorkflowButtons(frm);
+	clearReprocessButton(frm);
+}
+
 /** V10 disableReprocessJournalEntries: only Согласован + UT import perm. */
 function applyReprocessJournalEntriesButton(frm) {
-	frm.remove_custom_button(__(REPROCESS_LABEL), __(REPROCESS_GROUP));
+	clearReprocessButton(frm);
 	if (frm.doc.ut_status !== "Согласован" || !canReprocessJournalEntries()) {
 		return;
 	}
@@ -56,8 +69,10 @@ export async function setupFormChrome(frm) {
 		return;
 	}
 	applyTimesheetSidebarHide();
-	applyNewTimesheetDefaults(frm);
 	if (frm.is_new() || frm.doc?.__islocal) {
+		resetTimesheetRuntime(frm);
+		clearTimesheetButtons(frm);
+		applyNewTimesheetDefaults(frm);
 		return;
 	}
 	const chromeKey = [frm.doc.name, frm.doc.modified, frm.doc.ut_status].join(":");
@@ -69,8 +84,6 @@ export async function setupFormChrome(frm) {
 		try {
 			await resolveTeamLeadAccess(frm);
 			applyReadonlyChrome(frm);
-			setupCopyButtons(frm);
-			setupSubmitButtons(frm);
 			if (frm.ut?.table) {
 				await refreshLimits(frm);
 			}
@@ -78,6 +91,8 @@ export async function setupFormChrome(frm) {
 			frm._ut_chrome_inflight = false;
 		}
 	}
+	setupCopyButtons(frm);
+	setupSubmitButtons(frm);
 	applyReprocessJournalEntriesButton(frm);
 	await processUTWorkflow(frm);
 	await showTimesheetDashboard(frm);

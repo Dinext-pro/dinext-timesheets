@@ -351,10 +351,11 @@ async function sendTimesheet(workflow, frm) {
 	}
 }
 
-function clearSubmitButtons(frm) {
-	frm.remove_custom_button(BTN_START);
-	frm.remove_custom_button(BTN_STOP);
-	frm.remove_custom_button(BTN_EDIT);
+export function clearSubmitButtons(frm) {
+	for (const label of [BTN_START, BTN_STOP, BTN_EDIT]) {
+		frm.remove_custom_button(label);
+		frm.remove_custom_button(__(label));
+	}
 }
 
 /** Form custom buttons Start / Stop / Edit by ut_status. */

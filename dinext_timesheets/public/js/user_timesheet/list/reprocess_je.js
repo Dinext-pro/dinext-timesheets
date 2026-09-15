@@ -1,9 +1,11 @@
 /** Port from demodev Client Script UT List Reprocess JE.js — ISS-2026-00926 phase 3 */
 function can_reprocess_journal_entries() {
-    if (typeof frappe.model?.can_import === "function") {
-        return !!frappe.model.can_import("User Timesheet");
-    }
-    return !!(frappe.boot?.user?.can_import || []).includes("User Timesheet");
+    return !!(
+        frappe.user?.has_role?.("Dinext_Projects_Director") ||
+        frappe.user?.has_role?.("Dinext_Projects_Admin") ||
+        frappe.user?.has_role?.("Z_Dinord_Projects_Director") ||
+        frappe.user?.has_role?.("Z_Dinord_Projects_Admin")
+    );
 }
 
 function add_reprocces_button( listview ) {

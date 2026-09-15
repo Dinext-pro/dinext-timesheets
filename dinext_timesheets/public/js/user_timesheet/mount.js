@@ -1,4 +1,4 @@
-import { initState, destroyTable } from "./state.js";
+import { initState, resetTimesheetRuntime } from "./state.js";
 import { initTable, reloadTable, refreshRuntime } from "./table.js";
 
 /** HTML field — host for DinextTable (same pattern as WE/P&L custom_* fields). */
@@ -34,7 +34,11 @@ function resolveShell($wrapper) {
 
 /** Mount DinextTable into HTML field. Skip new/unsaved docs (demodev parity). */
 export async function ensureMounted(frm) {
-	if (!frm || frm.is_new() || frm.doc?.__islocal) {
+	if (!frm) {
+		return;
+	}
+	if (frm.is_new() || frm.doc?.__islocal) {
+		resetTimesheetRuntime(frm);
 		return;
 	}
 
@@ -43,15 +47,17 @@ export async function ensureMounted(frm) {
 		return;
 	}
 
+	let state = initState(frm);
+	if (state._docname && state._docname !== frm.doc.name) {
+		resetTimesheetRuntime(frm);
+		state = initState(frm);
+	}
+
 	const parts = resolveShell(field.$wrapper);
 	if (!parts) {
 		return;
 	}
 
-	const state = initState(frm);
-	if (state._docname && state._docname !== frm.doc.name) {
-		destroyTable(frm);
-	}
 	state._docname = frm.doc.name;
 	state.shell = parts.shell;
 	state.container = parts.container;
@@ -76,5 +82,5 @@ export async function ensureMounted(frm) {
 }
 
 export function destroy(frm) {
-	destroyTable(frm);
+	resetTimesheetRuntime(frm);
 }

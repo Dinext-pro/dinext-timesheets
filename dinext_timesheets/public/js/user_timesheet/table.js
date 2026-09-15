@@ -95,6 +95,22 @@ function onCellDoubleClicked(frm, params) {
 	}
 }
 
+function isTimesheetLeaveFenceRow(row) {
+	return row?.rowType === "section" || row?.rowType === "leave";
+}
+
+/** Leave block is a suffix: no insert at/after first section/leave. */
+function canAcceptTimesheetRowReorder({ dropTarget, sourceRows }) {
+	if (!dropTarget || dropTarget.noop) {
+		return true;
+	}
+	const fence = (sourceRows || []).findIndex(isTimesheetLeaveFenceRow);
+	if (fence < 0) {
+		return true;
+	}
+	return dropTarget.toIndex <= fence;
+}
+
 function getRowClass(params) {
 	const row = params?.data;
 	if (!row) {
@@ -130,6 +146,7 @@ function buildTableOptions(frm, state) {
 		fillHandle: { enabled: editable },
 		rowReorder: { enabled: true, width: 22 },
 		canReorderRow: (ctx) => ctx?.row?.rowType === "position",
+		canAcceptRowReorder: canAcceptTimesheetRowReorder,
 		rowCheck: {
 			enabled: editable,
 			unit: "row",

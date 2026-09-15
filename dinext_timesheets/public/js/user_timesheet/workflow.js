@@ -14,9 +14,10 @@ function workflowButtonLabel(action) {
 	return (icon ? `${icon} ` : "") + __(action);
 }
 
-function clearWorkflowButtons(frm) {
+export function clearWorkflowButtons(frm) {
 	for (const label of frm._ut_wf_button_labels || []) {
 		frm.remove_custom_button(label);
+		frm.remove_custom_button(__(label));
 	}
 	frm._ut_wf_button_labels = [];
 }
@@ -67,6 +68,7 @@ async function updateUTPositions(frm, updatedPositions, pos_status, comment = nu
 
 /** Show common UTP workflow actions for current approver. */
 export async function processUTWorkflow(frm) {
+	const gen = (frm._ut_wf_gen = (frm._ut_wf_gen || 0) + 1);
 	clearWorkflowButtons(frm);
 
 	const isOwner = frappe.session.user === frm.doc.timesheet_from;
@@ -87,6 +89,9 @@ export async function processUTWorkflow(frm) {
 			_assign: ["like", `%${frappe.session.user}%`],
 		},
 	});
+	if (gen !== frm._ut_wf_gen) {
+		return;
+	}
 	if (!userTasks.length) {
 		return;
 	}
@@ -110,7 +115,11 @@ export async function processUTWorkflow(frm) {
 			doctype: "User Timesheet Position",
 		}
 	);
+	if (gen !== frm._ut_wf_gen) {
+		return;
+	}
 
+	clearWorkflowButtons(frm);
 	frm._ut_wf_button_labels = [];
 	for (const action of actions || []) {
 		const label = workflowButtonLabel(action);

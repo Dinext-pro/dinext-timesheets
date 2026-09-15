@@ -276,7 +276,7 @@
  "index_web_pages_for_search": 1,
  "links": [
   {
-   "custom": 1,
+   "custom": 0,
    "hidden": 0,
    "link_doctype": "Journal Entry",
    "link_fieldname": "custom_user_timesheet"

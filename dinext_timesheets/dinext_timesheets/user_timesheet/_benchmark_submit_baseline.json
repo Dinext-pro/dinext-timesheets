@@ -1,0 +1,501 @@
+{
+  "site": "dev.dinext.localhost",
+  "measured_at": "2026-09-09 22:54:52.270251",
+  "rollback_only": true,
+  "scope": "limits pre-check + set_timesheet_status; excludes browser reload",
+  "repeats": 3,
+  "scenarios": [
+    {
+      "label": "small",
+      "timesheet": "Руслан Салагаев - 2026-07-20 - 2026-07-26",
+      "profile": {
+        "period_days": 7,
+        "positions": 2,
+        "projects": 2,
+        "hours": 7.0,
+        "owner": "rsalagaev@dinord.email"
+      },
+      "summary": {
+        "limits_median_ms": 575.9,
+        "status_median_ms": 2695.7,
+        "combined_median_ms": 3271.6,
+        "all_responses_equal": true,
+        "all_rollbacks_verified": true
+      },
+      "runs": [
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 1235.4,
+            "sql_count": 18,
+            "sql_ms": 200.7,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 2,
+              "statuses": {
+                "no-plan": 2
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 19937.1,
+            "sql_count": 523,
+            "sql_ms": 278.5,
+            "captured_log_chars": 14403,
+            "response": {
+              "ok": true,
+              "updated": 2
+            }
+          },
+          "combined_wall_ms": 21172.5,
+          "transient_effects": {
+            "workflow_tasks": 5,
+            "todos": 5,
+            "docshares": 5,
+            "comments": 5,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 2
+            },
+            "working_workflow_tasks": 5
+          },
+          "rollback_verified": true
+        },
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 570.7,
+            "sql_count": 14,
+            "sql_ms": 164.0,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 2,
+              "statuses": {
+                "no-plan": 2
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 2455.1,
+            "sql_count": 483,
+            "sql_ms": 253.2,
+            "captured_log_chars": 14403,
+            "response": {
+              "ok": true,
+              "updated": 2
+            }
+          },
+          "combined_wall_ms": 3025.8,
+          "transient_effects": {
+            "workflow_tasks": 5,
+            "todos": 5,
+            "docshares": 5,
+            "comments": 5,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 2
+            },
+            "working_workflow_tasks": 5
+          },
+          "rollback_verified": true
+        },
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 575.9,
+            "sql_count": 14,
+            "sql_ms": 191.0,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 2,
+              "statuses": {
+                "no-plan": 2
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 2695.7,
+            "sql_count": 483,
+            "sql_ms": 250.9,
+            "captured_log_chars": 14403,
+            "response": {
+              "ok": true,
+              "updated": 2
+            }
+          },
+          "combined_wall_ms": 3271.6,
+          "transient_effects": {
+            "workflow_tasks": 5,
+            "todos": 5,
+            "docshares": 5,
+            "comments": 5,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 2
+            },
+            "working_workflow_tasks": 5
+          },
+          "rollback_verified": true
+        }
+      ]
+    },
+    {
+      "label": "medium",
+      "timesheet": "Руслан Салагаев - 2026-06-08 - 2026-06-14",
+      "profile": {
+        "period_days": 7,
+        "positions": 3,
+        "projects": 3,
+        "hours": 24.0,
+        "owner": "rsalagaev@dinord.email"
+      },
+      "summary": {
+        "limits_median_ms": 12.8,
+        "status_median_ms": 2658.9,
+        "combined_median_ms": 2671.7,
+        "all_responses_equal": true,
+        "all_rollbacks_verified": true
+      },
+      "runs": [
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 12.6,
+            "sql_count": 15,
+            "sql_ms": 6.6,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 3,
+              "statuses": {
+                "no-plan": 3
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 2631.9,
+            "sql_count": 688,
+            "sql_ms": 331.6,
+            "captured_log_chars": 20825,
+            "response": {
+              "ok": true,
+              "updated": 3
+            }
+          },
+          "combined_wall_ms": 2644.5,
+          "transient_effects": {
+            "workflow_tasks": 7,
+            "todos": 7,
+            "docshares": 7,
+            "comments": 7,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 3
+            },
+            "working_workflow_tasks": 7
+          },
+          "rollback_verified": true
+        },
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 12.8,
+            "sql_count": 15,
+            "sql_ms": 6.3,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 3,
+              "statuses": {
+                "no-plan": 3
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 2658.9,
+            "sql_count": 688,
+            "sql_ms": 312.2,
+            "captured_log_chars": 20825,
+            "response": {
+              "ok": true,
+              "updated": 3
+            }
+          },
+          "combined_wall_ms": 2671.7,
+          "transient_effects": {
+            "workflow_tasks": 7,
+            "todos": 7,
+            "docshares": 7,
+            "comments": 7,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 3
+            },
+            "working_workflow_tasks": 7
+          },
+          "rollback_verified": true
+        },
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 13.4,
+            "sql_count": 15,
+            "sql_ms": 6.8,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 3,
+              "statuses": {
+                "no-plan": 3
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 3078.3,
+            "sql_count": 688,
+            "sql_ms": 392.6,
+            "captured_log_chars": 20825,
+            "response": {
+              "ok": true,
+              "updated": 3
+            }
+          },
+          "combined_wall_ms": 3091.7,
+          "transient_effects": {
+            "workflow_tasks": 7,
+            "todos": 7,
+            "docshares": 7,
+            "comments": 7,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 3
+            },
+            "working_workflow_tasks": 7
+          },
+          "rollback_verified": true
+        }
+      ]
+    },
+    {
+      "label": "large",
+      "timesheet": "Руслан Салагаев - 2026-06-01 - 2026-06-07",
+      "profile": {
+        "period_days": 7,
+        "positions": 12,
+        "projects": 1,
+        "hours": 223.4,
+        "owner": "rsalagaev@dinord.email"
+      },
+      "summary": {
+        "limits_median_ms": 627.5,
+        "status_median_ms": 17654.2,
+        "combined_median_ms": 18281.7,
+        "all_responses_equal": true,
+        "all_rollbacks_verified": true
+      },
+      "runs": [
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 695.1,
+            "sql_count": 43,
+            "sql_ms": 209.5,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 12,
+              "statuses": {
+                "normal": 12
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 17167.0,
+            "sql_count": 2466,
+            "sql_ms": 1427.3,
+            "captured_log_chars": 77064,
+            "response": {
+              "ok": true,
+              "updated": 12
+            }
+          },
+          "combined_wall_ms": 17862.1,
+          "transient_effects": {
+            "workflow_tasks": 24,
+            "todos": 24,
+            "docshares": 24,
+            "comments": 24,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 12
+            },
+            "working_workflow_tasks": 24
+          },
+          "rollback_verified": true
+        },
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 627.5,
+            "sql_count": 43,
+            "sql_ms": 184.6,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 12,
+              "statuses": {
+                "normal": 12
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 17654.2,
+            "sql_count": 2466,
+            "sql_ms": 1390.8,
+            "captured_log_chars": 77064,
+            "response": {
+              "ok": true,
+              "updated": 12
+            }
+          },
+          "combined_wall_ms": 18281.7,
+          "transient_effects": {
+            "workflow_tasks": 24,
+            "todos": 24,
+            "docshares": 24,
+            "comments": 24,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 12
+            },
+            "working_workflow_tasks": 24
+          },
+          "rollback_verified": true
+        },
+        {
+          "normalized_setup": {
+            "ut_status": "Черновик",
+            "position_status": "Редактирование",
+            "existing_working_workflow_tasks": "temporarily cancelled"
+          },
+          "limits": {
+            "ok": true,
+            "wall_ms": 621.6,
+            "sql_count": 43,
+            "sql_ms": 195.5,
+            "captured_log_chars": 0,
+            "response": {
+              "rows": 12,
+              "statuses": {
+                "normal": 12
+              }
+            }
+          },
+          "set_timesheet_status": {
+            "ok": true,
+            "wall_ms": 19135.5,
+            "sql_count": 2466,
+            "sql_ms": 1449.3,
+            "captured_log_chars": 77064,
+            "response": {
+              "ok": true,
+              "updated": 12
+            }
+          },
+          "combined_wall_ms": 19757.1,
+          "transient_effects": {
+            "workflow_tasks": 24,
+            "todos": 24,
+            "docshares": 24,
+            "comments": 24,
+            "email_queue": 0,
+            "notification_logs": 0
+          },
+          "transient_result_state": {
+            "ut_status": "На согласовании",
+            "position_statuses": {
+              "На согласовании": 12
+            },
+            "working_workflow_tasks": 24
+          },
+          "rollback_verified": true
+        }
+      ]
+    }
+  ]
+}

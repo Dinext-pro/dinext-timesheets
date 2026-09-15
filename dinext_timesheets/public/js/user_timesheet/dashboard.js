@@ -1,11 +1,11 @@
 /**
- * Form dashboard comments (demodev showDashboard).
- * Approvers / overdue / JE related links.
+ * Form dashboard comments (V10 showDashboard).
+ * Approvers / overdue / JE Connections.
  *
- * Do not call dashboard.reset() on the comment path: it hides Connections
- * and races with Frappe form refresh. add_comment appends headlines —
- * clear first, apply once, drop stale races.
- * Connections: V10 — only Согласован + can_read(Journal Entry).
+ * No dashboard.reset() here: it hides Connections and races refresh.
+ * add_comment appends headlines — clear first, apply once.
+ * JE link lives on DocType (`custom_user_timesheet`). Do not add_transactions
+ * or refresh(): both duplicate the badge; refresh() also reset()s.
  */
 export async function showTimesheetDashboard(frm) {
 	if (!frm?.dashboard || frm.is_new()) {
@@ -86,7 +86,7 @@ export async function showTimesheetDashboard(frm) {
 	applyJournalEntryConnections(frm);
 }
 
-/** V10: Connections only on Согласован. Frappe then keeps can_read(Journal Entry). */
+/** Show DocType Connections only when Согласован + can_read(Journal Entry). */
 function applyJournalEntryConnections(frm) {
 	const allow =
 		frm.doc.ut_status === "Согласован" && !!frappe.model.can_read?.("Journal Entry");
@@ -97,10 +97,6 @@ function applyJournalEntryConnections(frm) {
 		return;
 	}
 
-	frm.dashboard.add_transactions({
-		label: __("Related Documents"),
-		items: ["Journal Entry"],
-	});
-	frm.dashboard.refresh?.();
 	document.body.classList.add("ut-show-connections");
+	frm.dashboard.links_area?.show?.();
 }

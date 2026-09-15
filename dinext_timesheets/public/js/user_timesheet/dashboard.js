@@ -2,8 +2,10 @@
  * Form dashboard comments (demodev showDashboard).
  * Approvers / overdue / JE related links.
  *
- * Do not call dashboard.reset(): it hides Connections (links_area).
- * add_comment appends headlines — clear first, apply once, drop stale races.
+ * Do not call dashboard.reset() on the comment path: it hides Connections
+ * and races with Frappe form refresh. add_comment appends headlines —
+ * clear first, apply once, drop stale races.
+ * Connections: V10 — only Согласован + can_read(Journal Entry).
  */
 export async function showTimesheetDashboard(frm) {
 	if (!frm?.dashboard || frm.is_new()) {
@@ -81,11 +83,24 @@ export async function showTimesheetDashboard(frm) {
 		frm.dashboard.add_comment(item.text, item.color, true);
 	}
 
-	if (frm.doc.ut_status === "Согласован") {
-		frm.dashboard.add_transactions({
-			label: __("Related Documents"),
-			items: ["Journal Entry"],
-		});
-		frm.dashboard.refresh?.();
+	applyJournalEntryConnections(frm);
+}
+
+/** V10: Connections only on Согласован. Frappe then keeps can_read(Journal Entry). */
+function applyJournalEntryConnections(frm) {
+	const allow =
+		frm.doc.ut_status === "Согласован" && !!frappe.model.can_read?.("Journal Entry");
+
+	if (!allow) {
+		document.body.classList.remove("ut-show-connections");
+		frm.dashboard.links_area?.hide?.();
+		return;
 	}
+
+	frm.dashboard.add_transactions({
+		label: __("Related Documents"),
+		items: ["Journal Entry"],
+	});
+	frm.dashboard.refresh?.();
+	document.body.classList.add("ut-show-connections");
 }

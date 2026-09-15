@@ -29,6 +29,14 @@
 	gap: 8px;
 }
 
+/* Connections hidden on UT form until dashboard allows (Согласован + JE read). */
+body:not(.ut-show-connections)
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.form-dashboard
+	.form-links {
+	display: none !important;
+}
+
 /* Desk + Dinext workspace rail — hidden on UT form/list (body class). Toggle cannot reopen. */
 body.ut-hide-desk-sidebar .layout-side-section,
 body.ut-hide-desk-sidebar .sidebar-toggle-btn,

@@ -84,6 +84,20 @@ def assert_can_reprocess_journal_entries(user: str | None = None) -> None:
 		)
 
 
+def assert_can_read_timesheet(ts_name: str) -> None:
+	"""Caller may read this User Timesheet (banner / read-only helpers)."""
+	if not ts_name:
+		frappe.throw(_("Timesheet name is required"), frappe.ValidationError)
+	if not frappe.db.exists("User Timesheet", ts_name):
+		frappe.throw(_("User Timesheet {0} not found").format(ts_name))
+	timesheet = frappe.get_doc("User Timesheet", ts_name)
+	if not frappe.has_permission("User Timesheet", "read", doc=timesheet):
+		frappe.throw(
+			_("Not permitted to read timesheet {0}").format(ts_name),
+			frappe.PermissionError,
+		)
+
+
 def assert_can_write_timesheet(ts_name: str) -> None:
 	"""Caller may write User Timesheet (copy / status)."""
 	if not ts_name:

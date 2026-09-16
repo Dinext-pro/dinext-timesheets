@@ -32,4 +32,5 @@ export function applyTimesheetSidebarHide() {
 
 export function removeTimesheetSidebarHide() {
 	document.body.classList.remove(UT_SIDEBAR_BODY_CLASS);
+	document.body.classList.remove("ut-show-connections");
 }

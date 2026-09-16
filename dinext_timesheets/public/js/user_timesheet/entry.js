@@ -10,14 +10,22 @@ async function loadAndMount(frm) {
 	if (!window.UserTimesheet?.ensureMounted) {
 		return;
 	}
-	try {
-		await window.UserTimesheet.ensureMounted(frm);
-		if (window.UserTimesheet.setupFormChrome) {
-			await window.UserTimesheet.setupFormChrome(frm);
-		}
-	} catch (err) {
-		console.error("[UserTimesheet] loadAndMount", err);
+	if (frm._ut_load_promise) {
+		return frm._ut_load_promise;
 	}
+	frm._ut_load_promise = (async () => {
+		try {
+			await window.UserTimesheet.ensureMounted(frm);
+			if (window.UserTimesheet.setupFormChrome) {
+				await window.UserTimesheet.setupFormChrome(frm);
+			}
+		} catch (err) {
+			console.error("[UserTimesheet] loadAndMount", err);
+		} finally {
+			frm._ut_load_promise = null;
+		}
+	})();
+	return frm._ut_load_promise;
 }
 
 document.body.classList.add("ut-hide-desk-sidebar");

@@ -3,6 +3,7 @@
  * Measure live toolbar/header/summary; grow before add so AG does not flash overflow.
  */
 import { isTaskPickerOpen } from "./editors/task-picker-modal.js";
+import { scheduleCascadeLayout } from "./column-layout.js";
 
 const ROW_H = 30;
 const HEADER_H = 30;
@@ -134,12 +135,18 @@ export function bindTimesheetTableFit(frm) {
 	if (!frm?.ut || frm.ut._fitResizeBound) {
 		return;
 	}
-	const onResize = () => scheduleFitTimesheetTable(frm);
+	const onResize = () => {
+		scheduleFitTimesheetTable(frm);
+		scheduleCascadeLayout(frm);
+	};
 	window.addEventListener("resize", onResize);
 	window.addEventListener("load", onResize);
 	const fonts = document.fonts;
 	if (fonts?.ready?.then) {
-		fonts.ready.then(() => scheduleFitTimesheetTable(frm));
+		fonts.ready.then(() => {
+			scheduleFitTimesheetTable(frm);
+			scheduleCascadeLayout(frm);
+		});
 	}
 	requestAnimationFrame(() => {
 		requestAnimationFrame(() => fitTimesheetTable(frm));

@@ -1,6 +1,15 @@
 /** Port from demodev Client Script UT List Reprocess JE.js — ISS-2026-00926 phase 3 */
+function can_reprocess_journal_entries() {
+    return !!(
+        frappe.user?.has_role?.("Dinext_Projects_Director") ||
+        frappe.user?.has_role?.("Dinext_Projects_Admin") ||
+        frappe.user?.has_role?.("Z_Dinord_Projects_Director") ||
+        frappe.user?.has_role?.("Z_Dinord_Projects_Admin")
+    );
+}
+
 function add_reprocces_button( listview ) {
-    if (frappe.user.has_role('Dinext_Projects_Director') || frappe.user.has_role('Dinext_Projects_Admin') ) {
+    if (can_reprocess_journal_entries()) {
         listview.page.add_action_item(__("Перепровести проводки"), async () => {
             let uts = listview.get_checked_items( false );
             

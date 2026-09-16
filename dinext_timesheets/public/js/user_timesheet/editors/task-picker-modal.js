@@ -1,9 +1,14 @@
 /**
  * Prod V10 picker: Client → Project → Task columns (not in-cell Select).
- * Role is not in this window: first project role is written by default.
+ * Role is not in this window: fill only when the project has exactly one role.
  */
 import { canEdit } from "../model.js";
-import { EMPTY_CLIENT, findProject, listProjects } from "../catalog.js";
+import {
+	EMPTY_CLIENT,
+	defaultRoleForProject,
+	findProject,
+	listProjects,
+} from "../catalog.js";
 import {
 	FIELD_PROJECT,
 	FIELD_TASK,
@@ -330,8 +335,8 @@ export function openTaskPicker(frm, opts = {}) {
 		}
 		const role =
 			draftProject.name === live.data?.project
-				? live.data?.project_role || draftProject.roles?.[0] || ""
-				: draftProject.roles?.[0] || "";
+				? live.data?.project_role || defaultRoleForProject(draftProject)
+				: defaultRoleForProject(draftProject);
 		commitCascadePatch(
 			frm,
 			{ node: live, data: live.data, api: frm.ut?.table?.api },

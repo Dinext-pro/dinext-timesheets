@@ -29,6 +29,14 @@
 	gap: 8px;
 }
 
+/* Connections hidden on UT form until dashboard allows (Согласован + JE read). */
+body:not(.ut-show-connections)
+	.page-container.editable-form[data-page-route="User Timesheet"]
+	.form-dashboard
+	.form-links {
+	display: none !important;
+}
+
 /* Desk + Dinext workspace rail — hidden on UT form/list (body class). Toggle cannot reopen. */
 body.ut-hide-desk-sidebar .layout-side-section,
 body.ut-hide-desk-sidebar .sidebar-toggle-btn,
@@ -112,13 +120,8 @@ body.ut-hide-desk-sidebar
 	line-height: 1.25;
 }
 
-/* Connections / form-links — UT form only (body class + data-doctype). */
-body.ut-hide-desk-sidebar .form-dashboard-section.form-dashboard-connections,
-body.ut-hide-desk-sidebar .form-dashboard .form-links,
-[data-doctype="User Timesheet"] .form-dashboard-section.form-dashboard-connections,
-[data-doctype="User Timesheet"] .form-links,
-.ut-hide-connections {
-	display: none !important;
+.user-timesheet-table .ut-leave-hours {
+	background-color: var(--bg-green, rgba(37, 162, 69, 0.22));
 }
 
 /* Height set by fitTimesheetTable — hug rows or fill to viewport bottom. */

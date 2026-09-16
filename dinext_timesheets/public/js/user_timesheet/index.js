@@ -1,6 +1,6 @@
 import { ensureMounted, destroy } from "./mount.js";
 import { saveTimesheetPositions } from "./save.js";
-import { canEdit } from "./model.js";
+import { canEdit, canReprocessJournalEntries } from "./model.js";
 import { setupFormChrome } from "./form_chrome.js";
 import { validateNewTimesheet, applyNewTimesheetDefaults } from "./new_doc.js";
 import {
@@ -25,6 +25,7 @@ const UserTimesheet = {
 	validateNewTimesheet,
 	applyNewTimesheetDefaults,
 	canEdit,
+	canReprocessJournalEntries,
 	setupFormChrome,
 	setupSubmitButtons,
 	sendTimesheet,

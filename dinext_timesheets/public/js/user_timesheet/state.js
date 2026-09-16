@@ -56,3 +56,29 @@ export function destroyTable(frm) {
 	state._mountPromise = null;
 	state._initPromise = null;
 }
+
+/** Drop table + domain leftovers. Frappe reuses frm when New follows an open UT. */
+export function resetTimesheetRuntime(frm) {
+	if (!frm) {
+		return;
+	}
+	destroyTable(frm);
+	const field = frm.get_field?.("timesheet_details");
+	field?.$wrapper?.empty();
+	delete frm.ut;
+	frm.ts_positions = [];
+	frm.deletedPositions = [];
+	frm.template_doc = null;
+	frm.tasks_data = null;
+	frm.ts_positions_with_active_tasks = null;
+	frm.dates = [];
+	frm.holidays = [];
+	frm.work_hours = [];
+	frm._ut_chrome_ready = null;
+	frm._ut_chrome_inflight = false;
+	frm._ut_dash_gen = 0;
+	frm._ut_wf_gen = 0;
+	frm._ut_wf_button_labels = [];
+	document.body.classList.remove("ut-show-connections");
+	frm.dashboard?.links_area?.hide?.();
+}

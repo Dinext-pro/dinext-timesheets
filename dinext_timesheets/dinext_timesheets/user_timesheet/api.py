@@ -13,6 +13,7 @@ from .copy_positions import (
 	copy_from_previous_timesheet,
 	copy_from_project_workload_assignment,
 )
+from .pending_approvers import list_pending_approver_names
 from .permissions import assert_can_query_tasks_for_owner
 from .status import set_timesheet_status as _set_timesheet_status
 from .tasks import load_projects_remap2_customers
@@ -61,3 +62,9 @@ def set_timesheet_status(positions=None, pos_status=None, ts_name=None, ts_statu
 		ts_name=_form_arg("ts_name", ts_name),
 		ts_status=_form_arg("ts_status", ts_status),
 	)
+
+
+@frappe.whitelist()
+def get_pending_approver_names(ts_name=None):
+	"""Banner: all waiting approver full names (not only session user)."""
+	return list_pending_approver_names(_form_arg("ts_name", ts_name))

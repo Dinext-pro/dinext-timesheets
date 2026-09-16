@@ -200,4 +200,6 @@ def _update_task_act_dates(doc) -> None:
 			task_doc.act_start_date = new_start
 		if new_end is not None:
 			task_doc.act_end_date = new_end
+		# Save_PM_Only still runs on ignore_permissions; skip СПП gate for date sync.
+		task_doc.flags.skip_pss_guard = True
 		task_doc.save(ignore_permissions=True)

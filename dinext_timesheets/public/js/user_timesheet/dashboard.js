@@ -15,52 +15,21 @@ export async function showTimesheetDashboard(frm) {
 	const gen = (frm._ut_dash_gen = (frm._ut_dash_gen || 0) + 1);
 	const comments = [];
 
-	if (frm.doc.ut_status === "На согласовании") {
-		const positionNames = (frm.ts_positions || []).map((x) => x.name).filter(Boolean);
-		if (positionNames.length) {
-			const wfTasks = await frappe.db.get_list("Workflow Task", {
-				fields: ["name", "_assign"],
-				filters: {
-					status: "Working",
-					state: frm.doc.ut_status,
-					doc: "User Timesheet Position",
-					wt_docname: ["in", positionNames],
-					_assign: ["not like", `%${frm.doc.timesheet_from}%`],
-				},
-				limit: 100,
+	if (frm.doc.ut_status === "На согласовании" && frm.doc.name) {
+		const names = await frappe.xcall(
+			"dinext_timesheets.dinext_timesheets.user_timesheet.api.get_pending_approver_names",
+			{ ts_name: frm.doc.name }
+		);
+		if (gen !== frm._ut_dash_gen) {
+			return;
+		}
+		if (names?.length) {
+			comments.push({
+				text: __("Ожидается согласование от: {0}", [
+					frappe.utils.comma_and(names),
+				]),
+				color: "blue",
 			});
-			if (gen !== frm._ut_dash_gen) {
-				return;
-			}
-			if (wfTasks?.length) {
-				const approvers = [
-					...new Set(
-						wfTasks
-							.map((x) => frappe.utils.parse_json(x._assign) || [])
-							.flat()
-							.filter(Boolean)
-					),
-				];
-				if (approvers.length) {
-					const users = await frappe.db.get_list("User", {
-						fields: ["full_name"],
-						filters: { name: ["in", approvers] },
-						limit: approvers.length,
-					});
-					if (gen !== frm._ut_dash_gen) {
-						return;
-					}
-					const names = (users || []).map((u) => u.full_name).filter(Boolean);
-					if (names.length) {
-						comments.push({
-							text: __("Ожидается согласование от: {0}", [
-								frappe.utils.comma_and(names),
-							]),
-							color: "blue",
-						});
-					}
-				}
-			}
 		}
 	}
 

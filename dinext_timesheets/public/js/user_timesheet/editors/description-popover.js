@@ -34,7 +34,7 @@ function fmtHours(value) {
 }
 
 function hoursLabel(row, date) {
-	return `${fmtHours(row[dayField(date)])} ${__("ч")}`;
+	return `${fmtHours(row[dayField(date)])} ${__("h")}`;
 }
 
 export function closeDescriptionPopover() {
@@ -285,10 +285,10 @@ export function openDescriptionPopover(frm, row, date, anchor) {
 	const label = hoursLabel(row, date);
 
 	const $popover = $(`
-		<div class="ut-descr-popover" role="dialog" aria-label="${__("Описание")}">
+		<div class="ut-descr-popover" role="dialog" aria-label="${__("Description")}">
 			<div class="ut-descr-popover__caret" aria-hidden="true"></div>
 			<textarea class="form-control ut-descr-popover__input" rows="3" placeholder="${__(
-				"Что сделано"
+				"What was done"
 			)}"></textarea>
 			<div class="ut-descr-popover__foot">
 				<div class="ut-descr-popover__stepper"></div>
@@ -324,12 +324,12 @@ export function openDescriptionPopover(frm, row, date, anchor) {
 	if (hoursEditable) {
 		$stepper.html(`
 			<button type="button" class="ut-descr-popover__step ut-hrs-decr" tabindex="-1" title="-30 ${__(
-				"мин"
-			)}" aria-label="-30 ${__("мин")}">−</button>
+				"min"
+			)}" aria-label="-30 ${__("min")}">−</button>
 			<span class="ut-descr-popover__hours">${frappe.utils.escape_html(label)}</span>
 			<button type="button" class="ut-descr-popover__step ut-hrs-incr" tabindex="-1" title="+30 ${__(
-				"мин"
-			)}" aria-label="+30 ${__("мин")}">+</button>
+				"min"
+			)}" aria-label="+30 ${__("min")}">+</button>
 		`);
 		const $hoursLabel = $stepper.find(".ut-descr-popover__hours");
 		/* Keep focus out of stepper — hours stay in the grid cell. */

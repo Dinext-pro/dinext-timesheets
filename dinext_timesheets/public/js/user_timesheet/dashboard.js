@@ -25,7 +25,7 @@ export async function showTimesheetDashboard(frm) {
 		}
 		if (names?.length) {
 			comments.push({
-				text: __("Ожидается согласование от: {0}", [
+				text: __("Pending approval from: {0}", [
 					frappe.utils.comma_and(names),
 				]),
 				color: "blue",
@@ -38,7 +38,7 @@ export async function showTimesheetDashboard(frm) {
 		(frm.doc.ut_status === "Черновик" || frm.doc.ut_status === "На доработке")
 	) {
 		comments.push({
-			text: __("Таймшит просрочен! Срочно отправьте позиции на согласование!"),
+			text: __("Timesheet is overdue! Submit positions for approval immediately!"),
 			color: "orange",
 		});
 	}

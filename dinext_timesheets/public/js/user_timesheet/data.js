@@ -199,7 +199,7 @@ export async function loadGridData(frm) {
 
 	const dates = getDatesBetween(frm.doc.ts_valid_from, frm.doc.ts_valid_for);
 	if (!dates.length) {
-		frappe.throw(__("Ошибка определения дат ТШ!"));
+		frappe.throw(__("Could not determine timesheet dates"));
 	}
 
 	const [workHours, holidays, leaves, positions, tasksData] = await Promise.all([

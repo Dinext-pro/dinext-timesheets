@@ -127,7 +127,7 @@ function makeColumn(title, { search = false, wide = false } = {}) {
 	if (search) {
 		$search = $(
 			`<input type="search" class="ut-task-picker__search form-control" placeholder="${__(
-				"Поиск"
+				"Search"
 			)}" autocomplete="off">`
 		);
 		$col.append($search);
@@ -145,7 +145,7 @@ function fillList($body, items, selected) {
 	$body.empty();
 	if (!items.length) {
 		$body.append(
-			`<div class="ut-task-picker__empty">${__("Нет вариантов")}</div>`
+			`<div class="ut-task-picker__empty">${__("No options")}</div>`
 		);
 		return;
 	}
@@ -237,30 +237,30 @@ export function openTaskPicker(frm, opts = {}) {
 	const currentProject = currentProjectForPicker(frm, row);
 	const byClient = clientsMap(frm, currentProject);
 	if (!byClient.size) {
-		frappe.msgprint(__("Нет доступных проектов"));
+		frappe.msgprint(__("No projects available"));
 		return;
 	}
 
 	const el = document.createElement("div");
 	el.className = PICKER_CLASS;
 	el.setAttribute("role", "dialog");
-	el.setAttribute("aria-label", __("Выбор задачи"));
+	el.setAttribute("aria-label", __("Select Task"));
 
 	const $el = $(el);
 	const $cols = $('<div class="ut-task-picker__cols"></div>').appendTo($el);
-	const clientCol = makeColumn(__("Клиент"));
-	const projectCol = makeColumn(__("Проект"));
-	const taskCol = makeColumn(__("Задача"), { search: true, wide: true });
+	const clientCol = makeColumn(__("Client"));
+	const projectCol = makeColumn(__("Project"));
+	const taskCol = makeColumn(__("Task"), { search: true, wide: true });
 	clientCol.$col.appendTo($cols);
 	projectCol.$col.appendTo($cols);
 	taskCol.$col.appendTo($cols);
 
 	const $actions = $('<div class="ut-task-picker__actions"></div>').appendTo($el);
 	const $cancel = $(
-		`<button type="button" class="btn btn-default btn-sm">${__("Отмена")}</button>`
+		`<button type="button" class="btn btn-default btn-sm">${__("Cancel")}</button>`
 	).appendTo($actions);
 	const $select = $(
-		`<button type="button" class="btn btn-primary btn-sm">${__("Выбрать")}</button>`
+		`<button type="button" class="btn btn-primary btn-sm">${__("Select")}</button>`
 	).appendTo($actions);
 
 	let projects = [];
@@ -277,7 +277,7 @@ export function openTaskPicker(frm, opts = {}) {
 		if (!tasks.length) {
 			taskCol.$body.empty().append(
 				`<div class="ut-task-picker__empty">${
-					query ? __("Ничего не найдено") : __("Нет задач")
+					query ? __("Nothing found") : __("No tasks")
 				}</div>`
 			);
 			return;

@@ -8,7 +8,7 @@ export function buildSummaryRows(frm) {
 	const summary = {
 		id: "ut_day_totals",
 		project_label: "",
-		document_label: __("Итого"),
+		document_label: __("Total"),
 		project_role: "",
 		total: 0,
 	};

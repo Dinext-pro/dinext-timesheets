@@ -48,7 +48,7 @@ async function updateUTPositions(frm, updatedPositions, pos_status, comment = nu
 			},
 			silent: true,
 			freeze: true,
-			freeze_message: __("Сохранение данных.."),
+			freeze_message: __("Saving data..."),
 		});
 		if (comment) {
 			for (const item of updatedPositions) {
@@ -56,13 +56,13 @@ async function updateUTPositions(frm, updatedPositions, pos_status, comment = nu
 			}
 		}
 		frappe.show_alert(
-			{ message: __("Данные сохранены"), indicator: "green" },
+			{ message: __("Data saved"), indicator: "green" },
 			5
 		);
 		frm.reload_doc();
 	} catch (err) {
 		const message = err?.responseJSON?.exception || String(err);
-		frappe.throw(__("Ошибка при сохранении данных: ") + message);
+		frappe.throw(__("Error saving data: {0}", [message]));
 	}
 }
 
@@ -135,7 +135,7 @@ export async function processUTWorkflow(frm) {
 				frappe.prompt(
 					{
 						fieldtype: "Data",
-						label: __("Введите комментарий"),
+						label: __("Enter a comment"),
 						fieldname: "comment",
 						reqd: 1,
 					},
@@ -147,8 +147,8 @@ export async function processUTWorkflow(frm) {
 							data.comment
 						);
 					},
-					`${__("Комментарий для действия")} "${cur_transition.action}"`,
-					__("Сохранить")
+					`${__("Comment for action")} "${cur_transition.action}"`,
+					__("Save")
 				);
 			} else {
 				await updateUTPositions(

@@ -53,9 +53,9 @@ export function getLimitsPayload(frm) {
 /** demodev Check Limits_V2 tooltip text. */
 export function limitTooltipForResult(r) {
 	if (r?.planned_hours > 0) {
-		return `${r.completion_percentage}% из ${r.planned_hours} ч.`;
+		return __("{0}% of {1} h.", [r.completion_percentage, r.planned_hours]);
 	}
-	return __("Не определены плановые трудозатраты");
+	return __("Planned work efforts are not defined");
 }
 
 async function callLimits(args) {
@@ -99,14 +99,17 @@ export async function checkPlannedHoursAndLimits(frm) {
 				if (r.planned_hours > 0) {
 					const max_hrs = (r.limit * r.planned_hours) / 100;
 					errors.push(
-						`Трудозатраты по задаче "${r.task_subject}" (роль: ${r.role}) ` +
-							`превысили блокирующий лимит (${max_hrs} ч.) ` +
-							`на ${r.total_hours - max_hrs} часа(ов).`
+						__(
+							'Work efforts for task "{0}" (role: {1}) exceeded the blocking limit ({2} h.) by {3} hour(s).',
+							[r.task_subject, r.role, max_hrs, r.total_hours - max_hrs]
+						)
 					);
 				} else {
 					errors.push(
-						`Для задачи "${r.task_subject}" (роль: ${r.role}) ` +
-							`не определены обязательные плановые трудозатраты`
+						__(
+							'Mandatory planned work efforts are not defined for task "{0}" (role: {1})',
+							[r.task_subject, r.role]
+						)
 					);
 				}
 			} else if (r.status === "warning") {
@@ -121,7 +124,7 @@ export async function checkPlannedHoursAndLimits(frm) {
 			error?.responseJSON?.exception ||
 			String(error);
 		errors.push(
-			`${__("Ошибка при проверке плановых трудозатрат и лимитов")}: ${detail}`
+			`${__("Error checking planned work efforts and limits")}: ${detail}`
 		);
 	}
 	return { errors, warnings };
@@ -210,8 +213,8 @@ function getNoPlanWarningHtml() {
 	return `
 		<div class="alert alert-danger" style="margin-bottom: 15px;">
 			<i class="fa fa-exclamation-triangle"></i>
-			<strong> ${__("Внимание!")}</strong> ${__(
-				"Для этой задачи обязательно указание плановых трудозатрат!"
+			<strong> ${__("Attention!")}</strong> ${__(
+				"Planned work efforts are required for this task!"
 			)}
 		</div>`;
 }
@@ -235,10 +238,10 @@ function getCompletionTableHtml(result) {
 			continue;
 		}
 		rows.push({
-			status: key === "total" ? __("Всего") : key,
+			status: key === "total" ? __("All") : __(key),
 			isTotal: key === "total",
 			plan: Number.parseFloat(result.planned_hours).toFixed(1),
-			fact: `${hours.toFixed(1)} ч.`,
+			fact: `${hours.toFixed(1)} ${__("h.")}`,
 			percent: calculatePercentage(hours),
 		});
 	}
@@ -247,10 +250,10 @@ function getCompletionTableHtml(result) {
 			<table class="table table-bordered" style="width: 100%; margin-bottom: 10px;">
 				<thead>
 					<tr>
-						<th style="width: 30%;">${__("Статус")}</th>
-						<th style="width: 20%; text-align: right;">${__("План")}</th>
-						<th style="width: 20%; text-align: right;">${__("Факт")}</th>
-						<th style="width: 30%;">${__("% выполнения")}</th>
+						<th style="width: 30%;">${__("Status")}</th>
+						<th style="width: 20%; text-align: right;">${__("Plan")}</th>
+						<th style="width: 20%; text-align: right;">${__("Fact")}</th>
+						<th style="width: 30%;">${__("% Complete")}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -289,16 +292,16 @@ function getHoursUsers(result, frm) {
 	if (!users.length) {
 		return "";
 	}
-	return `<br>${__("Учтены часы от:")} ${frappe.utils.comma_and(users)}`;
+	return `<br>${__("Hours included from:")} ${frappe.utils.comma_and(users)}`;
 }
 
 function getHoursNoteHtml(result) {
 	if (result.used_children_for_actual) {
-		return `${__("Фактические данные: с учетом других дочерних задач")} (${
-			result.child_tasks_count
-		} шт.)`;
+		return __("Fact data: including other child tasks ({0})", [
+			result.child_tasks_count,
+		]);
 	}
-	return __("Фактические данные: только текущая задача");
+	return __("Fact data: current task only");
 }
 
 function getCurrentUserHoursHtml(result, frm) {
@@ -327,21 +330,21 @@ function getCurrentUserHoursHtml(result, frm) {
 		statusBreakdown = `<br><small style="color: #6c757d;">${statuses
 			.map(
 				(status) =>
-					`${frappe.utils.escape_html(status)}: ${ownerHoursByStatus[status].toFixed(2)} ${__("ч.")}`
+					`${frappe.utils.escape_html(__(status))}: ${ownerHoursByStatus[status].toFixed(2)} ${__("h.")}`
 			)
 			.join(" | ")}</small>`;
 	} else if (statuses.length === 1) {
-		statusBreakdown = `<br><small style="color: #6c757d;">${__("Статус")}: ${frappe.utils.escape_html(
-			statuses[0]
+		statusBreakdown = `<br><small style="color: #6c757d;">${__("Status")}: ${frappe.utils.escape_html(
+			__(statuses[0])
 		)}</small>`;
 	}
 	return `
 		<div style="margin: 15px 0; padding: 8px 10px; background-color: #f0f7ff; border-radius: 4px; border-left: 4px solid #007bff;">
 			<strong>${frappe.utils.escape_html(ownerFullName)}:</strong>
-			<span style="font-size: 16px; font-weight: bold; color: #007bff;">${totalOwnerHours.toFixed(2)} ${__("ч.")}</span>
+			<span style="font-size: 16px; font-weight: bold; color: #007bff;">${totalOwnerHours.toFixed(2)} ${__("h.")}</span>
 			${
 				result.planned_hours > 0
-					? `<span style="color: #6c757d;"> (${percentage}% ${__("от плана")})</span>`
+					? `<span style="color: #6c757d;"> (${percentage}% ${__("of plan")})</span>`
 					: ""
 			}
 			${statusBreakdown}
@@ -353,15 +356,15 @@ function getParentTaskInfoHtml(result) {
 		return "";
 	}
 	let html = `<div class="hours-note">${__(
-		"Плановые данные определены на уровне:"
+		"Planned data is defined at:"
 	)} ${frappe.utils.escape_html(result.plan_task_subject || "")}</div>`;
 	const sources = result.plan_sources || [];
 	if (sources.length) {
-		html += `<div class="hours-note">${__("Источники плана:")}<ul>`;
+		html += `<div class="hours-note">${__("Plan sources:")}<ul>`;
 		for (const source of sources) {
 			html += `<li>${frappe.utils.escape_html(source.subject || "")} (${frappe.utils.escape_html(
 				source.task_name || ""
-			)}): ${source.planned_hours} ${__("ч.")}</li>`;
+			)}): ${source.planned_hours} ${__("h.")}</li>`;
 		}
 		html += `</ul></div>`;
 	}
@@ -371,7 +374,7 @@ function getParentTaskInfoHtml(result) {
 /** Plan/fact modal for a position row (demodev showTaskPlanFact). */
 export async function showTaskPlanFact(frm, position) {
 	if (!position?.document_name) {
-		frappe.msgprint(__("Не выбрана задача для отображения информации"));
+		frappe.msgprint(__("No task selected to display information"));
 		return;
 	}
 	const message = await callLimits(getLimitsPayload(frm));
@@ -379,7 +382,7 @@ export async function showTaskPlanFact(frm, position) {
 		(el) => String(el.position) === String(position.name || position.id)
 	);
 	if (!result) {
-		frappe.msgprint(__("Нет данных плана/факта для позиции"));
+		frappe.msgprint(__("No plan/fact data for the position"));
 		return;
 	}
 
@@ -392,7 +395,7 @@ export async function showTaskPlanFact(frm, position) {
 				fieldname: "body",
 			},
 		],
-		primary_action_label: __("Закрыть"),
+		primary_action_label: __("Close"),
 		primary_action() {
 			d.hide();
 		},
@@ -434,18 +437,18 @@ export async function alertLimitWarnings(frm) {
 		.map(
 			(w) =>
 				`• <b>${frappe.utils.escape_html(w.task_subject)}</b> (${__(
-					"Проект"
-				)}: ${frappe.utils.escape_html(w.project)}, ${__("Роль")}: ${frappe.utils.escape_html(
+					"Project"
+				)}: ${frappe.utils.escape_html(w.project)}, ${__("Role")}: ${frappe.utils.escape_html(
 					w.role
 				)})<br>` +
-				`&nbsp;&nbsp;${__("Фактические трудозатраты")}: ${
+				`&nbsp;&nbsp;${__("Fact work efforts")}: ${
 					w.completion_percentage
-				}% ${__("плана")}`
+				}% ${__("of plan")}`
 		)
 		.join("<br><br>");
 	frappe.show_alert(
 		{
-			message: `<b>${__("Обратите внимание на следующие задачи:")}</b><br><br>${message}`,
+			message: `<b>${__("Please review the following tasks:")}</b><br><br>${message}`,
 			indicator: "yellow",
 		},
 		15

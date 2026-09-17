@@ -106,7 +106,7 @@ def _position_signature(row):
 def copy_from_previous_timesheet(doc=None):
 	name = get_current_timesheet_name(doc)
 	if not name:
-		return build_response(False, _("Не удалось определить имя таймшита"))
+		return build_response(False, _("Could not determine timesheet name"))
 
 	assert_can_write_timesheet(name)
 	current = frappe.get_doc("User Timesheet", name)
@@ -119,7 +119,7 @@ def copy_from_previous_timesheet(doc=None):
 		limit=1,
 	)
 	if not previous:
-		return build_response(True, _("Не найден таймшит за предыдущий день"))
+		return build_response(True, _("No timesheet found for the previous day"))
 
 	previous_name = previous[0].name
 	previous_positions = frappe.get_all(
@@ -128,7 +128,7 @@ def copy_from_previous_timesheet(doc=None):
 		fields=["owner", "document_type", "document_name", "user", "project", "project_role"],
 	)
 	if not previous_positions:
-		return build_response(True, _("В предыдущем таймшите нет позиций для копирования"))
+		return build_response(True, _("The previous timesheet has no positions to copy"))
 
 	existing = frappe.get_all(
 		"User Timesheet Position",
@@ -191,7 +191,7 @@ def intersects_timesheet_period(assignment, timesheet_start, timesheet_end):
 def copy_from_project_workload_assignment(doc=None, valid_tasks=None):
 	name = get_current_timesheet_name(doc)
 	if not name:
-		return build_response(False, _("Не удалось определить имя таймшита"))
+		return build_response(False, _("Could not determine timesheet name"))
 
 	assert_can_write_timesheet(name)
 	current = frappe.get_doc("User Timesheet", name)
@@ -209,7 +209,7 @@ def copy_from_project_workload_assignment(doc=None, valid_tasks=None):
 	]
 	if not relevant:
 		return build_response(
-			True, _("Не найдены данные плановой загрузки за период текущего ТШ")
+			True, _("No planned workload data found for the current timesheet period")
 		)
 
 	task_names = []
@@ -266,7 +266,7 @@ def copy_from_project_workload_assignment(doc=None, valid_tasks=None):
 
 	return build_response(
 		True,
-		_("Позиции из плановой загрузки обработаны"),
+		_("Planned workload positions processed"),
 		positions=positions_to_copy,
 		duplicates=duplicates,
 		invalid=invalid,

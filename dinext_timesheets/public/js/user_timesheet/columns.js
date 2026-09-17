@@ -41,6 +41,21 @@ function limitIconRenderer(frm) {
 	};
 }
 
+/** Day hours: empty → 0, garbage → previous, never negative. */
+export function parseTimesheetHourCell(params) {
+	const raw = params?.newValue;
+	if (raw == null || String(raw).trim() === "") {
+		return 0;
+	}
+	const parsed = typeof DinextTable?.parseLocaleNumber === "function"
+		? DinextTable.parseLocaleNumber(raw)
+		: flt(raw);
+	if (parsed == null || !Number.isFinite(Number(parsed))) {
+		return Math.max(flt(params?.oldValue) || 0, 0);
+	}
+	return Math.max(Number(parsed), 0);
+}
+
 function markSelectCellEditable(frm, wrap, row) {
 	if (!canEdit(frm) || row?.rowType !== "position") {
 		return;
@@ -178,6 +193,7 @@ export function getColumns(frm) {
 			headerName: moment(date).format("DD.MM"),
 			type: "number",
 			edit: (row) => editable && row?.rowType === "position",
+			valueParser: parseTimesheetHourCell,
 			width: 54,
 			minWidth: 54,
 			maxWidth: 54,

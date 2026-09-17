@@ -22,7 +22,7 @@ export async function saveTimesheetPositions(frm) {
 		setInvalidCells(frm, invalidCells);
 		frappe.validated = false;
 		frappe.msgprint({
-			title: __("Невозможно сохранить ТШ"),
+			title: __("Cannot save timesheet"),
 			indicator: "red",
 			as_list: true,
 			message: errors,
@@ -50,9 +50,9 @@ export async function saveTimesheetPositions(frm) {
 			frm.deletedPositions = remainingDeleted;
 			frappe.validated = false;
 			frappe.msgprint({
-				title: __("Ошибка сохранения"),
+				title: __("Save Error"),
 				indicator: "red",
-				message: __("Ошибка при удалении позиции {0}", [id]),
+				message: __("Error deleting position {0}", [id]),
 			});
 			return false;
 		}
@@ -66,15 +66,15 @@ export async function saveTimesheetPositions(frm) {
 				args: { docs: newPositions },
 				freeze: true,
 				silent: true,
-				freeze_message: __("Сохранение данных.."),
+				freeze_message: __("Saving data..."),
 			});
 		} catch (err) {
 			console.error("[UserTimesheet] insert_many", err);
 			frappe.validated = false;
 			frappe.msgprint({
-				title: __("Ошибка сохранения"),
+				title: __("Save Error"),
 				indicator: "red",
-				message: __("Ошибка при сохранении новых позиций"),
+				message: __("Error saving new positions"),
 			});
 			return false;
 		}
@@ -87,15 +87,15 @@ export async function saveTimesheetPositions(frm) {
 				args: { docs: updatedPositions },
 				freeze: true,
 				silent: true,
-				freeze_message: __("Сохранение данных.."),
+				freeze_message: __("Saving data..."),
 			});
 		} catch (err) {
 			console.error("[UserTimesheet] bulk_update", err);
 			frappe.validated = false;
 			frappe.msgprint({
-				title: __("Ошибка сохранения"),
+				title: __("Save Error"),
 				indicator: "red",
-				message: __("Ошибка при обновлении позиций"),
+				message: __("Error updating positions"),
 			});
 			return false;
 		}
@@ -110,26 +110,26 @@ export function onValidateCells(frm, ctx) {
 	}
 	/* Hard gate: Согласован / На согласовании / Отклонено — no cell commits. */
 	if (!canEdit(frm)) {
-		return __("Редактирование недоступно в текущем статусе");
+		return __("Editing is not available in the current status");
 	}
 	for (const change of ctx.changes) {
 		if (change.section === "summary") {
-			return __("Итоговую строку нельзя редактировать");
+			return __("The total row cannot be edited");
 		}
 		const row = (frm.ut.rows || []).find((r) => String(r.id) === String(change.rowId));
 		if (row?.rowType === "section") {
-			return __("Служебная строка");
+			return __("Service row");
 		}
 		if (row?.rowType === "leave") {
-			return __("Заявки на отсутствие только для чтения");
+			return __("Leave applications are read-only");
 		}
 		if (change.field?.startsWith("day_")) {
 			const n = flt(change.newValue);
 			if (change.newValue !== "" && change.newValue != null && Number.isNaN(n)) {
-				return __("Часы должны быть числом");
+				return __("Hours must be a number");
 			}
 			if (n < 0) {
-				return __("Часы не могут быть отрицательными");
+				return __("Hours cannot be negative");
 			}
 		}
 	}

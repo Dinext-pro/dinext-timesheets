@@ -192,7 +192,7 @@ export function onAddTimesheetRow(frm) {
 		return false;
 	}
 	if (!listProjects(frm).length) {
-		frappe.msgprint(__("Список задач ещё не загружен"));
+		frappe.msgprint(__("Task list is not loaded yet"));
 		return false;
 	}
 
@@ -306,7 +306,7 @@ export function onValidateDeleteTimesheetRows(frm, ctx) {
 	const bad = (ctx.rows || []).some((r) => r?.rowType && r.rowType !== "position");
 	if (bad) {
 		frappe.show_alert({
-			message: __("Можно удалять только строки позиций"),
+			message: __("Only position rows can be deleted"),
 			indicator: "orange",
 		});
 		return false;

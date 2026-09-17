@@ -17,7 +17,7 @@ export const CASCADE_DATA_FIELDS = [
 export function ensureCatalog(frm) {
 	const customers = frm.ut?.tasksData || frm.tasks_data;
 	if (!customers || !Object.keys(customers).length) {
-		frappe.msgprint(__("Список задач ещё не загружен"));
+		frappe.msgprint(__("Task list is not loaded yet"));
 		return false;
 	}
 	return true;

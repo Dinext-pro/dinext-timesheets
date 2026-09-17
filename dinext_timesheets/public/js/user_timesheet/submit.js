@@ -22,9 +22,9 @@ import { clearInvalidCells, setInvalidCells } from "./invalid-cells.js";
 const SET_STATUS =
 	"dinext_timesheets.dinext_timesheets.user_timesheet.api.set_timesheet_status";
 
-const BTN_START = "Отправить на согласование";
-const BTN_STOP = "Остановить воркфлоу";
-const BTN_EDIT = "Вернуть на редактирование";
+const BTN_START = "Submit for Approval";
+const BTN_STOP = "Stop Workflow";
+const BTN_EDIT = "Return to Editing";
 
 function syncAllRows(frm) {
 	for (const row of frm.ut?.rows || []) {
@@ -53,10 +53,10 @@ function hasPositionRows(frm) {
 /** Why Start is blocked, or "" if can submit. */
 function startButtonBlockReason(frm) {
 	if (!hasPositionRows(frm)) {
-		return __("Добавьте хотя бы одну позицию");
+		return __("Add at least one position");
 	}
 	if (needsSaveBeforeSubmit(frm)) {
-		return __("Сначала сохраните таймшит");
+		return __("Save the timesheet first");
 	}
 	return "";
 }
@@ -73,7 +73,7 @@ function findCustomButton(frm, label) {
  * Uses .disabled (not prop) so title tooltip still works on hover.
  */
 export function syncStartButtonState(frm) {
-	const $btn = findCustomButton(frm, BTN_START);
+	const $btn = findCustomButton(frm, __(BTN_START));
 	if (!$btn.length) {
 		return;
 	}
@@ -128,10 +128,10 @@ function validateDayTotals(frm, errors) {
 		const minHours = dayHours - minDelta;
 		const maxHours = dayHours + maxDelta;
 		if (total < minHours) {
-			errors.push(`${date} не может быть менее ${minHours} часов.`);
+			errors.push(__("{0} cannot be less than {1} hours.", [date, minHours]));
 		}
 		if (total > maxHours) {
-			errors.push(`${date} не может быть более ${maxHours} часов.`);
+			errors.push(__("{0} cannot be more than {1} hours.", [date, maxHours]));
 		}
 	}
 
@@ -144,7 +144,7 @@ function validateDayTotals(frm, errors) {
 			return minHours > 0;
 		});
 		if (needsPositions) {
-			errors.push("Добавьте позиции для согласования!");
+			errors.push(__("Add positions for approval"));
 		}
 	}
 }
@@ -160,20 +160,20 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 		const line = idx + 1;
 		const rowErrors = [];
 		if (!row.project) {
-			rowErrors.push(`Выберите проект в ${line}й строке!`);
+			rowErrors.push(__("Select a project in row {0}", [line]));
 			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT });
 		}
 		if (!row.document_name) {
-			rowErrors.push(`Выберите запрос или задачу в ${line}й строке!`);
+			rowErrors.push(__("Select a request or task in row {0}", [line]));
 			invalidCells.push({ rowId: row.id, field: FIELD_TASK });
 		}
 		if (!row.project_role) {
-			rowErrors.push(`Выберите проектную роль в ${line}й строке!`);
+			rowErrors.push(__("Select a project role in row {0}", [line]));
 			invalidCells.push({ rowId: row.id, field: FIELD_ROLE });
 		}
 		const total = sumDayHours(row, dates);
 		if (!total) {
-			rowErrors.push(`Укажите часы в ${line}й строке!`);
+			rowErrors.push(__("Enter hours in row {0}", [line]));
 			invalidCells.push({ rowId: row.id, field: "total" });
 		}
 
@@ -186,9 +186,10 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 			}
 			if (hours > 0 && !description && frm.template_doc?._is_mandatory) {
 				rowErrors.push(
-					`${date} по задаче ${
-						row.document_label || row.document_name || line
-					} не заполнено описание.`
+					__("Description is not filled for {0} on task {1}", [
+						date,
+						row.document_label || row.document_name || line,
+					])
 				);
 				invalidCells.push({ rowId: row.id, field: dayField(date) });
 			}
@@ -258,7 +259,7 @@ async function sendTimesheet(workflow, frm) {
 		return;
 	}
 	if (workflow !== "Start" && needsSaveBeforeSubmit(frm)) {
-		frappe.msgprint(__("Сначала сохраните таймшит"));
+		frappe.msgprint(__("Save the timesheet first"));
 		return;
 	}
 
@@ -279,12 +280,12 @@ async function sendTimesheet(workflow, frm) {
 		if (showErrors && errors.length) {
 			setInvalidCells(frm, validation.invalidCells || []);
 			frappe.msgprint({
-				title: __("Ошибки заполнения ТШ:<br>"),
+				title: __("Timesheet Validation Errors"),
 				indicator: "red",
 				as_list: true,
 				message: errors,
 				primary_action: {
-					label: __("Исправить"),
+					label: __("Fix"),
 					action() {
 						frappe.msg_dialog?.cancel?.();
 					},
@@ -301,7 +302,7 @@ async function sendTimesheet(workflow, frm) {
 		if (updatedPositions.length !== expected) {
 			frappe.msgprint(
 				__(
-					"Ошибка при обработке позиций ТШ. Пожалуйста, обновите страницу и попробуйте заново."
+					"Error processing timesheet positions. Please refresh the page and try again."
 				)
 			);
 			return;
@@ -320,7 +321,7 @@ async function sendTimesheet(workflow, frm) {
 				},
 				silent: true,
 				freeze: true,
-				freeze_message: __("Сохранение..."),
+				freeze_message: __("Saving..."),
 			});
 		} else {
 			await frappe.db.set_value(
@@ -332,7 +333,7 @@ async function sendTimesheet(workflow, frm) {
 		}
 
 		frappe.show_alert(
-			{ message: __("Данные успешно сохранены"), indicator: "green" },
+			{ message: __("Data saved successfully"), indicator: "green" },
 			5
 		);
 		frm.reload_doc();
@@ -344,7 +345,7 @@ async function sendTimesheet(workflow, frm) {
 			error?.responseJSON?.exception ||
 			String(error);
 		frappe.msgprint({
-			title: __("Ошибка обработки ТШ"),
+			title: __("Timesheet Processing Error"),
 			indicator: "red",
 			message,
 		});
@@ -371,7 +372,7 @@ export function setupSubmitButtons(frm) {
 	const isOwner = frappe.session.user === frm.doc.timesheet_from;
 
 	if (status === "Черновик" || status === "На доработке") {
-		frm.add_custom_button(BTN_START, async () => {
+		frm.add_custom_button(__(BTN_START), async () => {
 			if (startButtonBlockReason(frm)) {
 				syncStartButtonState(frm);
 				return;
@@ -381,20 +382,20 @@ export function setupSubmitButtons(frm) {
 		syncStartButtonState(frm);
 	} else if (status === "На согласовании") {
 		if (isOwner) {
-			frm.add_custom_button(BTN_STOP, async () => {
+			frm.add_custom_button(__(BTN_STOP), async () => {
 				await sendTimesheet("Stop", frm);
 			});
 		}
 	} else {
-		frm.add_custom_button(BTN_EDIT, async () => {
+		frm.add_custom_button(__(BTN_EDIT), async () => {
 			if (status === "Согласован") {
 				frappe.warn(
-					"Вы уверены, что хотите вернуть ТШ на редактирование?",
-					__("Потребуется повторное согласование всего таймшита!"),
+					__("Are you sure you want to return the timesheet to editing?"),
+					__("The entire timesheet will need to be re-approved!"),
 					async () => {
 						await sendTimesheet("Edit", frm);
 					},
-					__("Продолжить"),
+					__("Continue"),
 					true
 				);
 			} else {

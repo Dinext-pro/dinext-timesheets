@@ -10,7 +10,7 @@ function can_reprocess_journal_entries() {
 
 function add_reprocces_button( listview ) {
     if (can_reprocess_journal_entries()) {
-        listview.page.add_action_item(__("Перепровести проводки"), async () => {
+        listview.page.add_action_item(__("Reprocess Journal Entries"), async () => {
             let uts = listview.get_checked_items( false );
             
             const approved_uts = uts.filter(function(element, index) { return element.ut_status == "Согласован" });
@@ -19,17 +19,17 @@ function add_reprocces_button( listview ) {
                 let total = approved_uts.length ;
                 let processed = 0;
                 
-                frappe.show_progress(__("Проводим..."), processed, total);
+                frappe.show_progress(__("Posting..."), processed, total);
                 
                 for (approved_ut of approved_uts) {
                     await reprocces_timesheet( approved_ut );
                     processed++;
-                    frappe.show_progress(__("Проводим..."), processed, total);
+                    frappe.show_progress(__("Posting..."), processed, total);
                 }
                 
                 frappe.hide_progress();
                 frappe.show_alert({
-                    message:__('Данные сохранены'),
+                    message:__('Data saved'),
                     indicator:'green'
                 }, 5);
             }

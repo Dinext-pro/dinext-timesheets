@@ -14,8 +14,8 @@ import { applyNewTimesheetDefaults } from "./new_doc.js";
 import { applyTimesheetSidebarHide } from "./sidebar.js";
 import { scheduleCascadeLayout } from "./column-layout.js";
 
-const REPROCESS_LABEL = "Перепровести";
-const REPROCESS_GROUP = "Фин. проводки";
+const REPROCESS_LABEL = "Reprocess";
+const REPROCESS_GROUP = "Financial Entries";
 
 function applyReadonlyChrome(frm) {
 	if (canEdit(frm)) {

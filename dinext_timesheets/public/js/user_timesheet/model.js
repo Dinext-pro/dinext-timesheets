@@ -185,7 +185,7 @@ export function collectDuplicatePositionErrors(positionRows, errors, invalidCell
 		}
 		const lines = group.map((g) => g.line).join(", ");
 		errors.push(
-			__("Дублируются строки {0}: одинаковые проект, задача и роль", [lines])
+			__("Duplicate rows {0}: same project, task, and role", [lines])
 		);
 		for (const { row } of group) {
 			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT });

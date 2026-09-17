@@ -1,7 +1,7 @@
 /** Customer → project → task catalog from get_timesheet_tasks (remap2). */
 
 /** Empty Project.customer (0..1 Link) → internal/presale bucket. */
-export const EMPTY_CLIENT = __("Без Клиента");
+export const EMPTY_CLIENT = __("No Client");
 
 function normalizeClient(label) {
 	const s = String(label || "").trim();

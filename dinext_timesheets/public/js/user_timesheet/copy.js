@@ -11,7 +11,7 @@ const COPY_PWA =
 	"dinext_timesheets.dinext_timesheets.user_timesheet.api.copy_positions_from_project_workload_assignment";
 
 function copyGroupLabel() {
-	return frappe.utils.icon("sidebar-expand") + __(" Скопировать");
+	return frappe.utils.icon("sidebar-expand") + " " + __("Copy");
 }
 
 /** Same key as server `_position_signature` / demodev Copy Previous UT. */
@@ -62,14 +62,14 @@ function handleCopyResponse(result) {
 	let message = "";
 	let indicator = "orange";
 	if (result.copied_count > 0) {
-		message = __("Успешно скопировано: {0}", [result.copied_count]);
+		message = __("Successfully copied: {0}", [result.copied_count]);
 		indicator = "green";
 		if (result.duplicates_count > 0) {
 			message += "<br/>";
 		}
 	}
 	if (result.duplicates_count > 0) {
-		message += __("Пропущено дубликатов: {0}", [result.duplicates_count]);
+		message += __("Skipped duplicates: {0}", [result.duplicates_count]);
 	}
 	if (!message && result.message) {
 		message = result.message;
@@ -139,14 +139,14 @@ function handleCopyRequest(frm, methodName, validTasks) {
 		callback: async (r) => {
 			try {
 				const responseMessage =
-					r?.message?.message || __("Ошибка при обработке запроса");
+					r?.message?.message || __("Error processing request");
 				const hasDeletedPositions =
 					Array.isArray(frm?.deletedPositions) && frm.deletedPositions.length > 0;
 
 				if (!r?.message?.data) {
 					frappe.show_alert(
 						{
-							message: __("Некорректный формат ответа от сервера"),
+							message: __("Invalid server response format"),
 							indicator: "red",
 						},
 						5
@@ -194,7 +194,7 @@ function handleCopyRequest(frm, methodName, validTasks) {
 		error() {
 			frm._ut_copy_busy = false;
 			frappe.show_alert(
-				{ message: __("Ошибка при обработке запроса"), indicator: "red" },
+				{ message: __("Error processing request"), indicator: "red" },
 				5
 			);
 		},
@@ -202,8 +202,8 @@ function handleCopyRequest(frm, methodName, validTasks) {
 }
 
 export function disableCopyButtons(frm) {
-	const prevLabel = __("Позиции из предыдущего ТШ");
-	const pwaLabel = __("Данные из плановой загрузки");
+	const prevLabel = __("Positions from Previous Timesheet");
+	const pwaLabel = __("Data from Planned Workload");
 	// Group label has an icon; remove_custom_button(label, group) misses it.
 	frm.remove_custom_button(prevLabel);
 	frm.remove_custom_button(pwaLabel);
@@ -225,12 +225,12 @@ export function setupCopyButtons(frm) {
 
 	const group = copyGroupLabel();
 	frm.add_custom_button(
-		__("Позиции из предыдущего ТШ"),
+		__("Positions from Previous Timesheet"),
 		() => handleCopyRequest(frm, COPY_PREV),
 		group
 	);
 	frm.add_custom_button(
-		__("Данные из плановой загрузки"),
+		__("Data from Planned Workload"),
 		() => handleCopyRequest(frm, COPY_PWA, extractValidTaskIds(frm)),
 		group
 	);

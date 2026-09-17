@@ -63,7 +63,7 @@ export function applyNewTimesheetDefaults(frm) {
  */
 export async function validateNewTimesheet(frm) {
 	if (!(frm.doc.ts_valid_from && frm.doc.timesheet_from)) {
-		frappe.msgprint(__("Пожалуйста заполните все необходимые поля"));
+		frappe.msgprint(__("Please fill in all required fields"));
 		frappe.validated = false;
 		return false;
 	}
@@ -75,7 +75,7 @@ export async function validateNewTimesheet(frm) {
 	);
 	const templ = workerTpl?.message?.wtimesheet_template;
 	if (!templ) {
-		frappe.msgprint(__("У сотрудника не задан шаблон таймшита"));
+		frappe.msgprint(__("The employee has no timesheet template"));
 		frappe.validated = false;
 		return false;
 	}
@@ -91,7 +91,7 @@ export async function validateNewTimesheet(frm) {
 	applyTemplatePeriod(frm, templateDoc);
 
 	if (!frm.doc.ts_valid_for) {
-		frappe.msgprint(__("Не удалось определить период таймшита по шаблону"));
+		frappe.msgprint(__("Could not determine the timesheet period from the template"));
 		frappe.validated = false;
 		return false;
 	}
@@ -102,7 +102,7 @@ export async function validateNewTimesheet(frm) {
 		frm.doc.ts_valid_for
 	);
 	if (exists) {
-		frappe.msgprint(__("Уже есть ТШ пересекающийся с этими датами"));
+		frappe.msgprint(__("A timesheet already exists that overlaps these dates"));
 		frappe.validated = false;
 		return false;
 	}

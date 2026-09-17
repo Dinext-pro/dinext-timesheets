@@ -15,6 +15,59 @@ from frappe import _
 #
 # Результат: список словарей [{ "Клиент": [ { project info + tasks/issues }, ... ] }, ... ]
 
+
+def structure_project_tasks(proj_tasks):
+    """Assign indent levels and return NestedSet preorder (parent, then children)."""
+    lookup = {t["name"]: dict(t, level=None) for t in proj_tasks if t.get("name")}
+    children = {}
+    for t in proj_tasks:
+        name = t.get("name")
+        if not name or name not in lookup:
+            continue
+        parent = t.get("parent_task")
+        if parent and parent in lookup:
+            children.setdefault(parent, []).append(name)
+
+    def sib_key(name):
+        node = lookup[name]
+        lft = node.get("lft")
+        return (lft is None, lft or 0, name)
+
+    for parent in children:
+        children[parent].sort(key=sib_key)
+
+    roots = []
+    for name, node in lookup.items():
+        parent = node.get("parent_task")
+        if not parent or parent not in lookup:
+            roots.append(name)
+    roots.sort(key=sib_key)
+
+    ordered = []
+    seen = set()
+
+    def walk(name, level):
+        if name in seen:
+            return
+        seen.add(name)
+        lookup[name]["level"] = level
+        ordered.append(lookup[name])
+        for child in children.get(name, []):
+            walk(child, level + 1)
+
+    for root in roots:
+        walk(root, 0)
+
+    for name, node in lookup.items():
+        if name not in seen:
+            node["level"] = 0
+            ordered.append(node)
+
+    for node in ordered:
+        node.pop("lft", None)
+    return ordered
+
+
 def load_projects_remap2_customers(template_name, ts_start, ts_end, ts_owner):
     """
     Возвращает проекты, сгруппированные по клиентам, с задачами (Task) и запросами (Issue),
@@ -193,7 +246,8 @@ def load_projects_remap2_customers(template_name, ts_start, ts_end, ts_owner):
             "Task",
             fields=[
                 "name", "subject", "project", "custom_include", "status", "completed_on",
-                "closing_date", "exp_start_date", "act_start_date", "exp_end_date", "parent_task"
+                "closing_date", "exp_start_date", "act_start_date", "exp_end_date",
+                "parent_task", "lft",
             ],
             filters=[
                 ["project", "in", proj_names_list],
@@ -251,6 +305,7 @@ def load_projects_remap2_customers(template_name, ts_start, ts_end, ts_owner):
                 "name": t.get("name"),
                 "subject": t.get("subject"),
                 "parent_task": t.get("parent_task"),
+                "lft": t.get("lft"),
                 "included": t.get("custom_include"),
                 "tsdoctype": "Task",
                 "project": proj,
@@ -273,8 +328,7 @@ def load_projects_remap2_customers(template_name, ts_start, ts_end, ts_owner):
     #log( "tasks_map: " + frappe.utils.cstr(tasks_map))
     #log( "issues_map: " + frappe.utils.cstr(issues_map))
 
-    # --- Построение иерархии задач (уровней) по проектам ---
-    # Алгоритм: для каждого проекта строим словарь задач, строим children map и BFS от корней
+    # --- Дерево задач: level + NestedSet preorder ---
     structured_tasks_by_project = {}
 
     for proj in proj_names_list:
@@ -283,54 +337,13 @@ def load_projects_remap2_customers(template_name, ts_start, ts_end, ts_owner):
             # нет задач — можно пропустить (в финале будут только проекты с задачами/запросами)
             continue
 
-        # lookup по имени
-        lookup = {t["name"]: dict(t, level=None) for t in proj_tasks if t.get("name")}
-        #log( "lookup: " + frappe.utils.cstr(lookup))
-        # children map
-        children = {}
-        for t in proj_tasks:
-            parent = t.get("parent_task")
-            if parent and parent in lookup:
-                children.setdefault(parent, []).append(t["name"])
-            else:
-                # parent отсутствует или не в наборе — это root candidate
-                pass
-
-        queue = []
-        idx = 0  # индекс текущего головы очереди
-        # инициализируем корни
-        for name, node in lookup.items():
-            parent = node.get("parent_task")
-            if not parent or parent not in lookup:
-                node["level"] = 0
-                queue.append(name)
-
-        # BFS через list + index
-        max_iterations = 100000  # guard на случай циклов
-        iterations = 0
-        while idx < len(queue) and iterations < max_iterations:
-            iterations = iterations + 1
-            cur = queue[idx]
-            idx = idx + 1
-            cur_level = lookup[cur]["level"]
-            for child in children.get(cur, []):
-                if lookup[child]["level"] is None or lookup[child]["level"] > cur_level + 1:
-                    lookup[child]["level"] = cur_level + 1
-                    queue.append(child)
-        # оставшиеся None помечаем как -1 (возможный цикл или несвязанная цепочка)
-        for name, node in lookup.items():
-            if node["level"] is None:
-                # cycle / orphan — keep non-negative for UI indent (" ".repeat)
-                node["level"] = 0
-
-        # сохранение результатов
-        structured_tasks_by_project[proj] = list(lookup.values())
+        structured_tasks_by_project[proj] = structure_project_tasks(proj_tasks)
 
     # --- Формирование окончательной структуры: клиенты -> проекты -> задачи/запросы ---
     organized_customers = {}
     for proj in projects_filtered:
         proj_name = proj.name
-        customer_name = (proj.customer.strip() if proj.customer else _("Без Клиента"))
+        customer_name = (proj.customer.strip() if proj.customer else _("No Client"))
         # объединяем задачи и запросы
         items = []
         items.extend(structured_tasks_by_project.get(proj_name, []))

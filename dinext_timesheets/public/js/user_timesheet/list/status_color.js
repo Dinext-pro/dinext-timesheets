@@ -11,7 +11,7 @@ frappe.listview_settings['User Timesheet'] = {
           "На доработке": "grey",
           "Согласован": "green",
         };
-        return [(doc.ut_status), status_colors[doc.ut_status], "ut_status,=,"+doc.ut_status ];
+        return [__(doc.ut_status), status_colors[doc.ut_status], "ut_status,=,"+doc.ut_status ];
     },/**/
     //before_render() {
         //frappe.breadcrumbs.clear();

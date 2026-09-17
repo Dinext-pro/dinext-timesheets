@@ -7,3 +7,5 @@ include:
 
 variables:
   DINEXT_CONTROL_CENTER_REF: "main"
+
+# cancel-on-close probe 2026-09-18

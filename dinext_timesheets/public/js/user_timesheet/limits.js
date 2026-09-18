@@ -219,11 +219,20 @@ function getNoPlanWarningHtml() {
 		</div>`;
 }
 
+function showForecastColumn() {
+	return Boolean(frappe.boot?.dinext_timesheet_show_forecast);
+}
+
 function getCompletionTableHtml(result) {
 	const calculatePercentage = (value) =>
 		result.planned_hours > 0
 			? Math.round((value / result.planned_hours) * 100)
 			: 0;
+	const showForecast = showForecastColumn();
+	const forecastHours = Number.parseFloat(result.forecast_hours);
+	const forecastLabel = Number.isFinite(forecastHours)
+		? forecastHours.toFixed(1)
+		: "0.0";
 	const rows = [];
 	for (const key in result.hours_data || {}) {
 		if (key === "users" || key === "user_hours") {
@@ -241,18 +250,26 @@ function getCompletionTableHtml(result) {
 			status: key === "total" ? __("All") : __(key),
 			isTotal: key === "total",
 			plan: Number.parseFloat(result.planned_hours).toFixed(1),
+			forecast: forecastLabel,
 			fact: `${hours.toFixed(1)} ${__("h.")}`,
 			percent: calculatePercentage(hours),
 		});
 	}
+	const forecastTh = showForecast
+		? `<th style="width: 15%; text-align: right;">${__("Forecast")}</th>`
+		: "";
+	const statusWidth = showForecast ? "25%" : "30%";
+	const planWidth = showForecast ? "15%" : "20%";
+	const factWidth = showForecast ? "15%" : "20%";
 	return `
 		<div class="frappe-table-container" style="margin-bottom: 15px;">
 			<table class="table table-bordered" style="width: 100%; margin-bottom: 10px;">
 				<thead>
 					<tr>
-						<th style="width: 30%;">${__("Status")}</th>
-						<th style="width: 20%; text-align: right;">${__("Plan")}</th>
-						<th style="width: 20%; text-align: right;">${__("Fact")}</th>
+						<th style="width: ${statusWidth};">${__("Status")}</th>
+						<th style="width: ${planWidth}; text-align: right;">${__("Plan")}</th>
+						${forecastTh}
+						<th style="width: ${factWidth}; text-align: right;">${__("Fact")}</th>
 						<th style="width: 30%;">${__("% Complete")}</th>
 					</tr>
 				</thead>
@@ -263,6 +280,11 @@ function getCompletionTableHtml(result) {
 						<tr ${row.isTotal ? 'style="font-weight: bold;"' : ""}>
 							<td>${frappe.utils.escape_html(row.status)}</td>
 							<td style="text-align: right;">${row.plan}</td>
+							${
+								showForecast
+									? `<td style="text-align: right;">${row.forecast}</td>`
+									: ""
+							}
 							<td style="text-align: right;">${row.fact}</td>
 							<td>
 								<div class="progress" style="height: 20px; margin-bottom: 0;">

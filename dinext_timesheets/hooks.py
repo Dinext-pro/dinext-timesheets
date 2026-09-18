@@ -196,6 +196,7 @@ doctype_list_js = {
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
 after_migrate = "dinext_timesheets.install.after_migrate"
+extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 
 # Uninstallation
 # ------------

@@ -5,7 +5,7 @@ app_description = "Dinext Timesheets"
 app_email = "info@dinext.ru"
 app_license = "mit"
 
-# closeout-decouple live probe 1 (2026-09-19)
+# closeout-decouple live probe 2 (2026-09-19)
 
 # Apps
 # ------------------

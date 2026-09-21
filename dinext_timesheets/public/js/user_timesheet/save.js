@@ -3,9 +3,8 @@ import { buildSummaryRows } from "./summary.js";
 import { scheduleRefreshLimits } from "./limits.js";
 import { CASCADE_DATA_FIELDS } from "./editors/cascade-commit.js";
 import {
+	clearInvalidAfterEdit,
 	clearInvalidCells,
-	clearInvalidFields,
-	displayFieldsForChange,
 	setInvalidCells,
 } from "./invalid-cells.js";
 import { syncStartButtonState } from "./submit.js";
@@ -188,11 +187,7 @@ export function onSaveCells(frm, ctx) {
 	applyCellChanges(frm, ctx.changes);
 
 	for (const change of ctx.changes || []) {
-		clearInvalidFields(
-			frm,
-			change.rowId,
-			displayFieldsForChange(change.field)
-		);
+		clearInvalidAfterEdit(frm, change.rowId, change.field);
 	}
 
 	const dayEdited = refreshTotalsAfterDayEdit(frm, ctx.changes);

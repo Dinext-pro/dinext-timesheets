@@ -92,6 +92,7 @@ async function getHoursData(position) {
                 hasOwnHours: data.hasOwnHours || false,
                 status: data.status || 'no-plan',
                 limit: data.limit,
+                forecastHours: data.forecast_hours || 0,
                 // Добавляем недостающие поля:
                 plan_required: data.plan_required || false,
                 plan_task_subject: data.plan_task_subject || ''
@@ -123,6 +124,7 @@ function getDefaultHoursData(position) {
         childTasksCount: 0,
         hasOwnHours: false,
         status: 'no-plan',
+        forecastHours: 0,
         // Добавляем недостающие поля:
         plan_required: false,
         plan_task_subject: ''

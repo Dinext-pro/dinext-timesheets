@@ -1,26 +1,59 @@
-import { dayField, descField, sumDayHours, syncPositionFromRow } from "../model.js";
+import { canEdit, dayField, descField, sumDayHours, syncPositionFromRow } from "../model.js";
 import { buildSummaryRows } from "../summary.js";
 import { scheduleRefreshLimits } from "../limits.js";
-import { clearInvalidFields } from "../invalid-cells.js";
+import { clearInvalidAfterEdit, clearInvalidFields } from "../invalid-cells.js";
 
 const POPOVER_NS = ".utDescrPopover";
 const POPOVER_SEL = ".ut-descr-popover";
 const POPOVER_WIDTH = 252;
+
+let hoverCloseTimer = null;
+
+function cancelHoverClose() {
+	if (hoverCloseTimer) {
+		clearTimeout(hoverCloseTimer);
+		hoverCloseTimer = null;
+	}
+}
+
+function scheduleHoverClose() {
+	cancelHoverClose();
+	hoverCloseTimer = setTimeout(() => {
+		hoverCloseTimer = null;
+		closeDescriptionPopover();
+	}, 180);
+}
 
 function isClosedStatus(frm) {
 	return ["На согласовании", "Согласован", "Отклонено"].includes(frm.doc?.ut_status);
 }
 
 /**
- * Description edit:
- * - Согласован: always readonly (regulations — no post-approve edits).
- * - На согласовании / Отклонено: Full_Access may edit comment (demodev).
+ * Description edit only while the grid is editable.
+ * Read-only TS (approval / approved / rejected): textarea locked, hover to read.
  */
 function isDescriptionReadonly(frm) {
-	if (frm.doc?.ut_status === "Согласован") {
-		return true;
+	return !canEdit(frm);
+}
+
+function lockDescriptionTextarea($ta, locked) {
+	$ta.prop({ disabled: locked, readOnly: locked });
+	$ta.attr("aria-readonly", locked ? "true" : "false");
+	if (locked) {
+		$ta.off("input.utLock keydown.utLock beforeinput.utLock");
+		$ta.on("beforeinput.utLock", (e) => e.preventDefault());
+		$ta.on("keydown.utLock", (e) => {
+			if (e.key === "Escape" || e.key === "Tab") {
+				return;
+			}
+			if (e.ctrlKey || e.metaKey) {
+				return;
+			}
+			e.preventDefault();
+		});
+	} else {
+		$ta.off(".utLock");
 	}
-	return isClosedStatus(frm) && !frappe.user.has_role("Dinext_UT_Full_Access");
 }
 
 /** ±hours only outside closed statuses — Full_Access does not unlock hours. */
@@ -38,6 +71,7 @@ function hoursLabel(row, date) {
 }
 
 export function closeDescriptionPopover() {
+	cancelHoverClose();
 	$(document).off(POPOVER_NS);
 	$(window).off(POPOVER_NS);
 	$(POPOVER_SEL).remove();
@@ -122,6 +156,18 @@ function resolveAnchorEl(api, anchor) {
 	return focusedDayCellEl(api);
 }
 
+/** Hovered day cell — do not fall back to focused cell (readonly hover). */
+function hoverCellEl(event) {
+	const fromDom = event?.event?.target?.closest?.(".ag-cell");
+	if (fromDom?.getBoundingClientRect) {
+		return fromDom;
+	}
+	if (event?.eGridCell?.getBoundingClientRect) {
+		return event.eGridCell;
+	}
+	return null;
+}
+
 function placePopover($popover, anchor) {
 	const el = resolveAnchorEl(null, anchor);
 	if (!el?.getBoundingClientRect) {
@@ -180,6 +226,7 @@ function persistHours(frm, row, date) {
 	});
 	scheduleRefreshLimits(frm);
 	frm.dirty();
+	clearInvalidAfterEdit(frm, row.id, hoursField);
 	focusDayCell(frm, row, date);
 }
 
@@ -257,19 +304,18 @@ export function openDescriptionPopover(frm, row, date, anchor) {
 	const $anchor = $(anchorEl);
 	const $existing = $(POPOVER_SEL);
 
-	/* Same cell — reposition / sync, do not remount (keeps cell focus). */
-	if (
-		$existing.length &&
-		$existing.data("utRowId") === String(row.id) &&
-		$existing.data("utDate") === date
-	) {
+	/* Existing popover — sync content + move to the new cell. */
+	if ($existing.length) {
 		$existing.data({
 			utOpenedAt: Date.now(),
+			utRowId: String(row.id),
+			utDate: date,
 			utAnchor: anchorEl,
 			utCtx: { frm, row, date },
 		});
 		$existing.find(".ut-descr-popover__hours").text(hoursLabel(row, date));
 		const $ta = $existing.find(".ut-descr-popover__input");
+		lockDescriptionTextarea($ta, isDescriptionReadonly(frm));
 		if (!$ta.is(":focus")) {
 			$ta.val(row[descriptionKey] || "");
 		}
@@ -298,9 +344,8 @@ export function openDescriptionPopover(frm, row, date, anchor) {
 	const $textarea = $popover.find(".ut-descr-popover__input").val(row[descriptionKey] || "");
 	const $stepper = $popover.find(".ut-descr-popover__stepper");
 
-	if (descReadonly) {
-		$textarea.prop("disabled", true);
-	} else {
+	lockDescriptionTextarea($textarea, descReadonly);
+	if (!descReadonly) {
 		$textarea.on("input", () => {
 			row[descriptionKey] = String($textarea.val() || "");
 			syncPositionFromRow(frm, row);
@@ -356,6 +401,13 @@ export function openDescriptionPopover(frm, row, date, anchor) {
 		utCtx: { frm, row, date },
 	});
 
+	$popover.on("mouseenter", cancelHoverClose);
+	$popover.on("mouseleave", () => {
+		if (!canEdit(frm)) {
+			scheduleHoverClose();
+		}
+	});
+
 	$("body").append($popover);
 	placePopover($popover, anchorEl);
 	/* No autofocus — demodev: hours input keeps focus, comment is companion. */
@@ -404,6 +456,42 @@ export function handleDayDescrCellFocused(frm, event) {
 	}
 
 	openDescriptionPopover(frm, row, field.slice("day_".length), cellEl);
+}
+
+/** Read-only: hover opens comment, no click. Edit mode stays focus-companion. */
+export function handleDayDescrCellMouseOver(frm, event) {
+	if (canEdit(frm)) {
+		return;
+	}
+	const field = focusColId(event?.column);
+	if (!field.startsWith("day_")) {
+		return;
+	}
+	const row = event?.data;
+	if (!row || row.rowType !== "position") {
+		return;
+	}
+	if (isSummaryFocus(event, event.node, row, event.eGridCell)) {
+		return;
+	}
+	cancelHoverClose();
+	openDescriptionPopover(
+		frm,
+		row,
+		field.slice("day_".length),
+		hoverCellEl(event)
+	);
+}
+
+export function handleDayDescrCellMouseOut(frm, event) {
+	if (canEdit(frm)) {
+		return;
+	}
+	const related = event?.event?.relatedTarget;
+	if (related && $(related).closest(POPOVER_SEL).length) {
+		return;
+	}
+	scheduleHoverClose();
 }
 
 /** Alt+↓ / F2 on day cell → focus comment textarea. */

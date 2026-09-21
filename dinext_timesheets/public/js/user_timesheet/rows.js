@@ -57,6 +57,29 @@ export function positionToRow(frm, position) {
 	return row;
 }
 
+export function rejectReasonRowId(positionId) {
+	return `ut_reject_${positionId}`;
+}
+
+/** Prod V10: `.reject-tooltip` sits under the rejected row, full width. */
+export function rejectReasonRow(positionRow) {
+	return {
+		id: rejectReasonRowId(positionRow.id),
+		rowType: "reject_reason",
+		isNew: false,
+		project: "",
+		project_label: positionRow.reject_reason,
+		document_type: "",
+		document_name: "",
+		document_label: "",
+		project_role: "",
+		status: "",
+		reject_reason: positionRow.reject_reason,
+		parent_id: positionRow.id,
+		total: "",
+	};
+}
+
 /** demodev: separate block header «Заявки на отсутствие:». */
 function leaveSectionRow() {
 	return {
@@ -99,15 +122,52 @@ function leaveToRow(frm, leave) {
 	return row;
 }
 
+/**
+ * Glue the reason row under its parent after reorder/delete.
+ * Only the hovered parent keeps a reason row — AG clamps height 0 to 1px.
+ */
+export function attachRejectReasonRows(rows, hoverParent = "") {
+	if (!Array.isArray(rows)) {
+		return [];
+	}
+	const hover = hoverParent ? String(hoverParent) : "";
+	const reasons = new Map();
+	const rest = [];
+	for (const row of rows) {
+		if (row?.rowType === "reject_reason") {
+			reasons.set(String(row.parent_id), row);
+			continue;
+		}
+		rest.push(row);
+	}
+	const out = [];
+	for (const row of rest) {
+		out.push(row);
+		if (
+			hover &&
+			hover === String(row.id) &&
+			row?.rowType === "position" &&
+			row.status === "Отклонено" &&
+			row.reject_reason
+		) {
+			out.push(reasons.get(String(row.id)) || rejectReasonRow(row));
+		}
+	}
+	return out;
+}
+
 export function buildRows(frm) {
 	const positions = frm.ts_positions || [];
 	const leaves = frm.ut?.leaves || [];
-	const rows = positions.map((p) => positionToRow(frm, p));
+	const rows = [];
+	for (const position of positions) {
+		rows.push(positionToRow(frm, position));
+	}
 	if (leaves.length) {
 		rows.push(leaveSectionRow());
 		for (const leave of leaves) {
 			rows.push(leaveToRow(frm, leave));
 		}
 	}
-	return rows;
+	return attachRejectReasonRows(rows, frm.ut?._rejectHoverParent);
 }

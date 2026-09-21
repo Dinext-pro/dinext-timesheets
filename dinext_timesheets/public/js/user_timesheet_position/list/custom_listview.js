@@ -114,6 +114,10 @@ frappe.listview_settings["User Timesheet Position"] = {
                     //console.log('limitsMap при клике:', limitsMap);
                     
                     getHoursData(doc).then(hoursData => {
+                        const showForecast = Boolean(frappe.boot && frappe.boot.dinext_timesheet_show_forecast);
+                        const forecastValue = Number.isFinite(Number.parseFloat(hoursData.forecastHours))
+                            ? Number.parseFloat(hoursData.forecastHours).toFixed(1)
+                            : "0.0";
                         let d = new frappe.ui.Dialog({
                             title: "План-Факт анализ",
                             fields: [],
@@ -147,6 +151,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                         tableRows.push({
                             status: "Всего",
                             plan: planValue,
+                            forecast: forecastValue,
                             fact: `${hoursData.totalHours.toFixed(1)} ч. ${hoursNote ? `<small>${hoursNote}</small>` : ''}`,
                             percent: hoursData.plannedHours > 0 ? 
                                 Math.round((hoursData.totalHours / hoursData.plannedHours) * 100) : "-"
@@ -157,6 +162,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                             tableRows.push({
                                 status: "Согласовано",
                                 plan: planValue,
+                                forecast: forecastValue,
                                 fact: hoursData.approvedHours.toFixed(1) + " ч.",
                                 percent: hoursData.plannedHours > 0 ? 
                                     Math.round((hoursData.approvedHours / hoursData.plannedHours) * 100) : "-"
@@ -168,6 +174,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                             tableRows.push({
                                 status: "На согласовании",
                                 plan: planValue,
+                                forecast: forecastValue,
                                 fact: hoursData.approvalHours.toFixed(1) + " ч.",
                                 percent: hoursData.plannedHours > 0 ? 
                                     Math.round((hoursData.approvalHours / hoursData.plannedHours) * 100) : "-"
@@ -179,6 +186,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                             tableRows.push({
                                 status: "Редактирование",
                                 plan: planValue,
+                                forecast: forecastValue,
                                 fact: hoursData.editingHours.toFixed(1) + " ч.",
                                 percent: hoursData.plannedHours > 0 ? 
                                     Math.round((hoursData.editingHours / hoursData.plannedHours) * 100) : "-"
@@ -190,6 +198,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                             tableRows.push({
                                 status: "Отклонено",
                                 plan: planValue,
+                                forecast: forecastValue,
                                 fact: hoursData.rejectedHours.toFixed(1) + " ч.",
                                 percent: hoursData.plannedHours > 0 ? 
                                     Math.round((hoursData.rejectedHours / hoursData.plannedHours) * 100) : "-"
@@ -202,6 +211,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                                     <tr>
                                         <th>Статус</th>
                                         <th>План</th>
+                                        ${showForecast ? `<th>${__("Forecast")}</th>` : ""}
                                         <th>Факт</th>
                                         <th>%</th>
                                     </tr>
@@ -211,6 +221,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                                         <tr>
                                             <td>${row.status}</td>
                                             <td>${row.plan}</td>
+                                            ${showForecast ? `<td>${row.forecast}</td>` : ""}
                                             <td>${row.fact}</td>
                                             <td>${row.percent !== "-" ? row.percent + "%" : "-"}</td>
                                         </tr>

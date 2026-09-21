@@ -3,7 +3,7 @@ import { limitIconColor, showTaskPlanFact } from "./limits.js";
 import { FIELD_PROJECT, FIELD_ROLE, FIELD_TASK } from "./editors/cascade-commit.js";
 import { roleOptionsForRow } from "./catalog.js";
 import { getCascadeColDefWidth } from "./column-layout.js";
-import { invalidCellClassRules } from "./invalid-cells.js";
+import { invalidCellClassRules, invalidCellTooltipGetter } from "./invalid-cells.js";
 
 function holidayHeaderClass(holidays, date) {
 	return isHoliday(holidays, date) ? "ut-holiday-col" : "";
@@ -19,7 +19,7 @@ function limitIconRenderer(frm) {
 		const status = row.limit_status || "";
 		const wrap = document.createElement("button");
 		wrap.type = "button";
-		wrap.className = `btn btn-default btn-xs ut-info-btn${
+		wrap.className = `btn btn-xs ut-info-btn${
 			status ? ` ut-limit-${status}` : ""
 		}`;
 		wrap.title = row.limit_tooltip || __("Plan / Fact");
@@ -87,12 +87,7 @@ function taskSelectRenderer(frm) {
 		const wrap = document.createElement("div");
 		wrap.className = "ut-select-cell";
 		const text = row.document_label || "";
-		if (row.rowType === "position" && row.status === "Отклонено" && row.reject_reason) {
-			wrap.classList.add("ut-reject-label");
-			wrap.title = row.reject_reason;
-		} else {
-			wrap.title = text;
-		}
+		wrap.title = text;
 		wrap.textContent = text;
 		markSelectCellEditable(frm, wrap, row);
 		return wrap;
@@ -120,10 +115,16 @@ export function getColumns(frm) {
 
 	const saved = frm.ut?._cascadeColWidths || {};
 	const invalidRules = invalidCellClassRules(frm);
+	const invalidTooltip = invalidCellTooltipGetter(frm);
 	const dayRules = {
 		...invalidRules,
 		"ut-leave-hours": (params) =>
 			params?.data?.rowType === "leave" && flt(params.value) > 0,
+		"project-budget-cell--zero": (params) => !(flt(params.value) > 0),
+	};
+	const totalRules = {
+		...invalidRules,
+		"project-budget-cell--zero": (params) => !(flt(params.value) > 0),
 	};
 
 	/** @type {import("dinext_common/table").DinextTableColumn[]} */
@@ -137,6 +138,7 @@ export function getColumns(frm) {
 			...PICKER_COL_DEF,
 			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
+			tooltipValueGetter: invalidTooltip,
 			cellRenderer: projectSelectRenderer(frm),
 		},
 		{
@@ -148,6 +150,7 @@ export function getColumns(frm) {
 			...PICKER_COL_DEF,
 			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
+			tooltipValueGetter: invalidTooltip,
 			cellRenderer: taskSelectRenderer(frm),
 		},
 		{
@@ -168,6 +171,7 @@ export function getColumns(frm) {
 			},
 			headerClass: "dinext-table-header--align-center",
 			cellClassRules: invalidRules,
+			tooltipValueGetter: invalidTooltip,
 			cellRenderer: roleSelectRenderer(frm),
 		},
 		{
@@ -200,6 +204,7 @@ export function getColumns(frm) {
 			resizable: false,
 			suppressSizeToFit: true,
 			cellClassRules: dayRules,
+			tooltipValueGetter: invalidTooltip,
 			/* Override number type align-right → center. */
 			cellClass: ["dinext-table-cell--align-center", "ut-num-col", holiday]
 				.filter(Boolean)
@@ -221,7 +226,8 @@ export function getColumns(frm) {
 		resizable: false,
 		suppressSizeToFit: true,
 		pinned: "right",
-		cellClassRules: invalidRules,
+		cellClassRules: totalRules,
+		tooltipValueGetter: invalidTooltip,
 		cellClass: "dinext-table-cell--align-center ut-num-col",
 		headerClass: "dinext-table-header--align-center ut-num-col",
 	});

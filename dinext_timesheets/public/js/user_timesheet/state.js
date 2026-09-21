@@ -19,14 +19,14 @@ export function initState(frm) {
 			tasksData: null,
 			container: null,
 			shell: null,
-			invalidCells: new Set(),
+			invalidCells: new Map(),
 			_mountPromise: null,
 			_initPromise: null,
 			_newRowSeq: 0,
 		};
 	}
-	if (!(frm.ut.invalidCells instanceof Set)) {
-		frm.ut.invalidCells = new Set();
+	if (!(frm.ut.invalidCells instanceof Map)) {
+		frm.ut.invalidCells = new Map();
 	}
 	if (!Array.isArray(frm.ts_positions)) {
 		frm.ts_positions = [];

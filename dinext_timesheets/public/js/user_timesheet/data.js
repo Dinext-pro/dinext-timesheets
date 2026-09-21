@@ -71,24 +71,54 @@ async function loadLeaves(frm) {
 	});
 }
 
+async function rejectAuthorLabel(userId) {
+	if (!userId) {
+		return "";
+	}
+	const cached = frappe.boot.user_info?.[userId]?.fullname;
+	if (cached) {
+		return cached;
+	}
+	const r = await frappe.db.get_value("User", userId, "full_name");
+	return r?.message?.full_name || userId;
+}
+
+/** Latest human Comment on UTP — skip share/workflow noise. V10: `{full_name}: {text}`. */
 async function loadRejectReason(positionName) {
 	const comments = await frappe.db.get_list("Comment", {
 		filters: [
 			["reference_doctype", "=", "User Timesheet Position"],
 			["reference_name", "=", positionName],
+			["comment_by", "!=", ""],
 		],
-		fields: ["content", "comment_by"],
-		limit: 1,
+		fields: ["content", "comment_by", "comment_email"],
+		limit: 20,
 		order_by: "creation desc",
 	});
-	if (!comments?.length) {
+	const comment = (comments || []).find((item) => {
+		const text = $("<div>")
+			.html(item.content || "")
+			.text()
+			.trim();
+		if (!text) {
+			return false;
+		}
+		return !/shared this document|Создана задача/i.test(text);
+	});
+	if (!comment) {
 		return "";
 	}
-	const author =
-		frappe.boot.user_info?.[comments[0].comment_by]?.fullname || comments[0].comment_by;
-	return $("<div>")
-		.html(`${frappe.utils.escape_html(author)}: ${comments[0].content || ""}`)
-		.text();
+	const text = $("<div>")
+		.html(comment.content || "")
+		.text()
+		.trim();
+	const author = await rejectAuthorLabel(
+		comment.comment_by || comment.comment_email
+	);
+	if (!author) {
+		return text;
+	}
+	return `${author}: ${text}`;
 }
 
 async function loadPositions(frm) {

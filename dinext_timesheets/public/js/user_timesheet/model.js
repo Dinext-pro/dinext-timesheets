@@ -184,13 +184,15 @@ export function collectDuplicatePositionErrors(positionRows, errors, invalidCell
 			continue;
 		}
 		const lines = group.map((g) => g.line).join(", ");
-		errors.push(
-			__("Duplicate rows {0}: same project, task, and role", [lines])
+		const message = __(
+			"Duplicate rows {0}: same project, task, and role",
+			[lines]
 		);
+		errors.push(message);
 		for (const { row } of group) {
-			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT });
-			invalidCells.push({ rowId: row.id, field: FIELD_TASK });
-			invalidCells.push({ rowId: row.id, field: FIELD_ROLE });
+			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT, message });
+			invalidCells.push({ rowId: row.id, field: FIELD_TASK, message });
+			invalidCells.push({ rowId: row.id, field: FIELD_ROLE, message });
 		}
 	}
 }

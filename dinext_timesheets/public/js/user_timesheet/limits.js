@@ -349,24 +349,24 @@ function getCurrentUserHoursHtml(result, frm) {
 	const statuses = Object.keys(ownerHoursByStatus);
 	let statusBreakdown = "";
 	if (statuses.length > 1) {
-		statusBreakdown = `<br><small style="color: #6c757d;">${statuses
+		statusBreakdown = `<br><small class="ut-limits-muted">${statuses
 			.map(
 				(status) =>
 					`${frappe.utils.escape_html(__(status))}: ${ownerHoursByStatus[status].toFixed(2)} ${__("h.")}`
 			)
 			.join(" | ")}</small>`;
 	} else if (statuses.length === 1) {
-		statusBreakdown = `<br><small style="color: #6c757d;">${__("Status")}: ${frappe.utils.escape_html(
+		statusBreakdown = `<br><small class="ut-limits-muted">${__("Status")}: ${frappe.utils.escape_html(
 			__(statuses[0])
 		)}</small>`;
 	}
 	return `
-		<div style="margin: 15px 0; padding: 8px 10px; background-color: #f0f7ff; border-radius: 4px; border-left: 4px solid #007bff;">
+		<div class="ut-limits-owner">
 			<strong>${frappe.utils.escape_html(ownerFullName)}:</strong>
-			<span style="font-size: 16px; font-weight: bold; color: #007bff;">${totalOwnerHours.toFixed(2)} ${__("h.")}</span>
+			<span class="ut-limits-owner__hours">${totalOwnerHours.toFixed(2)} ${__("h.")}</span>
 			${
 				result.planned_hours > 0
-					? `<span style="color: #6c757d;"> (${percentage}% ${__("of plan")})</span>`
+					? `<span class="ut-limits-muted"> (${percentage}% ${__("of plan")})</span>`
 					: ""
 			}
 			${statusBreakdown}

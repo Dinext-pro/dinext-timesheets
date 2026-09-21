@@ -159,6 +159,12 @@ body.ut-hide-desk-sidebar
 	box-sizing: border-box;
 }
 
+.user-timesheet-table.ut-table--readonly .ag-cell.dinext-table-row-reorder-cell,
+.user-timesheet-table.ut-table--readonly .dinext-table-row-reorder-handle,
+.user-timesheet-table.ut-table--readonly .dinext-table-row-reorder-handle-host {
+	cursor: not-allowed !important;
+}
+
 /* rowCheck: Desk input[type=checkbox] { margin-right: 5px } shifts glyph left.
    Domain width 26 = 6+14+6 (matches cellHorizontalPadding). */
 .user-timesheet-table .dinext-table-row-check-input {
@@ -283,7 +289,12 @@ body.ut-hide-desk-sidebar
 
 .user-timesheet-table .ut-section-row {
 	font-weight: 600;
-	background-color: var(--bg-gray, rgba(0, 0, 0, 0.04));
+	background-color: color-mix(
+		in srgb,
+		var(--text-muted, #748094) 14%,
+		var(--card-bg, var(--fg-color, transparent))
+	);
+	color: var(--text-color, inherit);
 }
 
 .user-timesheet-table .ut-leave-row {
@@ -292,12 +303,45 @@ body.ut-hide-desk-sidebar
 }
 
 .user-timesheet-table .ut-rejected-row {
-	background-color: var(--bg-red, rgba(255, 0, 0, 0.08));
+	background-color: color-mix(
+		in srgb,
+		var(--red-500, #e24c4c) 22%,
+		var(--card-bg, var(--fg-color, transparent))
+	);
 }
 
-.user-timesheet-table .ut-reject-label {
-	cursor: help;
-	text-decoration: underline dotted;
+.user-timesheet-table .ag-cell.project-budget-cell--zero,
+.user-timesheet-table .ag-cell.project-budget-cell--zero .ag-cell-value {
+	color: var(--bg-dark-gray, #999) !important;
+}
+
+/* Prod V10 `#timesheet-table .reject-tooltip` — full-width bar under the row. */
+.user-timesheet-table .ag-row.ut-reject-reason-row:not(.ut-reject-reason-row--open),
+.user-timesheet-table .ag-full-width-row.ut-reject-reason-row:not(.ut-reject-reason-row--open) {
+	display: none !important;
+}
+
+.user-timesheet-table .ag-row.ut-reject-reason-row,
+.user-timesheet-table .ag-full-width-row.ut-reject-reason-row {
+	overflow: hidden;
+	background: #ff6666;
+}
+
+.user-timesheet-table .ut-reject-reason {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+	padding: 5px 10px;
+	overflow: hidden;
+	background: #ff6666;
+	color: #fff;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.3;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 /* Plan/fact — square cell = row height, button fills cell */
@@ -317,6 +361,9 @@ body.ut-hide-desk-sidebar
 	padding: 0;
 	border-radius: 0;
 	line-height: 1;
+	background: transparent !important;
+	border-color: transparent;
+	box-shadow: none !important;
 }
 
 /* demodev Check Limits_V2 setButtonStyle — color on button + icon */
@@ -636,4 +683,33 @@ body.ut-hide-desk-sidebar
 	font-size: var(--text-sm, 12px);
 	line-height: 1.35;
 	border-radius: 6px;
+}
+
+.ut-descr-popover__input.form-control:disabled,
+.ut-descr-popover__input.form-control[readonly] {
+	cursor: default;
+	opacity: 1;
+	resize: none;
+	color: var(--text-color, inherit);
+	background: var(--control-bg, var(--bg-color, transparent));
+}
+
+/* Plan/fact dialog — muted fill already used on UT popover/banner */
+.ut-limits-owner {
+	margin: 15px 0;
+	padding: 8px 10px;
+	border-radius: 4px;
+	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
+	border-left: 4px solid var(--text-muted, #6c757d);
+	color: var(--text-color, inherit);
+}
+
+.ut-limits-owner__hours {
+	font-size: 16px;
+	font-weight: bold;
+	color: var(--heading-color, var(--text-color, inherit));
+}
+
+.ut-limits-muted {
+	color: var(--text-muted, #6c757d);
 }

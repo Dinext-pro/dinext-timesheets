@@ -3,7 +3,7 @@
  * UI chrome = core toolbar (not custom DOM).
  */
 import { canEdit } from "./model.js";
-import { buildRows, positionToRow } from "./rows.js";
+import { attachRejectReasonRows, buildRows, positionToRow } from "./rows.js";
 import { buildSummaryRows } from "./summary.js";
 import { getColumns } from "./columns.js";
 import { layoutCascadeColumns } from "./column-layout.js";
@@ -44,9 +44,14 @@ export function syncRowsFromTable(frm) {
 	if (!state || !table) {
 		return;
 	}
-	const rows = Array.isArray(table.sourceData) ? table.sourceData : state.rows || [];
+	const raw = Array.isArray(table.sourceData) ? table.sourceData : state.rows || [];
+	const rows = attachRejectReasonRows(raw, state._rejectHoverParent);
+	const changed = rows.length !== raw.length || rows.some((row, i) => row !== raw[i]);
 	state.rows = rows;
 	syncTableSource(frm, rows);
+	if (changed) {
+		state.table.refresh?.(rows);
+	}
 	syncSummary(frm);
 }
 
@@ -178,11 +183,11 @@ export function applyToolbarChrome(frm) {
 	});
 	table.setOption("filter", { enabled: false });
 	table.setOption("toolbar", {
-		enabled: true,
+		enabled: editable,
 		defaultPinned: true,
 		lockPinned: true,
 		persistKey: `user-timesheet:${frm.doc?.name || "new"}`,
-		presets: editable ? ["history", "rows"] : ["history"],
+		presets: editable ? ["history", "rows"] : [],
 	});
 }
 

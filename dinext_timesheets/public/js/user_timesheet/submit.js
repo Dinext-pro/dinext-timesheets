@@ -17,7 +17,7 @@ import {
 	FIELD_ROLE,
 	FIELD_TASK,
 } from "./editors/cascade-commit.js";
-import { clearInvalidCells, setInvalidCells } from "./invalid-cells.js";
+import { clearInvalidCells, setInvalidCells, SUMMARY_ROW_ID } from "./invalid-cells.js";
 
 const SET_STATUS =
 	"dinext_timesheets.dinext_timesheets.user_timesheet.api.set_timesheet_status";
@@ -104,7 +104,7 @@ function dayNormHours(frm, date) {
 	return flt(frm.template_doc?.hours_on_date) || 0;
 }
 
-function validateDayTotals(frm, errors) {
+function validateDayTotals(frm, errors, invalidCells = []) {
 	const template = frm.template_doc;
 	if (!template) {
 		return;
@@ -128,10 +128,22 @@ function validateDayTotals(frm, errors) {
 		const minHours = dayHours - minDelta;
 		const maxHours = dayHours + maxDelta;
 		if (total < minHours) {
-			errors.push(__("{0} cannot be less than {1} hours.", [date, minHours]));
+			const message = __("{0} cannot be less than {1} hours.", [date, minHours]);
+			errors.push(message);
+			invalidCells.push({
+				rowId: SUMMARY_ROW_ID,
+				field: dayField(date),
+				message,
+			});
 		}
 		if (total > maxHours) {
-			errors.push(__("{0} cannot be more than {1} hours.", [date, maxHours]));
+			const message = __("{0} cannot be more than {1} hours.", [date, maxHours]);
+			errors.push(message);
+			invalidCells.push({
+				rowId: SUMMARY_ROW_ID,
+				field: dayField(date),
+				message,
+			});
 		}
 	}
 
@@ -160,21 +172,25 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 		const line = idx + 1;
 		const rowErrors = [];
 		if (!row.project) {
-			rowErrors.push(__("Select a project in row {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT });
+			const message = __("Select a project in row {0}", [line]);
+			rowErrors.push(message);
+			invalidCells.push({ rowId: row.id, field: FIELD_PROJECT, message });
 		}
 		if (!row.document_name) {
-			rowErrors.push(__("Select a request or task in row {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: FIELD_TASK });
+			const message = __("Select a request or task in row {0}", [line]);
+			rowErrors.push(message);
+			invalidCells.push({ rowId: row.id, field: FIELD_TASK, message });
 		}
 		if (!row.project_role) {
-			rowErrors.push(__("Select a project role in row {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: FIELD_ROLE });
+			const message = __("Select a project role in row {0}", [line]);
+			rowErrors.push(message);
+			invalidCells.push({ rowId: row.id, field: FIELD_ROLE, message });
 		}
 		const total = sumDayHours(row, dates);
 		if (!total) {
-			rowErrors.push(__("Enter hours in row {0}", [line]));
-			invalidCells.push({ rowId: row.id, field: "total" });
+			const message = __("Enter hours in row {0}", [line]);
+			rowErrors.push(message);
+			invalidCells.push({ rowId: row.id, field: "total", message });
 		}
 
 		const table = [];
@@ -185,13 +201,16 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 				table.push({ date, hours, description });
 			}
 			if (hours > 0 && !description && frm.template_doc?._is_mandatory) {
-				rowErrors.push(
-					__("Description is not filled for {0} on task {1}", [
-						date,
-						row.document_label || row.document_name || line,
-					])
+				const message = __(
+					"Description is not filled for {0} on task {1}",
+					[date, row.document_label || row.document_name || line]
 				);
-				invalidCells.push({ rowId: row.id, field: dayField(date) });
+				rowErrors.push(message);
+				invalidCells.push({
+					rowId: row.id,
+					field: dayField(date),
+					message,
+				});
 			}
 		}
 
@@ -240,7 +259,7 @@ async function timesheetValidation(workflow, frm) {
 		invalidCells
 	);
 	if (workflow === "Start") {
-		validateDayTotals(frm, errors);
+		validateDayTotals(frm, errors, invalidCells);
 	}
 
 	if (errors.length) {

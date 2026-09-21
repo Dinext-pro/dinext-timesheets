@@ -3,9 +3,12 @@ import { loadGridData, reloadTable } from "./data.js";
 import { getColumns } from "./columns.js";
 import { canEdit } from "./model.js";
 import { onSaveCells, onValidateCells } from "./save.js";
+import { syncInvalidCellTooltip } from "./invalid-cells.js";
 import {
 	closeDescriptionPopoverOnScroll,
 	handleDayDescrCellFocused,
+	handleDayDescrCellMouseOut,
+	handleDayDescrCellMouseOver,
 	handleDayDescrKeyDown,
 } from "./editors/description-popover.js";
 
@@ -23,11 +26,166 @@ import {
 	onAddTimesheetRow,
 	onDeleteTimesheetRows,
 	onValidateDeleteTimesheetRows,
+	syncRowsFromTable,
 } from "./toolbar.js";
-import { bindTimesheetTableFit, scheduleFitTimesheetTable } from "./fit.js";
+import {
+	bindFillHandleFit,
+	bindTimesheetTableFit,
+	fitTimesheetTable,
+	scheduleFitTimesheetTable,
+} from "./fit.js";
+import { attachRejectReasonRows } from "./rows.js";
 
 
 const FS_SHELL_CLASS = "user-timesheet-shell--fullscreen";
+const REJECT_ROW_H = 30;
+const REJECT_HOVER_CLOSE_MS = 80;
+
+function isRejectReasonRow(row) {
+	return row?.rowType === "reject_reason";
+}
+
+function rejectHoverParent(frm) {
+	return frm?.ut?._rejectHoverParent || "";
+}
+
+function setRejectHover(frm, parentId) {
+	const next = parentId ? String(parentId) : "";
+	if (!frm?.ut || rejectHoverParent(frm) === next) {
+		return;
+	}
+	frm.ut._rejectHoverParent = next;
+	const rows = attachRejectReasonRows(frm.ut.rows || [], next);
+	frm.ut.rows = rows;
+	if (frm.ut.table?.refresh) {
+		frm.ut.table.refresh(rows);
+	} else {
+		frm.ut.table?.api?.resetRowHeights?.();
+		frm.ut.table?.api?.redrawRows?.();
+	}
+	fitTimesheetTable(frm);
+}
+
+function rejectHoverIdFromRow(row) {
+	if (row?.rowType === "reject_reason") {
+		return row.parent_id || "";
+	}
+	if (row?.rowType === "position" && row.status === "Отклонено" && row.reject_reason) {
+		return row.id;
+	}
+	return "";
+}
+
+function isRejectHoverDom(el) {
+	const row = el?.closest?.(".ag-row");
+	if (!row) {
+		return false;
+	}
+	return (
+		row.classList.contains("ut-rejected-row") ||
+		row.classList.contains("ut-reject-reason-row")
+	);
+}
+
+function handleRejectRowHover(frm, event) {
+	const id = rejectHoverIdFromRow(event?.data);
+	if (id) {
+		if (frm.ut?._rejectHoverClose) {
+			clearTimeout(frm.ut._rejectHoverClose);
+			frm.ut._rejectHoverClose = null;
+		}
+		setRejectHover(frm, id);
+		return;
+	}
+	handleRejectRowLeave(frm, event);
+}
+
+function handleRejectRowLeave(frm, event) {
+	if (isRejectHoverDom(event?.event?.relatedTarget)) {
+		return;
+	}
+	if (!frm.ut) {
+		return;
+	}
+	clearTimeout(frm.ut._rejectHoverClose);
+	frm.ut._rejectHoverClose = setTimeout(() => {
+		frm.ut._rejectHoverClose = null;
+		setRejectHover(frm, "");
+	}, REJECT_HOVER_CLOSE_MS);
+}
+
+function syncReadonlyChrome(frm) {
+	const el = frm?.ut?.container;
+	if (!el) {
+		return;
+	}
+	el.classList.toggle("ut-table--readonly", !canEdit(frm));
+}
+
+function bindReadonlyReorderBlock(frm, container) {
+	if (!container || container._utReadonlyReorderBound) {
+		return;
+	}
+	container.addEventListener(
+		"mousedown",
+		(event) => {
+			if (canEdit(frm)) {
+				return;
+			}
+			if (
+				event.target.closest(
+					".dinext-table-row-reorder-handle, .dinext-table-row-reorder-handle-host, .dinext-table-row-reorder-cell"
+				)
+			) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+			}
+		},
+		true
+	);
+	container.addEventListener("mouseleave", () => setRejectHover(frm, ""));
+	container._utReadonlyReorderBound = true;
+}
+
+function getTimesheetRowHeight(frm) {
+	return function (params) {
+		const row = params?.data;
+		if (row?.rowType === "reject_reason") {
+			return rejectHoverParent(frm) === String(row.parent_id) ? REJECT_ROW_H : 0;
+		}
+		return REJECT_ROW_H;
+	};
+}
+
+function isFullWidthRejectRow(params) {
+	return isRejectReasonRow(params?.rowNode?.data || params?.data);
+}
+
+function renderRejectReasonRow(params) {
+	const el = document.createElement("div");
+	el.className = "ut-reject-reason";
+	el.textContent = params?.data?.reject_reason || "";
+	return el;
+}
+
+function handleCheckedRowsDelete(frm, event) {
+	const dom = event?.event;
+	if (!dom || (dom.key !== "Delete" && dom.code !== "Delete")) {
+		return false;
+	}
+	if (dom.altKey || dom.ctrlKey || dom.metaKey || dom.shiftKey) {
+		return false;
+	}
+	const table = frm.ut?.table;
+	const ids = table?.getCheckedRowIds?.() || [];
+	if (!ids.length) {
+		return false;
+	}
+	dom.preventDefault?.();
+	dom.stopPropagation?.();
+	void table.deleteCheckedRows();
+	return true;
+}
 
 function resolveFullscreenOpts(container) {
 	const shell = container?.closest?.(".user-timesheet-shell");
@@ -111,25 +269,33 @@ function canAcceptTimesheetRowReorder({ dropTarget, sourceRows }) {
 	return dropTarget.toIndex <= fence;
 }
 
-function getRowClass(params) {
-	const row = params?.data;
-	if (!row) {
-		return "";
-	}
-	const classes = [];
-	if (row.rowType === "section") {
-		classes.push("ut-section-row");
-	}
-	if (row.rowType === "leave") {
-		classes.push("ut-leave-row");
-	}
-	if (row.status === "Отклонено" && row.reject_reason) {
-		classes.push("ut-rejected-row");
-	}
-	if (row.rowType === "position" && row.limit_status) {
-		classes.push(`ut-limit-row-${row.limit_status}`);
-	}
-	return classes.join(" ");
+function getTimesheetRowClass(frm) {
+	return function (params) {
+		const row = params?.data;
+		if (!row) {
+			return "";
+		}
+		const classes = [];
+		if (row.rowType === "section") {
+			classes.push("ut-section-row");
+		}
+		if (row.rowType === "leave") {
+			classes.push("ut-leave-row");
+		}
+		if (row.rowType === "reject_reason") {
+			classes.push("ut-reject-reason-row");
+			if (rejectHoverParent(frm) === String(row.parent_id)) {
+				classes.push("ut-reject-reason-row--open");
+			}
+		}
+		if (row.rowType === "position" && row.status === "Отклонено" && row.reject_reason) {
+			classes.push("ut-rejected-row");
+		}
+		if (row.rowType === "position" && row.limit_status) {
+			classes.push(`ut-limit-row-${row.limit_status}`);
+		}
+		return classes.join(" ");
+	};
 }
 
 function buildTableOptions(frm, state) {
@@ -147,6 +313,7 @@ function buildTableOptions(frm, state) {
 		rowReorder: { enabled: true, width: 22 },
 		canReorderRow: (ctx) => ctx?.row?.rowType === "position",
 		canAcceptRowReorder: canAcceptTimesheetRowReorder,
+		onRowReorder: () => syncRowsFromTable(frm),
 		rowCheck: {
 			enabled: editable,
 			unit: "row",
@@ -156,11 +323,11 @@ function buildTableOptions(frm, state) {
 		},
 		filter: { enabled: false },
 		toolbar: {
-			enabled: true,
+			enabled: editable,
 			defaultPinned: true,
 			lockPinned: true,
 			persistKey: `user-timesheet:${frm.doc?.name || "new"}`,
-			presets: editable ? ["history", "rows"] : ["history"],
+			presets: editable ? ["history", "rows"] : [],
 		},
 		navigation: {
 			enabled: editable,
@@ -187,20 +354,40 @@ function buildTableOptions(frm, state) {
 			/* Summary always pinned — empty body should not show "no rows" overlay. */
 			suppressNoRowsOverlay: true,
 			suppressMovableColumns: true,
-			getRowClass,
+			enableBrowserTooltips: true,
+			tooltipShowDelay: 300,
+			getRowClass: getTimesheetRowClass(frm),
+			getRowHeight: getTimesheetRowHeight(frm),
+			isFullWidthRow: isFullWidthRejectRow,
+			fullWidthCellRenderer: renderRejectReasonRow,
 			/* Domain callbacks chain with selection/clipboard/fillHandle (mergeGridOptions). */
 			onCellClicked: (event) => onPickerCellClicked(frm, event),
 			onCellKeyDown: (event) => {
+				if (handleCheckedRowsDelete(frm, event)) {
+					return false;
+				}
 				handleDayDescrKeyDown(frm, event);
 			},
 			/* demodev hours focus → companion; covers mouse + keyboard (no separate onCellClicked). */
 			onCellFocused: (event) => handleDayDescrCellFocused(frm, event),
+			onCellMouseOver: (event) => {
+				handleRejectRowHover(frm, event);
+				handleDayDescrCellMouseOver(frm, event);
+				syncInvalidCellTooltip(frm, event);
+			},
+			onCellMouseOut: (event) => {
+				handleRejectRowLeave(frm, event);
+				handleDayDescrCellMouseOut(frm, event);
+			},
 			onBodyScroll: () => closeDescriptionPopoverOnScroll(),
 			onGridSizeChanged: () => {
 				if (frm.ut?._addingRow || isTaskPickerOpen()) {
 					return;
 				}
 				scheduleCascadeLayout(frm);
+				if (frm.ut?.container?.classList.contains("ut-table--hug")) {
+					return;
+				}
 				scheduleFitTimesheetTable(frm);
 			},
 		},
@@ -236,8 +423,11 @@ export async function initTable(frm) {
 			}
 			await loadGridData(frm);
 			state.columns = getColumns(frm);
+			bindReadonlyReorderBlock(frm, state.container);
+			syncReadonlyChrome(frm);
 			const table = await DinextTable.create(buildTableOptions(frm, state));
 			state.table = table;
+			bindFillHandleFit(frm, table);
 			bindTimesheetTableFit(frm);
 			requestAnimationFrame(() => {
 				scheduleCascadeLayout(frm);
@@ -270,6 +460,7 @@ export async function refreshRuntime(frm) {
 		isRowNavigable: (row) => row?.rowType === "position",
 	});
 	applyToolbarChrome(frm);
+	syncReadonlyChrome(frm);
 	state.table.setSummaryRows?.(state.summaryRows || []);
 	state.table.refresh?.(state.rows);
 	scheduleCascadeLayout(frm);

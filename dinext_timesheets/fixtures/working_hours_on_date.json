@@ -1,0 +1,68 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Working Hours On Date",
+  "hod_from_date": "2025-01-01",
+  "hod_to_date": "2026-12-31",
+  "hod_working_hours_table": [
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2025-03-07",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2025-04-30",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2025-06-11",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2025-11-01",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2026-04-30",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2026-05-08",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2026-06-11",
+    "wht_hours": 7.0
+   },
+   {
+    "parent": "Сокращенные рабочие дни РФ",
+    "parentfield": "hod_working_hours_table",
+    "parenttype": "Working Hours On Date",
+    "wht_date": "2026-11-03",
+    "wht_hours": 7.0
+   }
+  ],
+  "modified": "2026-03-19 12:14:38.948257",
+  "name": "Сокращенные рабочие дни РФ"
+ }
+]

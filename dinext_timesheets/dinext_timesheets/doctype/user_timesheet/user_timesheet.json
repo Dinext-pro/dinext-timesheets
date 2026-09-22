@@ -4,8 +4,9 @@
    "action": "process_journal_entries_for_timesheet",
    "action_type": "Server Action",
    "custom": 1,
-   "group": "\u0424\u0438\u043d. \u043f\u0440\u043e\u0432\u043e\u0434\u043a\u0438",
-   "label": "\u041f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0441\u0442\u0438"
+   "group": "Financial Entries",
+   "hidden": 1,
+   "label": "Reprocess"
   }
  ],
  "autoname": "format: {timesheet_from_name} - {ts_valid_from} - {ts_valid_for}",
@@ -63,7 +64,7 @@
    "fieldtype": "Data",
    "in_filter": 1,
    "in_standard_filter": 1,
-   "label": "\u0410\u0432\u0442\u043e\u0440 \u0422\u0428",
+   "label": "Timesheet Author",
    "read_only": 1,
    "width": "10"
   },
@@ -98,7 +99,7 @@
    "fieldname": "timesheet_from",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "\u0410\u0432\u0442\u043e\u0440",
+   "label": "Author",
    "options": "User",
    "read_only_depends_on": "eval:!(doc.__islocal)",
    "reqd": 1
@@ -106,7 +107,7 @@
   {
    "fieldname": "total_hours_schedule",
    "fieldtype": "Float",
-   "label": "\u0427\u0430\u0441\u043e\u0432 \u043f\u043e \u0440\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044e ",
+   "label": "Scheduled Hours",
    "read_only": 1
   },
   {
@@ -115,7 +116,7 @@
    "hidden": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
+   "label": "Group",
    "read_only": 1
   },
   {
@@ -160,7 +161,7 @@
   {
    "fieldname": "total_hours_to_work",
    "fieldtype": "Float",
-   "label": "\u0424\u043e\u043d\u0434 \u0440\u0430\u0431\u043e\u0447\u0438\u0445 \u0447\u0430\u0441\u043e\u0432",
+   "label": "Working Hours Fund",
    "precision": "2",
    "read_only": 1
   },
@@ -172,14 +173,14 @@
    "fieldname": "total_hours_worked",
    "fieldtype": "Float",
    "hidden": 1,
-   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u0440\u0430\u0431\u043e\u0447\u0438\u0445",
+   "label": "Total Working Hours",
    "precision": "2",
    "read_only": 1
   },
   {
    "fieldname": "total_hours_utilized",
    "fieldtype": "Float",
-   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "label": "Total Utilization Hours",
    "precision": "2",
    "read_only": 1
   },
@@ -187,7 +188,7 @@
    "fieldname": "total_hours_leave",
    "fieldtype": "Float",
    "hidden": 1,
-   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0439",
+   "label": "Total Leave Hours",
    "precision": "2",
    "read_only": 1
   },
@@ -195,7 +196,7 @@
    "fieldname": "total_hours_util_leave",
    "fieldtype": "Float",
    "hidden": 1,
-   "label": "\u2211 \u0447\u0430\u0441\u043e\u0432 \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u0435\u043c\u044b\u0445 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0439",
+   "label": "Total Counted Leave Hours",
    "precision": "2",
    "read_only": 1
   },
@@ -214,13 +215,13 @@
    "fieldname": "the_current_date",
    "fieldtype": "Button",
    "hidden": 1,
-   "label": " The \u0421urrent date"
+   "label": "Current Date"
   },
   {
    "fieldname": "utilization",
    "fieldtype": "Percent",
    "in_list_view": 1,
-   "label": "% \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "label": "Utilization %",
    "precision": "1",
    "read_only": 1
   },
@@ -232,7 +233,7 @@
    "fieldname": "utilization_fulfillment",
    "fieldtype": "Percent",
    "in_list_view": 1,
-   "label": "% \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f \u041a\u0423",
+   "label": "Utilization Fulfillment %",
    "precision": "2",
    "read_only": 1
   },
@@ -241,7 +242,7 @@
    "fieldname": "normalization",
    "fieldtype": "Float",
    "hidden": 1,
-   "label": "\u041a\u043e\u044d\u0444\u0444. \u043d\u043e\u0440\u043c\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "label": "Normalization Coefficient",
    "precision": "2",
    "read_only": 1
   },
@@ -253,7 +254,7 @@
    "fieldname": "utilization_hours_plan",
    "fieldtype": "Float",
    "hidden": 1,
-   "label": "\u041f\u043b\u0430\u043d \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0432 \u0447\u0430\u0441\u0430\u0445",
+   "label": "Utilization Plan (hours)",
    "precision": "2",
    "read_only": 1
   },
@@ -275,12 +276,13 @@
  "index_web_pages_for_search": 1,
  "links": [
   {
-   "custom": 1,
+   "custom": 0,
+   "hidden": 0,
    "link_doctype": "Journal Entry",
    "link_fieldname": "custom_user_timesheet"
   }
  ],
- "modified": "2026-07-30 00:11:12.792101",
+ "modified": "2026-09-17 16:20:00.000000",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "User Timesheet",

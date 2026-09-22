@@ -1,0 +1,169 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "WRKR-.YYYY.-.#####",
+ "creation": "2024-12-14 13:15:26.237226",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "wuser",
+  "wfullname",
+  "wuser_group",
+  "column_break_gvtrn",
+  "wtimesheet_template",
+  "wholiday_list",
+  "wtype",
+  "period_of_validity_section",
+  "wvalid_from",
+  "column_break_m7xn8",
+  "wvalid_for",
+  "worker_level_section",
+  "worker_level",
+  "utilization_section",
+  "utilization",
+  "cost_center_table_section",
+  "cost_center_table",
+  "\u0441ost_normalization"
+ ],
+ "fields": [
+  {
+   "fieldname": "wuser",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "wuser.full_name",
+   "fieldname": "wfullname",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Fullname",
+   "unique": 1
+  },
+  {
+   "fieldname": "wuser_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User Group",
+   "options": "User Group",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_gvtrn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "wtimesheet_template",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Timesheet Template",
+   "options": "Timesheet Template",
+   "reqd": 1
+  },
+  {
+   "fieldname": "wholiday_list",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Holiday List",
+   "options": "Holiday List",
+   "reqd": 1
+  },
+  {
+   "fieldname": "wtype",
+   "fieldtype": "Select",
+   "label": "\u0422\u0438\u043f",
+   "options": "\nEmployee\nSupplier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period_of_validity_section",
+   "fieldtype": "Section Break",
+   "label": "Period Of Validity"
+  },
+  {
+   "fieldname": "wvalid_from",
+   "fieldtype": "Date",
+   "label": "Valid From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_m7xn8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "wvalid_for",
+   "fieldtype": "Date",
+   "label": "Valid For"
+  },
+  {
+   "fieldname": "worker_level_section",
+   "fieldtype": "Section Break",
+   "label": "Worker Level"
+  },
+  {
+   "fieldname": "worker_level",
+   "fieldtype": "Table",
+   "options": "Worker Level"
+  },
+  {
+   "fieldname": "utilization_section",
+   "fieldtype": "Section Break",
+   "label": "Worker Utilization"
+  },
+  {
+   "fieldname": "utilization",
+   "fieldtype": "Table",
+   "options": "Worker Utilization Table"
+  },
+  {
+   "fieldname": "cost_center_table_section",
+   "fieldtype": "Section Break",
+   "label": "Cost Center "
+  },
+  {
+   "fieldname": "cost_center_table",
+   "fieldtype": "Table",
+   "options": "Cost Center Table"
+  },
+  {
+   "default": "\u041d\u0435\u0442",
+   "fieldname": "\u0441ost_normalization",
+   "fieldtype": "Select",
+   "label": "\u041d\u043e\u0440\u043c\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u044f \u0437\u0430\u0442\u0440\u0430\u0442",
+   "options": "\u041d\u0435\u0442\n\u0420\u0430\u0432\u043d\u043e\u043c\u0435\u0440\u043d\u043e"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-06 02:38:43.325223",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Worker",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "wfullname",
+ "track_changes": 1
+}

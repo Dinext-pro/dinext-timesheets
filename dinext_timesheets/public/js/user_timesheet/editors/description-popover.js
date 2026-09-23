@@ -429,6 +429,12 @@ export function focusDescriptionTextarea() {
  * (alongside selection + fillHandle).
  */
 export function handleDayDescrCellFocused(frm, event) {
+	/* Gesture flag is set in capture mousedown, before this focus event. */
+	if (frm?.ut?._descrPointerGesture || frm?.ut?.table?._isFillDragging) {
+		closeDescriptionPopover();
+		return;
+	}
+
 	const api = frm.ut?.table?.api;
 	if (!api || event?.rowIndex == null) {
 		return;
@@ -455,11 +461,34 @@ export function handleDayDescrCellFocused(frm, event) {
 		return;
 	}
 
-	openDescriptionPopover(frm, row, field.slice("day_".length), cellEl);
+	const date = field.slice("day_".length);
+	const rowId = String(row.id);
+	/*
+	 * Selection mixin collapses a range on this same cellFocused, but its handler
+	 * is chained after ours. Decide after it has updated cellRanges.
+	 */
+	setTimeout(() => {
+		if (!frm.ut || frm.ut._descrPointerGesture || frm.ut.table?._isFillDragging) {
+			return;
+		}
+		if (isMultiCellSelection(frm.ut.table)) {
+			closeDescriptionPopover();
+			return;
+		}
+		const ctx = focusedDayContext(frm);
+		if (!ctx || ctx.date !== date || String(ctx.row.id) !== rowId) {
+			return;
+		}
+		openDescriptionPopover(frm, ctx.row, ctx.date, ctx.cellEl);
+	}, 0);
 }
 
 /** Read-only: hover opens comment, no click. Edit mode stays focus-companion. */
 export function handleDayDescrCellMouseOver(frm, event) {
+	if (isDescriptionPopoverSuppressed(frm)) {
+		closeDescriptionPopover();
+		return;
+	}
 	if (canEdit(frm)) {
 		return;
 	}
@@ -492,6 +521,110 @@ export function handleDayDescrCellMouseOut(frm, event) {
 		return;
 	}
 	scheduleHoverClose();
+}
+
+function isMultiCellSelection(table) {
+	const ranges = table?.getCellRanges?.() || [];
+	if (ranges.length > 1) {
+		return true;
+	}
+	return ranges.some(
+		(range) => range.startRowId !== range.endRowId || range.startColId !== range.endColId
+	);
+}
+
+/** Multi-range, fill drag, or an in-progress pointer gesture (drag not finished). */
+function isDescriptionPopoverSuppressed(frm) {
+	const table = frm?.ut?.table;
+	if (!table) {
+		return false;
+	}
+	if (frm.ut._descrPointerGesture || table._isFillDragging) {
+		return true;
+	}
+	return isMultiCellSelection(table);
+}
+
+function focusedDayContext(frm) {
+	const api = frm?.ut?.table?.api;
+	const focused = api?.getFocusedCell?.();
+	if (!api || !focused || focused.rowIndex == null || focused.rowPinned) {
+		return null;
+	}
+	const field = focusColId(focused.column);
+	if (!field.startsWith("day_")) {
+		return null;
+	}
+	const node = api.getDisplayedRowAtIndex?.(focused.rowIndex);
+	const row = node?.data;
+	if (!row || row.rowType !== "position") {
+		return null;
+	}
+	return { row, date: field.slice("day_".length), cellEl: focusedDayCellEl(api) };
+}
+
+/** After Ctrl+A / Shift+arrows: close once the range is wider than one cell. */
+export function closeDescriptionPopoverIfSuppressed(frm) {
+	if (isDescriptionPopoverSuppressed(frm)) {
+		closeDescriptionPopover();
+	}
+}
+
+/** After mouseup: reopen only when the gesture left a single day cell. */
+export function syncDescriptionPopoverAfterGesture(frm) {
+	if (!frm?.ut) {
+		return;
+	}
+	if (isDescriptionPopoverSuppressed(frm)) {
+		closeDescriptionPopover();
+		return;
+	}
+	const ctx = focusedDayContext(frm);
+	if (!ctx) {
+		return;
+	}
+	openDescriptionPopover(frm, ctx.row, ctx.date, ctx.cellEl);
+}
+
+/**
+ * Close the comment popover for the whole pointer gesture.
+ * A multi-cell range only exists after the pointer reaches the next cell;
+ * by then the popover already covers that cell and the fill-handle hit target.
+ */
+export function bindDescriptionPopoverGesture(frm, table) {
+	const root = table?.container || frm?.ut?.container;
+	if (!root || !frm?.ut || frm.ut._descrPopoverGestureBound) {
+		return;
+	}
+	frm.ut._descrPopoverGestureBound = true;
+
+	root.addEventListener(
+		"mousedown",
+		(event) => {
+			const target = event.target;
+			if (event.button !== 0) {
+				return;
+			}
+			if (!target?.closest?.(".ag-cell, .dinext-table-fill-handle")) {
+				return;
+			}
+			if (target.closest(".dinext-table-row-reorder-handle")) {
+				return;
+			}
+			frm.ut._descrPointerGesture = true;
+			closeDescriptionPopover();
+		},
+		true
+	);
+
+	document.addEventListener("mouseup", () => {
+		if (!frm.ut?._descrPointerGesture) {
+			return;
+		}
+		frm.ut._descrPointerGesture = false;
+		/* After fill-handle mouseup applies the range. */
+		setTimeout(() => syncDescriptionPopoverAfterGesture(frm), 0);
+	});
 }
 
 /** Alt+↓ / F2 on day cell → focus comment textarea. */

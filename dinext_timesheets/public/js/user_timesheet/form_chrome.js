@@ -81,12 +81,14 @@ export async function setupFormChrome(frm) {
 	if (!skipHeavy) {
 		frm._ut_chrome_inflight = true;
 		frm._ut_chrome_ready = chromeKey;
+		if (frm.ut?.table) {
+			refreshLimits(frm).catch((err) => {
+				console.error("[UserTimesheet] refreshLimits", err);
+			});
+		}
 		try {
 			await resolveTeamLeadAccess(frm);
 			applyReadonlyChrome(frm);
-			if (frm.ut?.table) {
-				await refreshLimits(frm);
-			}
 		} finally {
 			frm._ut_chrome_inflight = false;
 		}

@@ -5,11 +5,14 @@ import { canEdit } from "./model.js";
 import { onSaveCells, onValidateCells } from "./save.js";
 import { syncInvalidCellTooltip } from "./invalid-cells.js";
 import {
+	bindDescriptionPopoverGesture,
+	closeDescriptionPopoverIfSuppressed,
 	closeDescriptionPopoverOnScroll,
 	handleDayDescrCellFocused,
 	handleDayDescrCellMouseOut,
 	handleDayDescrCellMouseOver,
 	handleDayDescrKeyDown,
+	syncDescriptionPopoverAfterGesture,
 } from "./editors/description-popover.js";
 
 import { showTaskPlanFact } from "./limits.js";
@@ -367,6 +370,8 @@ function buildTableOptions(frm, state) {
 					return false;
 				}
 				handleDayDescrKeyDown(frm, event);
+				/* Selection mixin runs after this handler (Ctrl+A / Shift+arrows). */
+				setTimeout(() => closeDescriptionPopoverIfSuppressed(frm), 0);
 			},
 			/* demodev hours focus → companion; covers mouse + keyboard (no separate onCellClicked). */
 			onCellFocused: (event) => handleDayDescrCellFocused(frm, event),
@@ -428,6 +433,7 @@ export async function initTable(frm) {
 			const table = await DinextTable.create(buildTableOptions(frm, state));
 			state.table = table;
 			bindFillHandleFit(frm, table);
+			bindDescriptionPopoverGesture(frm, table);
 			bindTimesheetTableFit(frm);
 			requestAnimationFrame(() => {
 				scheduleCascadeLayout(frm);

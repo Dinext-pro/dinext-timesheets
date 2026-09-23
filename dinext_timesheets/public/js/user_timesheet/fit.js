@@ -4,13 +4,11 @@
  */
 import { isTaskPickerOpen } from "./editors/task-picker-modal.js";
 import { scheduleCascadeLayout } from "./column-layout.js";
-import { canEdit } from "./model.js";
 
 const ROW_H = 30;
 const HEADER_H = 30;
 const GRID_BORDER_H = 2;
 const BOTTOM_GAP = 12;
-const FILL_HANDLE_SLACK = 12;
 const FS_CLASS = "user-timesheet-shell--fullscreen";
 const FITTING_CLASS = "ut-table--fitting";
 const HUG_CLASS = "ut-table--hug";
@@ -82,35 +80,35 @@ function contentParts(frm, tableEl) {
 		? measureH(floating, nSummary * ROW_H)
 		: nSummary * ROW_H;
 	const bodyH = measuredBodyRowsHeight(frm, tableEl);
-	const slack = canEdit(frm) && hasActiveCellRange(frm) ? FILL_HANDLE_SLACK : 0;
 	const chromeH =
 		toolbarH +
 		headerH +
 		summaryH +
+		statusBarH(tableEl) +
 		horizontalScrollH(tableEl) +
-		GRID_BORDER_H +
-		slack;
+		GRID_BORDER_H;
 	return { bodyH, chromeH, contentH: chromeH + bodyH };
 }
 
-function hasActiveCellRange(frm) {
-	const table = frm?.ut?.table;
-	const ranges =
-		table?.getCellRanges?.() || table?.api?.getCellRanges?.() || [];
-	return ranges.length > 0;
+/** Hidden bar is display:none — only the visible stats strip takes a row. */
+function statusBarH(tableEl) {
+	const bar = tableEl.querySelector(".dinext-table-status-bar");
+	if (!bar || bar.classList.contains("is-hidden")) {
+		return 0;
+	}
+	return measureH(bar, 0);
 }
 
-/** Grow slack only while a range is selected — idle hug stays flush to summary. */
+/** Same frame as the bar toggle — a deferred fit paints the shrink, then the grow. */
 export function bindFillHandleFit(frm, table) {
-	const api = table?.api;
-	if (!frm?.ut || !api || frm.ut._fillFitBound) {
+	const root = table?.container;
+	if (!frm?.ut || !root || frm.ut._fillFitBound) {
 		return;
 	}
-	const onRange = () => scheduleFitTimesheetTable(frm);
-	for (const ev of ["rangeSelectionChanged", "cellSelectionChanged"]) {
-		api.addEventListener?.(ev, onRange);
-	}
-	frm.ut._fillFitBound = onRange;
+	const onStatusBar = () => fitTimesheetTable(frm);
+	root.addEventListener("dinext-table-status-bar", onStatusBar);
+	frm.ut._fillFitBound = onStatusBar;
+	frm.ut._fillFitRoot = root;
 }
 
 function remainingHeight(el) {
@@ -170,8 +168,15 @@ export function fitTimesheetTable(frm) {
 	const bodyNow = measuredBodyRowsHeight(frm, el);
 	const vpH = measureH(vp, 0);
 	const overflow = vpH > 0 ? Math.max(0, bodyNow - vpH) : 0;
-	contentH += overflow;
-	height = Math.max(chromeH, Math.min(contentH, remaining));
+	/*
+	 * AG writes the viewport height on a later frame. Once this container
+	 * already covers the rows, that shortfall is stale and becomes a gap
+	 * between the last row and the pinned summary.
+	 */
+	if (overflow > 0 && height + 1 < contentH) {
+		contentH += overflow;
+		height = Math.max(chromeH, Math.min(contentH, remaining));
+	}
 	const hugs = height >= contentH - 1;
 
 	el.style.height = `${height}px`;
@@ -233,10 +238,8 @@ export function unbindTimesheetTableFit(frm) {
 		frm.ut._fitTimer = null;
 	}
 	if (frm.ut._fillFitBound) {
-		const api = frm.ut.table?.api;
-		for (const ev of ["rangeSelectionChanged", "cellSelectionChanged"]) {
-			api?.removeEventListener?.(ev, frm.ut._fillFitBound);
-		}
+		frm.ut._fillFitRoot?.removeEventListener("dinext-table-status-bar", frm.ut._fillFitBound);
 		frm.ut._fillFitBound = null;
+		frm.ut._fillFitRoot = null;
 	}
 }

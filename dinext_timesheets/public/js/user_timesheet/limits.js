@@ -185,8 +185,20 @@ export async function refreshLimits(frm) {
 	if (!frm.ts_positions?.length || !frm.doc.name || !frm.ut?.table) {
 		return;
 	}
-	const message = await callLimits(getLimitsPayload(frm));
-	applyLimitStyles(frm, message);
+	let finishInflight = () => {};
+	const done = new Promise((resolve) => {
+		finishInflight = resolve;
+	});
+	frm.ut._limitsInflight = done;
+	try {
+		const message = await callLimits(getLimitsPayload(frm));
+		applyLimitStyles(frm, message);
+	} finally {
+		finishInflight();
+		if (frm.ut?._limitsInflight === done) {
+			frm.ut._limitsInflight = null;
+		}
+	}
 }
 
 /** Debounced refresh after cell edit / copy / add-delete (demodev timesheetDataUpdated). */
@@ -393,16 +405,41 @@ function getParentTaskInfoHtml(result) {
 	return html;
 }
 
+function limitResultFor(frm, position) {
+	const key = String(position?.name || position?.id || "");
+	if (!key) {
+		return null;
+	}
+	return frm.ut?.limitResults?.[key] || null;
+}
+
 /** Plan/fact modal for a position row (demodev showTaskPlanFact). */
 export async function showTaskPlanFact(frm, position) {
 	if (!position?.document_name) {
 		frappe.msgprint(__("No task selected to display information"));
 		return;
 	}
-	const message = await callLimits(getLimitsPayload(frm));
-	const result = (message || []).find(
-		(el) => String(el.position) === String(position.name || position.id)
-	);
+	let result = limitResultFor(frm, position);
+	if (!result && frm.ut?._limitsInflight) {
+		await frm.ut._limitsInflight;
+		result = limitResultFor(frm, position);
+	}
+	if (!result) {
+		if (!frm.ut._limitDialogInflight) {
+			frm.ut._limitDialogInflight = callLimits(getLimitsPayload(frm))
+				.then((message) => {
+					applyLimitStyles(frm, message);
+					return message;
+				})
+				.finally(() => {
+					if (frm.ut) {
+						frm.ut._limitDialogInflight = null;
+					}
+				});
+		}
+		await frm.ut._limitDialogInflight;
+		result = limitResultFor(frm, position);
+	}
 	if (!result) {
 		frappe.msgprint(__("No plan/fact data for the position"));
 		return;

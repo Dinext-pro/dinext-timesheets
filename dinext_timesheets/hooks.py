@@ -3,7 +3,7 @@ app_title = "Dinext Timesheets"
 app_publisher = "Dinext"
 app_description = "Dinext Timesheets"
 app_email = "info@dinext.ru"
-app_license = "mit"
+app_license = "GNU General Public License (v3)"
 
 # closeout-decouple live probe 2 (2026-09-19)
 

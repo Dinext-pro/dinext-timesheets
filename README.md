@@ -128,7 +128,7 @@ bench --site <site> clear-cache
 
 | Параметр | Описание |
 |----------|----------|
-| `app_*` | Метаданные приложения (имя, издатель, MIT) |
+| `app_*` | Метаданные приложения (имя, издатель, GPL-3) |
 | `fixtures` | Экспорт и импорт Type Of Leave, Workflow*, Calendar View, Custom Field / Property Setter, клиентских и серверных скриптов, Timesheet Template, Role, Custom DocPerm, DocType Permission |
 | `required_apps` | `dinext_common`, `dinext_projects`, `dinext_projects_pl`, `doctype_permission` |
 
@@ -166,7 +166,7 @@ pre-commit install
 | `dinext-docs` → `agents/ide/skills/readme-writer/` | Центральный навык оформления README |
 | `dinext-docs` → `agents/ide/guides/frappe/app-structure.md` | Структура приложения, hooks, чеклист развёртывания (§3.3) |
 | [Frappe hooks](https://frappeframework.com/docs/user/en/python-api/hooks) | Документация по hooks |
-| [license.txt](license.txt) | Лицензия MIT |
+| [license.txt](license.txt) | Лицензия GPL-3 |
 
 ## ❤️ Благодарности
 
@@ -189,7 +189,7 @@ pre-commit install
 dinext_timesheets/                      # Корень репозитория / приложение Frappe
 ├── README.md                           # Документация проекта
 ├── AGENTS.md                           # Указатель на центральный dinext-docs
-├── license.txt                         # Лицензия MIT
+├── license.txt                         # Лицензия GPL-3
 ├── pyproject.toml                      # Метаданные, ruff, Python >=3.10
 ├── .pre-commit-config.yaml             # Хуки pre-commit
 ├── .editorconfig / .eslintrc           # Стиль редактора и ESLint

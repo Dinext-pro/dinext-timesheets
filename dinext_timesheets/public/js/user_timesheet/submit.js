@@ -50,11 +50,17 @@ function hasPositionRows(frm) {
 	return (frm.ut?.rows || []).some((r) => r.rowType === "position");
 }
 
-/** Why Start is blocked, or "" if can submit. */
+function hasLeaveRows(frm) {
+	return (frm.ut?.rows || []).some((r) => r.rowType === "leave");
+}
+
+/** Positions or leave make a day-total row. Empty sheet has neither. */
+function hasDayGrid(frm) {
+	return hasPositionRows(frm) || hasLeaveRows(frm);
+}
+
+/** Why Start is blocked, or "" if can submit. Hours are the validator's job. */
 function startButtonBlockReason(frm) {
-	if (!hasPositionRows(frm)) {
-		return __("Add at least one position");
-	}
 	if (needsSaveBeforeSubmit(frm)) {
 		return __("Save the timesheet first");
 	}
@@ -69,7 +75,7 @@ function findCustomButton(frm, label) {
 }
 
 /**
- * Start button: disabled + tooltip when empty / dirty / unsaved.
+ * Start button: disabled + tooltip when dirty / unsaved.
  * Uses .disabled (not prop) so title tooltip still works on hover.
  */
 export function syncStartButtonState(frm) {
@@ -104,6 +110,18 @@ function dayNormHours(frm, date) {
 	return flt(frm.template_doc?.hours_on_date) || 0;
 }
 
+function validateEmptyPeriod(frm, dates, holidays, minDelta, errors) {
+	const needsPositions = dates.some((date) => {
+		if (isHoliday(holidays, date)) {
+			return false;
+		}
+		return dayNormHours(frm, date) - minDelta > 0;
+	});
+	if (needsPositions) {
+		errors.push(__("Add positions for approval"));
+	}
+}
+
 function validateDayTotals(frm, errors, invalidCells = []) {
 	const template = frm.template_doc;
 	if (!template) {
@@ -111,19 +129,20 @@ function validateDayTotals(frm, errors, invalidCells = []) {
 	}
 	const holidays = frm.ut?.holidays || frm.holidays || [];
 	const dates = frm.ut?.dates || [];
-	const summary = (buildSummaryRows(frm) || [])[0] || {};
 	const minDelta = flt(template.minimum_hours);
 	const maxDelta = flt(template.maximum_hours);
 
-	let hasAnyHours = false;
+	if (!hasDayGrid(frm)) {
+		validateEmptyPeriod(frm, dates, holidays, minDelta, errors);
+		return;
+	}
+
+	const summary = (buildSummaryRows(frm) || [])[0] || {};
 	for (const date of dates) {
-		const total = flt(summary[dayField(date)]) || 0;
-		if (total > 0) {
-			hasAnyHours = true;
-		}
 		if (isHoliday(holidays, date)) {
 			continue;
 		}
+		const total = flt(summary[dayField(date)]) || 0;
 		const dayHours = dayNormHours(frm, date);
 		const minHours = dayHours - minDelta;
 		const maxHours = dayHours + maxDelta;
@@ -144,19 +163,6 @@ function validateDayTotals(frm, errors, invalidCells = []) {
 				field: dayField(date),
 				message,
 			});
-		}
-	}
-
-	if (!hasAnyHours && dates.length) {
-		const needsPositions = dates.some((date) => {
-			if (isHoliday(holidays, date)) {
-				return false;
-			}
-			const minHours = dayNormHours(frm, date) - minDelta;
-			return minHours > 0;
-		});
-		if (needsPositions) {
-			errors.push(__("Add positions for approval"));
 		}
 	}
 }

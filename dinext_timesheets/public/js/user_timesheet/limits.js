@@ -91,7 +91,11 @@ export async function checkPlannedHoursAndLimits(frm) {
 				project_role: p.project_role,
 				project: p.project,
 				status: positionLimitStatus(p),
-				all_hours: flt(p.all_hours),
+				custom_username:
+					p.custom_username || frm.doc.timesheet_from_name || "",
+				details: (p.details || [])
+					.filter((d) => d && d.date)
+					.map((d) => ({ date: d.date, hours: flt(d.hours) })),
 			})),
 		});
 		(message || []).forEach((r) => {

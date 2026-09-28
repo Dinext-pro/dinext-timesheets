@@ -80,7 +80,6 @@ Worker Level,Уровень Исполнителя,
 "Submit for Approval","Отправить на согласование",""
 "Stop Workflow","Остановить воркфлоу",""
 "Return to Editing","Вернуть на редактирование",""
-"Add at least one position","Добавьте хотя бы одну позицию",""
 "Save the timesheet first","Сначала сохраните таймшит",""
 "{0} cannot be less than {1} hours.","{0} не может быть менее {1} часов.",""
 "{0} cannot be more than {1} hours.","{0} не может быть более {1} часов.",""

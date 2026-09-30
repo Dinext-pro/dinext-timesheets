@@ -33,6 +33,18 @@ fixtures = [
         ]
     },
     {
+        "doctype": "Client Script",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]],
+        ]
+    },
+    {
+        "doctype": "Server Script",
+        "filters": [
+            ["module", "in", ["Dinext Timesheets"]],
+        ]
+    },
+    {
         "doctype": "Web Page",
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],       

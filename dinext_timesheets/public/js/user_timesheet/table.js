@@ -325,6 +325,7 @@ function buildTableOptions(frm, state) {
 			width: 26,
 		},
 		filter: { enabled: false },
+		columnWidth: { persist: false },
 		toolbar: {
 			enabled: editable,
 			defaultPinned: true,

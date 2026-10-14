@@ -3,6 +3,7 @@
  * Validation from model (frm.ut / ts_positions), not DOM.
  */
 import {
+	canEdit,
 	collectDuplicatePositionErrors,
 	dayField,
 	descField,
@@ -19,8 +20,7 @@ import {
 } from "./editors/cascade-commit.js";
 import { clearInvalidCells, setInvalidCells, SUMMARY_ROW_ID } from "./invalid-cells.js";
 
-const SET_STATUS =
-	"dinext_timesheets.dinext_timesheets.user_timesheet.api.set_timesheet_status";
+const ORCHESTRATE = "dinext_timesheets.workflow_approval.orchestrate_timesheet";
 
 const BTN_START = "Submit for Approval";
 const BTN_STOP = "Stop Workflow";
@@ -167,7 +167,30 @@ function validateDayTotals(frm, errors, invalidCells = []) {
 	}
 }
 
-function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
+function orchestrationPosition(frm, row) {
+	const dates = frm.ut?.dates || [];
+	const name = String(row.id || "");
+	const isNew = !!(row.isNew || name.startsWith("new_") || /^\d+$/.test(name));
+	const table = [];
+	for (const date of dates) {
+		const hours = flt(row[dayField(date)]) || 0;
+		const description = String(row[descField(date)] || "").trim();
+		if (hours > 0 || description) {
+			table.push({ date, hours, description });
+		}
+	}
+	return {
+		name,
+		new: isNew,
+		project: row.project || "",
+		document_type: row.document_type || "Task",
+		document_name: row.document_name || "",
+		project_role: row.project_role || "",
+		table,
+	};
+}
+
+function validatePositionRows(frm, errors, invalidCells = []) {
 	const dates = frm.ut?.dates || [];
 	const rows = (frm.ut?.rows || []).filter((r) => r.rowType === "position");
 	const updatedPositions = [];
@@ -199,13 +222,9 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 			invalidCells.push({ rowId: row.id, field: "total", message });
 		}
 
-		const table = [];
 		for (const date of dates) {
 			const hours = flt(row[dayField(date)]) || 0;
 			const description = String(row[descField(date)] || "").trim();
-			if (hours > 0 || description) {
-				table.push({ date, hours, description });
-			}
 			if (hours > 0 && !description && frm.template_doc?._is_mandatory) {
 				const message = __(
 					"Description is not filled for {0} on task {1}",
@@ -225,21 +244,7 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 			return;
 		}
 
-		updatedPositions.push({
-			doctype: "User Timesheet Position",
-			name: row.id,
-			parent: frm.doc.name,
-			user_timesheet: frm.doc.name,
-			user: frm.doc.timesheet_from,
-			document_type: row.document_type || "Task",
-			document_name: row.document_name,
-			project: row.project,
-			project_role: row.project_role,
-			status: posStatus,
-			all_hours: total,
-			reject_reason: "",
-			table,
-		});
+		updatedPositions.push(orchestrationPosition(frm, row));
 	});
 
 	return updatedPositions;
@@ -248,22 +253,13 @@ function validatePositionRows(frm, posStatus, errors, invalidCells = []) {
 async function timesheetValidation(workflow, frm) {
 	let errors = [];
 	const invalidCells = [];
-	let posStatus = "На согласовании";
-	if (workflow === "Stop" || workflow === "Edit") {
-		posStatus = "Редактирование";
-	}
 
 	if (workflow === "Start") {
 		const limitCheck = await checkPlannedHoursAndLimits(frm);
 		errors.push(...(limitCheck.errors || []));
 	}
 
-	const updatedPositions = validatePositionRows(
-		frm,
-		posStatus,
-		errors,
-		invalidCells
-	);
+	const updatedPositions = validatePositionRows(frm, errors, invalidCells);
 	if (workflow === "Start") {
 		validateDayTotals(frm, errors, invalidCells);
 	}
@@ -288,12 +284,8 @@ async function sendTimesheet(workflow, frm) {
 		return;
 	}
 
-	let tsStatus = "На согласовании";
-	let posStatus = "На согласовании";
 	let showErrors = true;
 	if (workflow === "Stop" || workflow === "Edit") {
-		tsStatus = "На доработке";
-		posStatus = "Редактирование";
 		showErrors = false;
 	}
 
@@ -335,27 +327,19 @@ async function sendTimesheet(workflow, frm) {
 
 		frm.disable_save();
 
-		if (updatedPositions.length > 0) {
-			await frappe.call({
-				method: SET_STATUS,
-				args: {
-					ts_name: frm.doc.name,
-					ts_status: tsStatus,
-					positions: updatedPositions,
-					pos_status: posStatus,
-				},
-				silent: true,
-				freeze: true,
-				freeze_message: __("Saving..."),
-			});
-		} else {
-			await frappe.db.set_value(
-				"User Timesheet",
-				frm.doc.name,
-				"ut_status",
-				workflow === "Edit" ? "На доработке" : "Согласован"
-			);
-		}
+		await frappe.call({
+			method: ORCHESTRATE,
+			args: {
+				ts_name: frm.doc.name,
+				operation: workflow,
+				positions: updatedPositions,
+				deleted_positions: frm.deletedPositions || [],
+			},
+			silent: true,
+			freeze: true,
+			freeze_message: __("Saving..."),
+		});
+		frm.deletedPositions = [];
 
 		frappe.show_alert(
 			{ message: __("Data saved successfully"), indicator: "green" },
@@ -364,17 +348,43 @@ async function sendTimesheet(workflow, frm) {
 		frm.reload_doc();
 	} catch (error) {
 		console.error("[UserTimesheet] sendTimesheet", error);
-		const message =
-			error?.message ||
-			error?.exc ||
-			error?.responseJSON?.exception ||
-			String(error);
-		frappe.msgprint({
-			title: __("Timesheet Processing Error"),
-			indicator: "red",
-			message,
-		});
+		reportTimesheetError(frm, error);
+	} finally {
+		frm.enable_save();
 	}
+}
+
+function reportTimesheetError(frm, error) {
+	const excType = error?.responseJSON?.exc_type;
+	if (frappe.boot?.error_report_email && excType !== "ValidationError") {
+		const body = [
+			`<h4>${__("Timesheet processing error report")}</h4>`,
+			`<h5>${__(
+				"Add any details that would help support reproduce the problem:"
+			)}</h5>`,
+			'<div style="min-height: 100px; border: 1px solid #bbb; border-radius: 5px; padding: 15px; margin-bottom: 15px;"></div>',
+			"<hr>",
+			`<h5>${__("Timesheet")}</h5>`,
+			`<pre>${frappe.utils.escape_html(frm.docname || frm.doc?.name || "")}</pre>`,
+			"<hr>",
+			`<h5>${__("Error")}</h5>`,
+			`<pre>${frappe.utils.escape_html(String(error))}</pre>`,
+		].join("\n");
+		new frappe.views.CommunicationComposer({
+			subject: `${__("Timesheet processing error")} [${frappe.datetime.nowdate()}]`,
+			recipients: frappe.boot.error_report_email,
+			message: body,
+		});
+		return;
+	}
+	frappe.msgprint({
+		title: __("Error saving timesheet"),
+		indicator: "red",
+		message:
+			error?.responseJSON?.exception ||
+			error?.message ||
+			String(error),
+	});
 }
 
 export function clearSubmitButtons(frm) {
@@ -392,9 +402,11 @@ export function setupSubmitButtons(frm) {
 
 	clearSubmitButtons(frm);
 	bindStartButtonDirtySync(frm);
+	if ((frm._ut_wf_button_labels || []).length) {
+		return;
+	}
 
 	const status = frm.doc.ut_status;
-	const isOwner = frappe.session.user === frm.doc.timesheet_from;
 
 	if (status === "Черновик" || status === "На доработке") {
 		frm.add_custom_button(__(BTN_START), async () => {
@@ -406,11 +418,7 @@ export function setupSubmitButtons(frm) {
 		});
 		syncStartButtonState(frm);
 	} else if (status === "На согласовании") {
-		if (isOwner) {
-			frm.add_custom_button(__(BTN_STOP), async () => {
-				await sendTimesheet("Stop", frm);
-			});
-		}
+		// Stop is a workflow-menu action. A second button would duplicate it.
 	} else {
 		frm.add_custom_button(__(BTN_EDIT), async () => {
 			if (status === "Согласован") {
@@ -428,6 +436,37 @@ export function setupSubmitButtons(frm) {
 			}
 		});
 	}
+}
+
+export async function guardEditableTimesheet(frm) {
+	if (!canEdit(frm)) {
+		return true;
+	}
+	syncAllRows(frm);
+	if (needsSaveBeforeSubmit(frm)) {
+		frappe.msgprint(__("Save the timesheet first"));
+		return false;
+	}
+	const validation = await timesheetValidation("Start", frm);
+	const errors = validation.errors_passed || [];
+	if (errors.length) {
+		setInvalidCells(frm, validation.invalidCells || []);
+		frappe.msgprint({
+			title: __("Timesheet Validation Errors"),
+			indicator: "red",
+			as_list: true,
+			message: errors,
+			primary_action: {
+				label: __("Fix"),
+				action() {
+					frappe.msg_dialog?.cancel?.();
+				},
+			},
+		});
+		return false;
+	}
+	clearInvalidCells(frm);
+	return true;
 }
 
 export { sendTimesheet };

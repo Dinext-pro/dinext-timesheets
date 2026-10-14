@@ -5,14 +5,17 @@ Ports demodev Server Scripts:
 - UTP Proccess WT After Save
 - UTP_Deleted_WTs_Deleted
 
-Calls existing API Server Scripts ``Workflow_Task_Processing`` /
-``Workflow_Task_Processing_After_Save`` (shared with AFL etc.).
+The legacy bridge remains active only while parallel workflow approval is
+disabled. With the parallel engine enabled, global lifecycle hooks own rounds
+and archival; this bridge only synchronizes the position status.
 """
 
 from __future__ import annotations
 
 import frappe
 from frappe.utils.safe_exec import call_whitelisted_function
+
+from dinext_common.workflow_approval.lifecycle import is_engine_enabled
 
 
 def sync_status_from_workflow_state(doc) -> None:
@@ -22,6 +25,8 @@ def sync_status_from_workflow_state(doc) -> None:
 def process_workflow_tasks_before_save(doc) -> None:
 	"""Before Save: sync status, run Workflow_Task_Processing API SS."""
 	sync_status_from_workflow_state(doc)
+	if is_engine_enabled():
+		return
 	# SS sandbox ``frappe.call`` → call_whitelisted_function (not frappe.call attr path)
 	result = call_whitelisted_function("Workflow_Task_Processing", doc=doc)
 	if not result:
@@ -48,10 +53,14 @@ def process_workflow_tasks_before_save(doc) -> None:
 
 
 def process_workflow_tasks_after_save(doc) -> None:
+	if is_engine_enabled():
+		return
 	call_whitelisted_function("Workflow_Task_Processing_After_Save", doc=doc)
 
 
 def delete_linked_workflow_tasks(doc) -> None:
+	if is_engine_enabled():
+		return
 	workflow_tasks = frappe.get_all(
 		"Workflow Task",
 		filters={"wt_docname": doc.name},

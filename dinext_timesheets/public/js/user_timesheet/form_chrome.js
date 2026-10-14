@@ -94,9 +94,9 @@ export async function setupFormChrome(frm) {
 		}
 	}
 	setupCopyButtons(frm);
-	setupSubmitButtons(frm);
 	applyReprocessJournalEntriesButton(frm);
 	await processUTWorkflow(frm);
+	setupSubmitButtons(frm);
 	await showTimesheetDashboard(frm);
 	scheduleCascadeLayout(frm);
 }

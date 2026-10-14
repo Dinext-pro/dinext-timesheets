@@ -63,6 +63,15 @@ function markSelectCellEditable(frm, wrap, row) {
 	wrap.classList.add("ut-select-cell--editable");
 }
 
+/** Cell label stays first. Approver names are an extra line, only when present. */
+function withApproverTitle(text, row) {
+	const names = row?.rowType === "position" ? row.approver_tooltip || "" : "";
+	if (!names) {
+		return text;
+	}
+	return text ? `${text}\n${names}` : names;
+}
+
 const PICKER_COL_DEF = {
 	edit: false,
 	suppressFillHandle: true,
@@ -75,7 +84,7 @@ function projectSelectRenderer(frm) {
 		wrap.className = "ut-select-cell";
 		const text = row.project_label || "";
 		wrap.textContent = text;
-		wrap.title = text;
+		wrap.title = withApproverTitle(text, row);
 		markSelectCellEditable(frm, wrap, row);
 		return wrap;
 	};
@@ -87,7 +96,7 @@ function taskSelectRenderer(frm) {
 		const wrap = document.createElement("div");
 		wrap.className = "ut-select-cell";
 		const text = row.document_label || "";
-		wrap.title = text;
+		wrap.title = withApproverTitle(text, row);
 		wrap.textContent = text;
 		markSelectCellEditable(frm, wrap, row);
 		return wrap;
@@ -101,7 +110,7 @@ function roleSelectRenderer(frm) {
 		wrap.className = "ut-select-cell";
 		const text = row.project_role || "";
 		wrap.textContent = text;
-		wrap.title = text;
+		wrap.title = withApproverTitle(text, row);
 		markSelectCellEditable(frm, wrap, row);
 		return wrap;
 	};

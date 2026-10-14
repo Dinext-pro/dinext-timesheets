@@ -223,6 +223,7 @@
 				doctype: SOURCE_DOCTYPE,
 				names,
 				action: transition.action,
+				transition_uuid: transition.transition_uuid,
 				comment,
 				request_id: requestId(),
 			}
@@ -249,10 +250,25 @@
 				return;
 			}
 			const common = tasks
-				.map((task) => new Set(task.available_transitions.map((row) => row.action)))
-				.reduce((left, right) => new Set([...left].filter((action) => right.has(action))));
-			const options = [...common].sort();
-			if (!options.length) {
+				.map((task) => new Set(task.available_transitions.map((row) => row.transition_uuid)))
+				.reduce((left, right) => new Set([...left].filter((uuid) => right.has(uuid))));
+			const catalog = new Map();
+			tasks.forEach((task) => {
+				task.available_transitions.forEach((row) => catalog.set(row.transition_uuid, row));
+			});
+			const choices = [...common].sort().map((uuid) => {
+				const row = catalog.get(uuid);
+				const sameAction = [...catalog.values()].filter((item) => item.action === row.action);
+				const suffix =
+					sameAction.length > 1
+						? [row.allowed, row.next_state].filter(Boolean).join(" → ")
+						: "";
+				return {
+					uuid,
+					label: suffix ? `${__(row.action)} (${suffix})` : __(row.action),
+				};
+			});
+			if (!choices.length) {
 				frappe.msgprint(__("The selected rows have no common workflow action"));
 				return;
 			}
@@ -261,19 +277,18 @@
 					fieldname: "action",
 					fieldtype: "Select",
 					label: __("Action"),
-					options,
+					options: choices.map((row) => row.label).join("\n"),
 					reqd: 1,
 				},
 				async ({ action }) => {
-					const transition = tasks
-						.flatMap((task) => task.available_transitions)
-						.find((row) => row.action === action);
+					const chosen = choices.find((row) => row.label === action);
+					const transition = catalog.get(chosen.uuid);
 					await bulkVote(selected, {
 						...transition,
 						comment_is_required: tasks.some((task) =>
 							task.available_transitions.some(
 								(row) =>
-									row.action === action && row.comment_is_required
+									row.transition_uuid === chosen.uuid && row.comment_is_required
 							)
 						),
 					});
@@ -335,10 +350,21 @@
 					</select>`
 				);
 				task.available_transitions.forEach((transition, index) => {
+					const sameAction = task.available_transitions.filter(
+						(row) => row.action === transition.action
+					);
+					const suffix =
+						sameAction.length > 1
+							? [transition.allowed, transition.next_state].filter(Boolean).join(" → ")
+							: "";
 					select.append(
 						$("<option>")
 							.val(String(index))
-							.text(__(transition.action))
+							.text(
+								suffix
+									? `${__(transition.action)} (${suffix})`
+									: __(transition.action)
+							)
 					);
 				});
 				select.on("click", (event) => event.stopPropagation());

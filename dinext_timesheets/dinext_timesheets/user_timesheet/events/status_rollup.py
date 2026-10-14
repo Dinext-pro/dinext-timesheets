@@ -58,6 +58,11 @@ def _maybe_approve_ut(ut_name) -> None:
 
 def _maybe_rework_ut(doc, old_doc) -> None:
 	# ISS-2025-02143
+	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
+
+	# The parallel engine moves sibling positions and cancels their rounds.
+	if is_engine_enabled():
+		return
 	if not (old_doc and old_doc.status and old_doc.status != "Редактирование"):
 		return
 

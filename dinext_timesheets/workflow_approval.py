@@ -936,23 +936,40 @@ def vote_timesheet_positions(
 ) -> dict[str, object]:
 	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
 	parent.check_permission("read")
+	frappe.flags.timesheet_transition_messages = []
+	frappe.flags.workflow_finalization_errors = []
 	available = get_timesheet_approval_actions(parent.name)
 	if action not in {row["action"] for row in available["actions"]}:
 		frappe.throw(_("The action is not available for all selected positions"))
-	from dinext_common.workflow_approval.engine import cast_vote
+	from dinext_common.workflow_approval.engine import (
+		WorkflowApprovalConflictError,
+		cast_vote,
+	)
 
 	results = []
 	for index, task_name in enumerate(sorted(available["tasks"])):
-		results.append(
-			cast_vote(
-				task_name,
-				action=action,
-				comment=comment,
-				request_id=f"{request_id or frappe.generate_hash(length=16)}:{index}",
-				completion_source="Bulk",
+		# The first vote can move the whole timesheet and cancel the other tasks.
+		if _task_no_longer_matches_source(task_name):
+			continue
+		try:
+			results.append(
+				cast_vote(
+					task_name,
+					action=action,
+					comment=comment,
+					request_id=f"{request_id or frappe.generate_hash(length=16)}:{index}",
+					completion_source="Bulk",
+				)
 			)
-		)
-	return {"timesheet": parent.name, "results": results}
+		except WorkflowApprovalConflictError as caught:
+			if not any(row.get("transitioned") for row in results):
+				raise
+			_note_timesheet_transition_message(str(caught))
+	messages = [
+		*(getattr(frappe.flags, "workflow_finalization_errors", None) or []),
+		*(getattr(frappe.flags, "timesheet_transition_messages", None) or []),
+	]
+	return {"timesheet": parent.name, "results": results, "messages": messages}
 
 
 def on_vote_completed(task, source, transition) -> None:
@@ -1067,6 +1084,40 @@ def on_utp_update(doc, method=None) -> None:
 		)
 
 
+def _task_no_longer_matches_source(task_name: str) -> bool:
+	task = frappe.db.get_value(
+		"Workflow Task",
+		task_name,
+		[
+			"status",
+			"round_status",
+			"reference_doctype",
+			"reference_name",
+			"workflow_state",
+		],
+		as_dict=True,
+	)
+	if not task or task.status != "Working" or task.round_status != "Open":
+		return True
+	from frappe.model.workflow import get_workflow
+
+	state_field = get_workflow(task.reference_doctype).workflow_state_field
+	current_state = frappe.db.get_value(
+		task.reference_doctype,
+		task.reference_name,
+		state_field,
+	)
+	return str(current_state or "") != str(task.workflow_state or "")
+
+
+def _note_timesheet_transition_message(message: str) -> None:
+	notes = getattr(frappe.flags, "timesheet_transition_messages", None)
+	if not isinstance(notes, list):
+		notes = []
+		frappe.flags.timesheet_transition_messages = notes
+	notes.append(str(message))
+
+
 def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
 	if changed_position.status == REJECTED:
 		if parent.ut_status != REJECTED:
@@ -1087,6 +1138,22 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 			parent.save(ignore_permissions=True)
 		return
 	if (
+		changed_position.status == PENDING
+		and old_status
+		and old_status != PENDING
+	):
+		# Positions still in an earlier state have not reached their own threshold.
+		if frappe.db.count(
+			"User Timesheet Position",
+			{"user_timesheet": parent.name, "status": ("in", (EDITING, REJECTED))},
+		):
+			return
+		if parent.ut_status != PENDING:
+			parent.ut_status = PENDING
+			parent.ut_approval_date = None
+			parent.save(ignore_permissions=True)
+		return
+	if (
 		changed_position.status == EDITING
 		and old_status
 		and old_status != EDITING
@@ -1094,8 +1161,10 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 	):
 		from dinext_common.workflow_approval.engine import apply_domain_transition
 
+		parent.ut_status = REWORK
 		frappe.flags.in_timesheet_approval_cascade = True
 		try:
+			parent.save(ignore_permissions=True)
 			siblings = frappe.get_all(
 				"User Timesheet Position",
 				filters={
@@ -1107,15 +1176,23 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 				order_by="name asc",
 			)
 			for sibling_name in siblings:
-				apply_domain_transition(
-					"User Timesheet Position",
-					sibling_name,
-					EDITING,
-					reason=_("Timesheet returned for rework"),
-					actor=frappe.session.user,
-				)
-			parent.ut_status = REWORK
-			parent.save(ignore_permissions=True)
+				try:
+					apply_domain_transition(
+						"User Timesheet Position",
+						sibling_name,
+						EDITING,
+						reason=_("Timesheet returned for rework"),
+						actor=frappe.session.user,
+					)
+				except Exception:
+					frappe.log_error(
+						title=f"Timesheet sibling transition failed: {sibling_name}",
+					)
+					_note_timesheet_transition_message(
+						_("Could not update a related timesheet position: {0}").format(
+							sibling_name
+						)
+					)
 		finally:
 			frappe.flags.in_timesheet_approval_cascade = False
 
@@ -1195,7 +1272,19 @@ def recalculate_task_actual_dates(task_name: str) -> None:
 		return
 	task.act_start_date = new_start
 	task.act_end_date = new_end
-	task.save(ignore_permissions=True)
+	_save_system_task(task)
+
+
+def _save_system_task(task) -> None:
+	"""Actual dates follow approval. The closing approver is not editing the WBS."""
+	previous = frappe.session.user
+	try:
+		if previous != "Administrator":
+			frappe.set_user("Administrator")
+		task.save(ignore_permissions=True)
+	finally:
+		if frappe.session.user != previous:
+			frappe.set_user(previous)
 
 
 def mirror_utp_comment(doc, method=None) -> None:

@@ -153,11 +153,8 @@ required_apps = ["dinext_common", "dinext_projects", "dinext_projects_pl", "doct
 
 # include js in doctype views
 # User Timesheet UI → public/js/user_timesheet (ISS-2026-00926 try3)
-# Parallel approval scripts load before the modular form (feat/dinext_workflow).
 doctype_js = {
 	"User Timesheet": [
-		"public/js/user_timesheet_approvals.js",
-		"public/js/user_timesheet_form.js",
 		"public/js/user_timesheet/entry.js",
 	],
 	"User Timesheet Position": [

@@ -136,7 +136,7 @@ bench --site <site> clear-cache
 | `app_*` | Метаданные приложения (имя, издатель, GPL-3) |
 | `fixtures` | Экспорт и импорт Type Of Leave, Workflow*, Calendar View, Custom Field / Property Setter, клиентских и серверных скриптов, Timesheet Template, Role, Custom DocPerm, DocType Permission |
 | `required_apps` | `dinext_common`, `dinext_projects`, `dinext_projects_pl`, `doctype_permission` |
-| `doctype_js` / `doctype_list_js` | UT / UTP form и list: `user_timesheet_approvals.js`, `user_timesheet_form.js`, `user_timesheet_position_form.js`, `user_timesheet_position_list.js` |
+| `doctype_js` / `doctype_list_js` | UT form: `user_timesheet/entry.js`. UTP form и list: `user_timesheet_position_form.js`, `user_timesheet_position_list.js` |
 | `workflow_approval_*` | Domain hooks: lock, pending approvers, vote completed, digest |
 
 Окружение: стандартный сайт Frappe (`site_config.json` bench). Отдельных переменных окружения приложение не вводит.

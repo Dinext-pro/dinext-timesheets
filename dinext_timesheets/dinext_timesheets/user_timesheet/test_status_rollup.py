@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from frappe.utils import getdate
 
 from dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup import (
+	_maybe_rework_ut,
 	_update_task_act_dates,
 	rollup_ut_status_and_task_dates,
 )
@@ -58,6 +59,18 @@ class TestRollupTriggers(unittest.TestCase):
 		doc._old = _Doc(status="Редактирование")
 		rollup_ut_status_and_task_dates(doc)
 		update_dates.assert_not_called()
+
+	@patch(
+		"dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup.frappe.db.set_value"
+	)
+	@patch(
+		"dinext_common.workflow_approval.lifecycle.is_engine_enabled",
+		return_value=True,
+	)
+	def test_parallel_engine_rework_does_not_write_positions(self, _enabled, set_value):
+		doc = _Doc(status="Редактирование", user_timesheet="UT-1")
+		_maybe_rework_ut(doc, _Doc(status="На согласовании"))
+		set_value.assert_not_called()
 
 
 class TestActDates(unittest.TestCase):

@@ -65,7 +65,7 @@ async function loadLeaves(frm) {
 			["lauser", "=", frm.doc.timesheet_from],
 			["alfrom_date", "<=", frm.doc.ts_valid_for],
 			["alto_date", ">=", frm.doc.ts_valid_from],
-			["status", "=", "Согласовано"],
+			["status", "=", "Approved"],
 		],
 		limit: 1000,
 	});
@@ -147,7 +147,7 @@ async function loadPositions(frm) {
 		);
 		const status = (item.status || item.workflow_state || "").trim();
 		let reject_reason = "";
-		if (status === "Отклонено") {
+		if (status === "Rejected") {
 			reject_reason = await loadRejectReason(item.name);
 		}
 		const hoursFromDetails = details.reduce((sum, d) => sum + (flt(d.hours) || 0), 0);

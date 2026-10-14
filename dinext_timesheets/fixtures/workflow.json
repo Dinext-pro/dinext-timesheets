@@ -36,9 +36,9 @@
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "Редактирование",
+    "state": "Editing",
     "update_field": "status",
-    "update_value": "Редактирование",
+    "update_value": "Editing",
     "workflow_builder_id": null
    },
    {
@@ -52,9 +52,9 @@
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "update_field": "status",
-    "update_value": "На согласовании",
+    "update_value": "Pending Approval",
     "workflow_builder_id": null
    },
    {
@@ -68,9 +68,9 @@
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "Согласовано",
+    "state": "Approved",
     "update_field": "status",
-    "update_value": "Согласовано",
+    "update_value": "Approved",
     "workflow_builder_id": null
    },
    {
@@ -84,9 +84,9 @@
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "Отклонено",
+    "state": "Rejected",
     "update_field": "status",
-    "update_value": "Отклонено",
+    "update_value": "Rejected",
     "workflow_builder_id": null
    }
   ],
@@ -103,12 +103,12 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "344f796f6faa5e6997bd16766ff47302",
-    "next_state": "На согласовании",
+    "next_state": "Pending Approval",
     "parent": "UTP Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "Редактирование",
+    "state": "Editing",
     "workflow_builder_id": null
    },
    {
@@ -123,12 +123,12 @@
     "custom_parallel_approval_policy": "All",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "b39e16b5a027d14b62e32d36ceaa4a57",
-    "next_state": "Согласовано",
+    "next_state": "Approved",
     "parent": "UTP Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "workflow_builder_id": null
    },
    {
@@ -143,12 +143,12 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "a247d3ac6d2fa7e344715477d1970d28",
-    "next_state": "Отклонено",
+    "next_state": "Rejected",
     "parent": "UTP Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "workflow_builder_id": null
    },
    {
@@ -163,12 +163,12 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "b7450a1534823ed363df461495d22763",
-    "next_state": "Редактирование",
+    "next_state": "Editing",
     "parent": "UTP Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "workflow_builder_id": null
    },
    {
@@ -183,12 +183,12 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "b817b57478a722f84cc4e09b35ed71fa",
-    "next_state": "Редактирование",
+    "next_state": "Editing",
     "parent": "UTP Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "Отклонено",
+    "state": "Rejected",
     "workflow_builder_id": null
    },
    {
@@ -203,12 +203,12 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "3a5e687edc9c6cf454e4aaf076850719",
-    "next_state": "Редактирование",
+    "next_state": "Editing",
     "parent": "UTP Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "Согласовано",
+    "state": "Approved",
     "workflow_builder_id": null
    }
   ],

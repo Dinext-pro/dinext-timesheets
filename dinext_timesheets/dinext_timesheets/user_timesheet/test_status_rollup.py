@@ -36,12 +36,12 @@ class TestRollupTriggers(unittest.TestCase):
 	)
 	def test_enter_approved_updates_task_dates(self, approve, update_dates):
 		doc = _Doc(
-			status="Согласовано",
+			status="Approved",
 			document_type="Task",
 			document_name="TASK-1",
 			user_timesheet="UT-1",
 		)
-		doc._old = _Doc(status="Редактирование")
+		doc._old = _Doc(status="Editing")
 		rollup_ut_status_and_task_dates(doc)
 		approve.assert_called_once_with("UT-1")
 		update_dates.assert_called_once_with(doc)
@@ -51,12 +51,12 @@ class TestRollupTriggers(unittest.TestCase):
 	)
 	def test_other_status_skips_task_dates(self, update_dates):
 		doc = _Doc(
-			status="Редактирование",
+			status="Editing",
 			document_type="Task",
 			document_name="TASK-1",
 			user_timesheet="UT-1",
 		)
-		doc._old = _Doc(status="Редактирование")
+		doc._old = _Doc(status="Editing")
 		rollup_ut_status_and_task_dates(doc)
 		update_dates.assert_not_called()
 
@@ -68,8 +68,8 @@ class TestRollupTriggers(unittest.TestCase):
 		return_value=True,
 	)
 	def test_parallel_engine_rework_does_not_write_positions(self, _enabled, set_value):
-		doc = _Doc(status="Редактирование", user_timesheet="UT-1")
-		_maybe_rework_ut(doc, _Doc(status="На согласовании"))
+		doc = _Doc(status="Editing", user_timesheet="UT-1")
+		_maybe_rework_ut(doc, _Doc(status="Pending Approval"))
 		set_value.assert_not_called()
 
 

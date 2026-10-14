@@ -30,7 +30,7 @@ export async function showTimesheetDashboard(frm) {
 	}
 	if (
 		frm.doc.is_overdue &&
-		(frm.doc.ut_status === "Черновик" || frm.doc.ut_status === "На доработке")
+		(frm.doc.ut_status === "Draft" || frm.doc.ut_status === "Rework")
 	) {
 		comments.push({
 			text: __("Timesheet is overdue! Submit positions for approval immediately!"),
@@ -122,7 +122,7 @@ async function loadPendingApprovers(frm, gen) {
 /** Show DocType Connections only when Согласован + can_read(Journal Entry). */
 function applyJournalEntryConnections(frm) {
 	const allow =
-		frm.doc.ut_status === "Согласован" && !!frappe.model.can_read?.("Journal Entry");
+		frm.doc.ut_status === "Approved" && !!frappe.model.can_read?.("Journal Entry");
 
 	if (!allow) {
 		document.body.classList.remove("ut-show-connections");

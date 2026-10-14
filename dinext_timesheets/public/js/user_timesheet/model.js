@@ -22,7 +22,7 @@ export function canReprocessJournalEntries() {
 
 export function canEdit(frm) {
 	const status = frm.doc?.ut_status;
-	if (status !== "Черновик" && status !== "На доработке") {
+	if (status !== "Draft" && status !== "Rework") {
 		return false;
 	}
 	const user = frappe.session.user;
@@ -143,11 +143,11 @@ export function syncPositionFromRow(frm, row) {
 
 export function positionStatusForSave(frm) {
 	const st = frm.doc.ut_status;
-	if (st === "Черновик" || st === "На доработке") {
-		return "Редактирование";
+	if (st === "Draft" || st === "Rework") {
+		return "Editing";
 	}
-	if (st === "Согласован") {
-		return "Согласовано";
+	if (st === "Approved") {
+		return "Approved";
 	}
 	return st;
 }

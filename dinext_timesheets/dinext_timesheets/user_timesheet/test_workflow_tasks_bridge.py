@@ -13,7 +13,7 @@ class TestWorkflowTasksBridge(FrappeTestCase):
 		return frappe.get_doc({
 			"doctype": "User Timesheet Position",
 			"name": "TEST-UTP-BRIDGE",
-			"workflow_state": "Редактирование",
+			"workflow_state": "Editing",
 			"status": "stale",
 		})
 
@@ -21,7 +21,7 @@ class TestWorkflowTasksBridge(FrappeTestCase):
 		doc = self.position()
 		with patch.object(bridge, "is_engine_enabled", return_value=True), patch.object(bridge, "call_whitelisted_function") as legacy:
 			bridge.process_workflow_tasks_before_save(doc)
-		self.assertEqual(doc.status, "Редактирование")
+		self.assertEqual(doc.status, "Editing")
 		legacy.assert_not_called()
 
 	def test_parallel_after_save_does_not_invoke_legacy_processor(self):
@@ -52,7 +52,7 @@ class TestWorkflowTasksBridge(FrappeTestCase):
 		doc = self.position()
 		with patch.object(bridge, "is_engine_enabled", return_value=False), patch.object(bridge, "call_whitelisted_function", return_value=None):
 			bridge.process_workflow_tasks_before_save(doc)
-		self.assertEqual(doc.status, "Редактирование")
+		self.assertEqual(doc.status, "Editing")
 
 	def test_legacy_document_result_skips_identity_and_child_tables(self):
 		doc = self.position()

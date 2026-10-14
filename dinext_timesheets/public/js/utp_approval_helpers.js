@@ -3,10 +3,10 @@ frappe.provide("dinext_timesheets.approvals");
 dinext_timesheets.approvals.getSelectStyle = function (status) {
 	return (
 		{
-			"На согласовании": "blue",
-			Согласовано: "green",
-			Отклонено: "red",
-			Редактирование: "gray",
+			"Pending Approval": "blue",
+			Approved: "green",
+			Rejected: "red",
+			Editing: "gray",
 		}[status] || "gray"
 	);
 };

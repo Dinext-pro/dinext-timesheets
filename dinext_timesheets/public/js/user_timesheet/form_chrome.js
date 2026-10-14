@@ -47,7 +47,7 @@ function clearTimesheetButtons(frm) {
 /** V10 disableReprocessJournalEntries: only Согласован + UT import perm. */
 function applyReprocessJournalEntriesButton(frm) {
 	clearReprocessButton(frm);
-	if (frm.doc.ut_status !== "Согласован" || !canReprocessJournalEntries()) {
+	if (frm.doc.ut_status !== "Approved" || !canReprocessJournalEntries()) {
 		return;
 	}
 	frm.add_custom_button(

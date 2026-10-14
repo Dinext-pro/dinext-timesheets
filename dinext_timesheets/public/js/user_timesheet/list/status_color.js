@@ -5,11 +5,11 @@ frappe.listview_settings['User Timesheet'] = {
     add_fields: ['ut_status'],
     get_indicator: function(doc) {
         const status_colors = {
-          "Черновик": "white",
-          "На согласовании": "blue",
-          "Отклонено": "red",
-          "На доработке": "grey",
-          "Согласован": "green",
+          "Draft": "white",
+          "Pending Approval": "blue",
+          "Rejected": "red",
+          "Rework": "grey",
+          "Approved": "green",
         };
         return [__(doc.ut_status), status_colors[doc.ut_status], "ut_status,=,"+doc.ut_status ];
     },/**/

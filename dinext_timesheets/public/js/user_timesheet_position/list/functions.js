@@ -77,10 +77,10 @@ async function getHoursData(position) {
             
             return {
                 totalHours: data.total_hours || 0,
-                editingHours: data.hours_data?.Редактирование || 0,
-                approvalHours: data.hours_data?.['На согласовании'] || 0,
-                approvedHours: data.hours_data?.Согласовано || 0,
-                rejectedHours: data.hours_data?.Отклонено || 0,
+                editingHours: data.hours_data?.["Editing"] || 0,
+                approvalHours: data.hours_data?.['Pending Approval'] || 0,
+                approvedHours: data.hours_data?.["Approved"] || 0,
+                rejectedHours: data.hours_data?.["Rejected"] || 0,
                 plannedHours: data.planned_hours || 0,
                 completionPercentage: data.completion_percentage || 0,
                 usedChildrenForActual: data.used_children_for_actual || false,

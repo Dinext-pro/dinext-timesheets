@@ -25,7 +25,7 @@ function scheduleHoverClose() {
 }
 
 function isClosedStatus(frm) {
-	return ["На согласовании", "Согласован", "Отклонено"].includes(frm.doc?.ut_status);
+	return ["Pending Approval", "Approved", "Rejected"].includes(frm.doc?.ut_status);
 }
 
 /**

@@ -27,7 +27,8 @@
 - Исполнение — общий engine `dinext_common.workflow_approval` плюс
   `dinext_timesheets.workflow_approval`: `orchestrate_timesheet` (Start / Stop / Edit),
   pending approvers, digest и cascade голоса.
-- Состояния: Редактирование → На согласовании → Согласовано / Отклонено.
+- Состояния позиции хранятся по-английски: Editing → Pending Approval → Approved / Rejected. Статусы табеля: Draft, Pending Approval, Rejected, Rework, Approved. Русские подписи — в `translations/ru.csv`.
+- Синглтон **Timesheet Settings** задаёт пересчёт. Строка «позиция → табель» с порогом Any или All: первая подходящая побеждает. Строка «табель → позиции» переводит все позиции в выбранный статус workflow. Список статусов позиции берётся из активного Workflow `User Timesheet Position`. Начальные строки: одна Rejected ставит табель Rejected; все Approved ставят Approved; все Pending Approval ставят Pending Approval; одна Editing ставит Rework и переводит остальные позиции в Editing. Пустой табель правила не двигает. Смесь Pending Approval и Approved табель в Pending Approval не переводит.
 - Форма `User Timesheet Position` открывает родительский User Timesheet.
 - Роли в фикстурах: `Dinext_UTP_Appoval`, `Dinext_UT_Full_Access` (роль `Dinext_Worker` остаётся в **dinext_projects**).
 - UX дат AFL и индикатор pending approvers — в `dinext_projects`.

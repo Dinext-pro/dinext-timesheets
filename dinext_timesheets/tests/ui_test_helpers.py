@@ -106,7 +106,7 @@ def seed_ut_form_table():
 			"timesheet_from_name": MARKER,
 			"ts_valid_from": valid_from,
 			"ts_valid_for": valid_for,
-			"ut_status": "Черновик",
+			"ut_status": "Draft",
 		}
 	)
 	doc.insert(ignore_permissions=True)

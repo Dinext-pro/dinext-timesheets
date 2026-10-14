@@ -219,7 +219,7 @@ export function disableCopyButtons(frm) {
 /** Form custom buttons in group «Скопировать». */
 export function setupCopyButtons(frm) {
 	disableCopyButtons(frm);
-	if (frm.doc.ut_status !== "Черновик" && frm.doc.ut_status !== "На доработке") {
+	if (frm.doc.ut_status !== "Draft" && frm.doc.ut_status !== "Rework") {
 		return;
 	}
 

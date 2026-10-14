@@ -408,7 +408,7 @@ export function setupSubmitButtons(frm) {
 
 	const status = frm.doc.ut_status;
 
-	if (status === "Черновик" || status === "На доработке") {
+	if (status === "Draft" || status === "Rework") {
 		frm.add_custom_button(__(BTN_START), async () => {
 			if (startButtonBlockReason(frm)) {
 				syncStartButtonState(frm);
@@ -417,11 +417,11 @@ export function setupSubmitButtons(frm) {
 			await sendTimesheet("Start", frm);
 		});
 		syncStartButtonState(frm);
-	} else if (status === "На согласовании") {
+	} else if (status === "Pending Approval") {
 		// Stop is a workflow-menu action. A second button would duplicate it.
 	} else {
 		frm.add_custom_button(__(BTN_EDIT), async () => {
-			if (status === "Согласован") {
+			if (status === "Approved") {
 				frappe.warn(
 					__("Are you sure you want to return the timesheet to editing?"),
 					__("The entire timesheet will need to be re-approved!"),

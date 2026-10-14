@@ -327,6 +327,19 @@ class TestUserTimesheet(FrappeTestCase):
 			raise frappe.ValidationError("sibling failed")
 
 		with (
+			patch.object(
+				workflow_approval,
+				"load_position_statuses",
+				return_value=[workflow_approval.EDITING],
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings._settings_doc",
+				return_value=None,
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings.position_workflow_states",
+				return_value=["Editing", "Pending Approval", "Approved", "Rejected"],
+			),
 			patch.object(frappe, "get_all", return_value=["UTP-2"]),
 			patch.object(frappe, "log_error"),
 			patch(
@@ -369,7 +382,19 @@ class TestUserTimesheet(FrappeTestCase):
 		)
 		changed = SimpleNamespace(name="UTP-1", status=workflow_approval.PENDING)
 		with (
-			patch.object(frappe.db, "count", return_value=0),
+			patch.object(
+				workflow_approval,
+				"load_position_statuses",
+				return_value=[workflow_approval.PENDING],
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings._settings_doc",
+				return_value=None,
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings.position_workflow_states",
+				return_value=["Editing", "Pending Approval", "Approved", "Rejected"],
+			),
 			patch(
 				"dinext_common.workflow_approval.engine.apply_domain_transition"
 			) as transition,
@@ -393,7 +418,19 @@ class TestUserTimesheet(FrappeTestCase):
 		)
 		changed = SimpleNamespace(name="UTP-1", status=workflow_approval.PENDING)
 		with (
-			patch.object(frappe.db, "count", return_value=1),
+			patch.object(
+				workflow_approval,
+				"load_position_statuses",
+				return_value=[workflow_approval.PENDING, workflow_approval.EDITING],
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings._settings_doc",
+				return_value=None,
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings.position_workflow_states",
+				return_value=["Editing", "Pending Approval", "Approved", "Rejected"],
+			),
 			patch(
 				"dinext_common.workflow_approval.engine.apply_domain_transition"
 			) as transition,

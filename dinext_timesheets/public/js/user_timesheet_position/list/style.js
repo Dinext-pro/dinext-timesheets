@@ -20,13 +20,13 @@ function hideColumnsAndSidebar(listview) {
 //Цвет статусов
 function getSelectStyle(status) {
     switch (status) {
-        case 'На согласовании':
+        case 'Pending Approval':
             return 'on-approve';
-        case 'Согласовано':
+        case 'Approved':
             return 'approved';
-        case 'Отклонено':
+        case 'Rejected':
             return 'rejected';
-        case 'Редактирование':
+        case 'Editing':
             return 'on-edit';
         default:
             return '';

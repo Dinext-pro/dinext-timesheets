@@ -131,14 +131,14 @@
    "read_only": 1
   },
   {
-   "default": "\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a",
+   "default": "Draft",
    "fieldname": "ut_status",
    "fieldtype": "Select",
    "hidden": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "State",
-   "options": "\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a\n\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\n\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e\n\u041d\u0430 \u0434\u043e\u0440\u0430\u0431\u043e\u0442\u043a\u0435\n\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d"
+   "options": "Draft\nPending Approval\nRejected\nRework\nApproved"
   },
   {
    "columns": 1,
@@ -156,7 +156,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Reporting period",
-   "options": "\u041d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439\n\u041c\u0435\u0441\u044f\u0447\u043d\u044b\u0439\n\u041d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u043e \u043a\u043e\u043d\u0435\u0446 \u043c\u0435\u0441\u044f\u0446\u0430\n\u041f\u043e\u043b\u0443\u043c\u0435\u0441\u044f\u0447\u043d\u044b\u0439"
+   "options": "Недельный\nМесячный\nНедельный по конец месяца\nПолумесячный"
   },
   {
    "fieldname": "total_hours_to_work",

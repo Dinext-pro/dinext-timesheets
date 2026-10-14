@@ -11,13 +11,15 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate, nowdate
 
-POSITION_APPROVED = "Согласовано"
-PARENT_APPROVED = "Согласован"
-REJECTED = "Отклонено"
-EDITING = "Редактирование"
-PENDING = "На согласовании"
-REWORK = "На доработке"
-DRAFT = "Черновик"
+from dinext_timesheets.timesheet_status import (
+	PARENT_APPROVED,
+	PARENT_DRAFT as DRAFT,
+	PARENT_PENDING as PENDING,
+	PARENT_REJECTED as REJECTED,
+	PARENT_REWORK as REWORK,
+	POSITION_APPROVED,
+	POSITION_EDITING as EDITING,
+)
 
 TimesheetOperation = Literal["Start", "Stop", "Edit"]
 
@@ -1118,83 +1120,77 @@ def _note_timesheet_transition_message(message: str) -> None:
 	notes.append(str(message))
 
 
-def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
-	if changed_position.status == REJECTED:
-		if parent.ut_status != REJECTED:
-			parent.ut_status = REJECTED
-			parent.save(ignore_permissions=True)
-		return
-	if changed_position.status == POSITION_APPROVED:
-		remaining = frappe.db.count(
-			"User Timesheet Position",
-			{
-				"user_timesheet": parent.name,
-				"status": ("!=", POSITION_APPROVED),
-			},
-		)
-		if not remaining and parent.ut_status != PARENT_APPROVED:
-			parent.ut_status = PARENT_APPROVED
-			parent.ut_approval_date = nowdate()
-			parent.save(ignore_permissions=True)
-		return
-	if (
-		changed_position.status == PENDING
-		and old_status
-		and old_status != PENDING
-	):
-		# Positions still in an earlier state have not reached their own threshold.
-		if frappe.db.count(
-			"User Timesheet Position",
-			{"user_timesheet": parent.name, "status": ("in", (EDITING, REJECTED))},
-		):
-			return
-		if parent.ut_status != PENDING:
-			parent.ut_status = PENDING
-			parent.ut_approval_date = None
-			parent.save(ignore_permissions=True)
-		return
-	if (
-		changed_position.status == EDITING
-		and old_status
-		and old_status != EDITING
-		and parent.ut_status != REWORK
-	):
-		from dinext_common.workflow_approval.engine import apply_domain_transition
+def load_position_statuses(timesheet_name: str) -> list[str]:
+	return frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": timesheet_name},
+		pluck="status",
+	)
 
-		parent.ut_status = REWORK
-		frappe.flags.in_timesheet_approval_cascade = True
-		try:
-			parent.save(ignore_permissions=True)
-			siblings = frappe.get_all(
-				"User Timesheet Position",
-				filters={
-					"user_timesheet": parent.name,
-					"name": ("!=", changed_position.name),
-					"workflow_state": ("!=", EDITING),
-				},
-				pluck="name",
-				order_by="name asc",
-			)
-			for sibling_name in siblings:
-				try:
-					apply_domain_transition(
-						"User Timesheet Position",
-						sibling_name,
-						EDITING,
-						reason=_("Timesheet returned for rework"),
-						actor=frappe.session.user,
+
+def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
+	del old_status
+	from dinext_timesheets.timesheet_settings import (
+		matching_position_rule,
+		parent_position_target,
+	)
+
+	statuses = list(load_position_statuses(parent.name) or [])
+	if changed_position.status and changed_position.status not in statuses:
+		statuses.append(changed_position.status)
+	counts: dict[str, int] = {}
+	for status in statuses:
+		if not status:
+			continue
+		counts[status] = counts.get(status, 0) + 1
+	rule = matching_position_rule(counts)
+	if not rule or parent.ut_status == rule["timesheet_status"]:
+		return
+	new_status = rule["timesheet_status"]
+	parent.ut_status = new_status
+	if new_status == PARENT_APPROVED:
+		parent.ut_approval_date = nowdate()
+	elif new_status == PENDING:
+		parent.ut_approval_date = None
+	target = parent_position_target(new_status)
+	if not target:
+		parent.save(ignore_permissions=True)
+		return
+	from dinext_common.workflow_approval.engine import apply_domain_transition
+
+	frappe.flags.in_timesheet_approval_cascade = True
+	try:
+		parent.save(ignore_permissions=True)
+		siblings = frappe.get_all(
+			"User Timesheet Position",
+			filters={
+				"user_timesheet": parent.name,
+				"name": ("!=", changed_position.name),
+				"workflow_state": ("!=", target),
+			},
+			pluck="name",
+			order_by="name asc",
+		)
+		for sibling_name in siblings:
+			try:
+				apply_domain_transition(
+					"User Timesheet Position",
+					sibling_name,
+					target,
+					reason=_("Timesheet returned for rework"),
+					actor=frappe.session.user,
+				)
+			except Exception:
+				frappe.log_error(
+					title=f"Timesheet sibling transition failed: {sibling_name}",
+				)
+				_note_timesheet_transition_message(
+					_("Could not update a related timesheet position: {0}").format(
+						sibling_name
 					)
-				except Exception:
-					frappe.log_error(
-						title=f"Timesheet sibling transition failed: {sibling_name}",
-					)
-					_note_timesheet_transition_message(
-						_("Could not update a related timesheet position: {0}").format(
-							sibling_name
-						)
-					)
-		finally:
-			frappe.flags.in_timesheet_approval_cascade = False
+				)
+	finally:
+		frappe.flags.in_timesheet_approval_cascade = False
 
 
 def _linked_issue_dates(task_doc) -> tuple[object, object]:

@@ -8,7 +8,7 @@ import frappe
 
 from .permissions import assert_can_read_timesheet
 
-PENDING_STATUS = "На согласовании"
+PENDING_STATUS = "Pending Approval"
 UTP_DOCTYPE = "User Timesheet Position"
 
 

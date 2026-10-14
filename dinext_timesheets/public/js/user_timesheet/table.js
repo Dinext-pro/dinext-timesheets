@@ -73,7 +73,7 @@ function rejectHoverIdFromRow(row) {
 	if (row?.rowType === "reject_reason") {
 		return row.parent_id || "";
 	}
-	if (row?.rowType === "position" && row.status === "Отклонено" && row.reject_reason) {
+	if (row?.rowType === "position" && row.status === "Rejected" && row.reject_reason) {
 		return row.id;
 	}
 	return "";
@@ -291,7 +291,7 @@ function getTimesheetRowClass(frm) {
 				classes.push("ut-reject-reason-row--open");
 			}
 		}
-		if (row.rowType === "position" && row.status === "Отклонено" && row.reject_reason) {
+		if (row.rowType === "position" && row.status === "Rejected" && row.reject_reason) {
 			classes.push("ut-rejected-row");
 		}
 		if (row.rowType === "position" && row.limit_status) {

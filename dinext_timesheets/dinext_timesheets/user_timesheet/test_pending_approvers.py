@@ -17,7 +17,7 @@ class TestListPendingApproverNames(unittest.TestCase):
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.pending_approvers.frappe.db.get_value",
-		return_value={"ut_status": "На согласовании", "timesheet_from": "owner@ex.com"},
+		return_value={"ut_status": "Pending Approval", "timesheet_from": "owner@ex.com"},
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.permissions.frappe.has_permission",
@@ -76,7 +76,7 @@ class TestListPendingApproverNames(unittest.TestCase):
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.pending_approvers.frappe.db.get_value",
-		return_value={"ut_status": "Черновик", "timesheet_from": "owner@ex.com"},
+		return_value={"ut_status": "Draft", "timesheet_from": "owner@ex.com"},
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.permissions.frappe.has_permission",

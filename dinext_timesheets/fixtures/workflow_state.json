@@ -439,5 +439,14 @@
   "name": "Draft",
   "style": "Info",
   "workflow_state_name": "Draft"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-15 01:50:00.000000",
+  "name": "Editing",
+  "style": "",
+  "workflow_state_name": "Editing"
  }
 ]

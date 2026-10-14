@@ -160,7 +160,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                         // Согласовано (если есть часы)
                         if (hoursData.approvedHours > 0) {
                             tableRows.push({
-                                status: "Согласовано",
+                                status: "Approved",
                                 plan: planValue,
                                 forecast: forecastValue,
                                 fact: hoursData.approvedHours.toFixed(1) + " ч.",
@@ -172,7 +172,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                         // На согласовании (если есть часы)
                         if (hoursData.approvalHours > 0) {
                             tableRows.push({
-                                status: "На согласовании",
+                                status: "Pending Approval",
                                 plan: planValue,
                                 forecast: forecastValue,
                                 fact: hoursData.approvalHours.toFixed(1) + " ч.",
@@ -184,7 +184,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                         // Редактирование (если есть часы)
                         if (hoursData.editingHours > 0) {
                             tableRows.push({
-                                status: "Редактирование",
+                                status: "Editing",
                                 plan: planValue,
                                 forecast: forecastValue,
                                 fact: hoursData.editingHours.toFixed(1) + " ч.",
@@ -196,7 +196,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                         // Отклонено (если есть часы)
                         if (hoursData.rejectedHours > 0) {
                             tableRows.push({
-                                status: "Отклонено",
+                                status: "Rejected",
                                 plan: planValue,
                                 forecast: forecastValue,
                                 fact: hoursData.rejectedHours.toFixed(1) + " ч.",

@@ -9,19 +9,28 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt, getdate, nowdate
 
+from dinext_timesheets.timesheet_status import (
+	PARENT_APPROVED,
+	PARENT_REJECTED,
+	PARENT_REWORK,
+	POSITION_APPROVED,
+	POSITION_EDITING,
+	POSITION_REJECTED,
+)
+
 
 def rollup_ut_status_and_task_dates(doc) -> None:
 	old_doc = doc.get_doc_before_save()
 	old_status = old_doc.status if old_doc and old_doc.status else None
 
-	entered_approved = doc.status == "Согласовано" and old_status != "Согласовано"
-	left_approved = old_status == "Согласовано" and doc.status != "Согласовано"
+	entered_approved = doc.status == POSITION_APPROVED and old_status != POSITION_APPROVED
+	left_approved = old_status == POSITION_APPROVED and doc.status != POSITION_APPROVED
 
-	if doc.status == "Отклонено":
-		_set_ut_status(doc.user_timesheet, "Отклонено")
-	elif doc.status == "Согласовано":
+	if doc.status == POSITION_REJECTED:
+		_set_ut_status(doc.user_timesheet, PARENT_REJECTED)
+	elif doc.status == POSITION_APPROVED:
 		_maybe_approve_ut(doc.user_timesheet)
-	elif doc.status == "Редактирование":
+	elif doc.status == POSITION_EDITING:
 		_maybe_rework_ut(doc, old_doc)
 
 	if doc.document_type == "Task" and doc.document_name and (
@@ -41,17 +50,17 @@ def _set_ut_status(ut_name, status, approval_date=None) -> None:
 def _maybe_approve_ut(ut_name) -> None:
 	pending = frappe.get_all(
 		"User Timesheet Position",
-		filters={"user_timesheet": ut_name, "status": ["!=", "Согласовано"]},
+		filters={"user_timesheet": ut_name, "status": ["!=", POSITION_APPROVED]},
 		ignore_permissions=True,
 	)
 	if pending:
 		return
 
 	user_timesheet = frappe.get_doc("User Timesheet", ut_name)
-	if user_timesheet.ut_status == "Согласован":
+	if user_timesheet.ut_status == PARENT_APPROVED:
 		return
 
-	user_timesheet.ut_status = "Согласован"
+	user_timesheet.ut_status = PARENT_APPROVED
 	user_timesheet.ut_approval_date = nowdate()
 	user_timesheet.save(ignore_permissions=True)
 
@@ -63,12 +72,12 @@ def _maybe_rework_ut(doc, old_doc) -> None:
 	# The parallel engine moves sibling positions and cancels their rounds.
 	if is_engine_enabled():
 		return
-	if not (old_doc and old_doc.status and old_doc.status != "Редактирование"):
+	if not (old_doc and old_doc.status and old_doc.status != POSITION_EDITING):
 		return
 
 	ut = doc.user_timesheet
 	user_timesheet = frappe.get_doc("User Timesheet", ut)
-	if user_timesheet.ut_status == "На доработке":
+	if user_timesheet.ut_status == PARENT_REWORK:
 		return
 
 	positions = frappe.get_all(
@@ -81,10 +90,10 @@ def _maybe_rework_ut(doc, old_doc) -> None:
 		frappe.db.set_value(
 			"User Timesheet Position",
 			position.name,
-			{"status": "Редактирование", "workflow_state": "Редактирование"},
+			{"status": POSITION_EDITING, "workflow_state": POSITION_EDITING},
 		)
 
-	user_timesheet.ut_status = "На доработке"
+	user_timesheet.ut_status = PARENT_REWORK
 	user_timesheet.save(ignore_permissions=True)
 
 
@@ -94,7 +103,7 @@ def _update_task_act_dates(doc) -> None:
 		filters={
 			"document_type": "Task",
 			"document_name": doc.document_name,
-			"status": "Согласовано",
+			"status": POSITION_APPROVED,
 		},
 		fields=["name"],
 		ignore_permissions=True,

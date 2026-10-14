@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "creation": "2026-10-15 01:50:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "position_section",
+  "position_rules",
+  "parent_section",
+  "parent_rules"
+ ],
+ "fields": [
+  {
+   "fieldname": "position_section",
+   "fieldtype": "Section Break",
+   "label": "Position Sets Timesheet"
+  },
+  {
+   "description": "The first matching row wins. Any needs one position in that status. All needs every position in that status.",
+   "fieldname": "position_rules",
+   "fieldtype": "Table",
+   "label": "Position Rules",
+   "options": "Timesheet Position Status Rule"
+  },
+  {
+   "fieldname": "parent_section",
+   "fieldtype": "Section Break",
+   "label": "Timesheet Sets Positions"
+  },
+  {
+   "description": "When the timesheet enters this status, every position moves to the position status.",
+   "fieldname": "parent_rules",
+   "fieldtype": "Table",
+   "label": "Parent Rules",
+   "options": "Timesheet Parent Status Rule"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-15 01:50:00.000000",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Timesheet Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

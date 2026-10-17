@@ -17,7 +17,7 @@ class TestListPendingApproverNames(unittest.TestCase):
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.pending_approvers.frappe.db.get_value",
-		return_value={"ut_status": "На согласовании", "timesheet_from": "administrator@dinext.invalid"},
+		return_value={"ut_status": "На согласовании", "timesheet_from": "author@example.invalid"},
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.permissions.frappe.has_permission",
@@ -37,17 +37,17 @@ class TestListPendingApproverNames(unittest.TestCase):
 		get_all.side_effect = [
 			["UTP-1", "UTP-2"],
 			[
-				{"_assign": '["administrator@dinext.invalid"]'},
-				{"_assign": '["administrator@dinext.invalid", "administrator@dinext.invalid"]'},
+				{"_assign": '["approver-1@example.invalid"]'},
+				{"_assign": '["approver-1@example.invalid", "approver-2@example.invalid"]'},
 			],
 			[
-				{"name": "administrator@dinext.invalid", "full_name": "Administrator"},
-				{"name": "administrator@dinext.invalid", "full_name": "Administrator"},
+				{"name": "approver-1@example.invalid", "full_name": "Administrator 1"},
+				{"name": "approver-2@example.invalid", "full_name": "Administrator 2"},
 			],
 		]
 		self.assertEqual(
 			list_pending_approver_names("TS-1"),
-			["Иван Лидов", "Пётр Пмов"],
+			["Administrator 1", "Administrator 2"],
 		)
 
 	@patch(
@@ -76,7 +76,7 @@ class TestListPendingApproverNames(unittest.TestCase):
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.pending_approvers.frappe.db.get_value",
-		return_value={"ut_status": "Черновик", "timesheet_from": "administrator@dinext.invalid"},
+		return_value={"ut_status": "Черновик", "timesheet_from": "author@example.invalid"},
 	)
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.permissions.frappe.has_permission",

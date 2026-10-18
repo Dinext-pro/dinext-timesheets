@@ -12,6 +12,7 @@ POSITION_EDITING = "Editing"
 POSITION_PENDING = "Pending Approval"
 POSITION_APPROVED = "Approved"
 POSITION_REJECTED = "Rejected"
+POSITION_STATUS_UNSET = "Not Set"
 
 PARENT_STATUSES = (
 	PARENT_DRAFT,
@@ -48,11 +49,6 @@ DEFAULT_POSITION_RULES = (
 		"threshold": "All",
 	},
 	{
-		"position_status": POSITION_PENDING,
-		"timesheet_status": PARENT_PENDING,
-		"threshold": "All",
-	},
-	{
 		"position_status": POSITION_EDITING,
 		"timesheet_status": PARENT_REWORK,
 		"threshold": "Any",
@@ -63,6 +59,19 @@ DEFAULT_PARENT_RULES = (
 	{
 		"timesheet_status": PARENT_REWORK,
 		"position_status": POSITION_EDITING,
+	},
+	{
+		"timesheet_status": PARENT_PENDING,
+		"position_status": POSITION_PENDING,
+	},
+)
+
+DEFAULT_HIDDEN_LIST_STATUSES = (
+	{
+		"position_status": POSITION_EDITING,
+	},
+	{
+		"position_status": POSITION_STATUS_UNSET,
 	},
 )
 

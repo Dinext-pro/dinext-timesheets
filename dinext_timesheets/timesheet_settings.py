@@ -6,10 +6,18 @@ import frappe
 from frappe import _
 
 from dinext_timesheets.timesheet_status import (
+	DEFAULT_HIDDEN_LIST_STATUSES,
 	DEFAULT_PARENT_RULES,
 	DEFAULT_POSITION_RULES,
+	POSITION_STATUS_UNSET,
 	first_matching_rule,
 )
+
+LIST_COMMANDS = {
+	"frappe.desk.reportview.get",
+	"frappe.desk.reportview.get_count",
+	"frappe.desk.reportview.get_sidebar_stats",
+}
 
 POSITION_DOCTYPE = "User Timesheet Position"
 
@@ -105,16 +113,30 @@ def validate_timesheet_settings(doc) -> None:
 				_("A timesheet rule for position status {0} is already set").format(status)
 			)
 		seen_positions.add(status)
-		if known and status not in known:
+		if status == POSITION_STATUS_UNSET or (known and status not in known):
 			frappe.throw(
 				_("{0} is not a state of the User Timesheet Position workflow").format(status)
 			)
 		if row.threshold not in {"Any", "All"}:
 			frappe.throw(_("Threshold must be Any or All"))
+	seen_hidden: set[str] = set()
+	for row in getattr(doc, "hidden_list_statuses", None) or []:
+		status = row.position_status or ""
+		if not status:
+			continue
+		if status in seen_hidden:
+			frappe.throw(
+				_("Position status {0} is already hidden from the list").format(status)
+			)
+		seen_hidden.add(status)
+		if status != POSITION_STATUS_UNSET and known and status not in known:
+			frappe.throw(
+				_("{0} is not a state of the User Timesheet Position workflow").format(status)
+			)
 	seen_parents: set[str] = set()
 	for row in doc.parent_rules or []:
 		status = row.position_status or ""
-		if status and known and status not in known:
+		if status == POSITION_STATUS_UNSET or (status and known and status not in known):
 			frappe.throw(
 				_("{0} is not a state of the User Timesheet Position workflow").format(status)
 			)
@@ -139,7 +161,49 @@ def seed_default_rules() -> None:
 		doc.append("position_rules", row)
 	for row in DEFAULT_PARENT_RULES:
 		doc.append("parent_rules", row)
+	for row in DEFAULT_HIDDEN_LIST_STATUSES:
+		doc.append("hidden_list_statuses", row)
 	doc.save(ignore_permissions=True)
+
+
+def hidden_list_statuses() -> list[str]:
+	"""Statuses omitted from the position list. A saved empty table hides nothing."""
+	doc = _settings_doc()
+	if doc is None:
+		return [row["position_status"] for row in DEFAULT_HIDDEN_LIST_STATUSES]
+	return [
+		row.position_status
+		for row in (getattr(doc, "hidden_list_statuses", None) or [])
+		if row.position_status
+	]
+
+
+def hidden_status_values(hidden: list[str]) -> list[str]:
+	"""Values compared with ifnull(status, ''). Not Set matches a blank status."""
+	values: list[str] = []
+	for status in hidden:
+		value = "" if status == POSITION_STATUS_UNSET else status
+		if value is not None and value not in values:
+			values.append(value)
+	return values
+
+
+def utp_list_conditions(user=None) -> str:
+	"""Hide configured statuses from the position list. Other queries stay unchanged."""
+	del user
+	if frappe.form_dict.get("cmd") not in LIST_COMMANDS:
+		return ""
+	values = hidden_status_values(hidden_list_statuses())
+	if not values:
+		return ""
+	listed = ", ".join(frappe.db.escape(value) for value in values)
+	return f"ifnull(`tab{POSITION_DOCTYPE}`.`status`, '') not in ({listed})"
+
+
+@frappe.whitelist()
+def hidden_status_options():
+	"""Workflow states, then the blank-status choice, for the hidden-list Select."""
+	return [*position_workflow_states(), POSITION_STATUS_UNSET]
 
 
 @frappe.whitelist()

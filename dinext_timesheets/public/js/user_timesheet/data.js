@@ -83,35 +83,54 @@ async function rejectAuthorLabel(userId) {
 	return r?.message?.full_name || userId;
 }
 
-/** Latest human Comment on UTP — skip share/workflow noise. V10: `{full_name}: {text}`. */
+const STATUS_ONLY_COMMENTS = new Set([
+	"Editing",
+	"Pending Approval",
+	"Approved",
+	"Rejected",
+	"Draft",
+	"Rework",
+	"Редактирование",
+	"На согласовании",
+	"Согласовано",
+	"Согласован",
+	"Отклонено",
+	"Черновик",
+	"На доработке",
+]);
+
+function commentPlainText(content) {
+	return $("<div>")
+		.html(content || "")
+		.text()
+		.trim();
+}
+
+function isSkippedRejectComment(text) {
+	if (!text || STATUS_ONLY_COMMENTS.has(text)) {
+		return true;
+	}
+	return /shared this document|Создана задача/i.test(text);
+}
+
+/** Latest human Comment on UTP when the position field is empty. */
 async function loadRejectReason(positionName) {
 	const comments = await frappe.db.get_list("Comment", {
 		filters: [
 			["reference_doctype", "=", "User Timesheet Position"],
 			["reference_name", "=", positionName],
-			["comment_by", "!=", ""],
 		],
 		fields: ["content", "comment_by", "comment_email"],
 		limit: 20,
 		order_by: "creation desc",
 	});
-	const comment = (comments || []).find((item) => {
-		const text = $("<div>")
-			.html(item.content || "")
-			.text()
-			.trim();
-		if (!text) {
-			return false;
-		}
-		return !/shared this document|Создана задача/i.test(text);
-	});
+	const comment = (comments || []).find(
+		(item) => !isSkippedRejectComment(commentPlainText(item.content))
+	);
 	if (!comment) {
 		return "";
 	}
-	const text = $("<div>")
-		.html(comment.content || "")
-		.text()
-		.trim();
+	const text = commentPlainText(comment.content);
 	const author = await rejectAuthorLabel(
 		comment.comment_by || comment.comment_email
 	);
@@ -148,7 +167,10 @@ async function loadPositions(frm) {
 		const status = (item.status || item.workflow_state || "").trim();
 		let reject_reason = "";
 		if (status === "Rejected") {
-			reject_reason = await loadRejectReason(item.name);
+			reject_reason = String(doc.reject_reason || "").trim();
+			if (!reject_reason) {
+				reject_reason = await loadRejectReason(item.name);
+			}
 		}
 		const hoursFromDetails = details.reduce((sum, d) => sum + (flt(d.hours) || 0), 0);
 		positions.push({

@@ -66,6 +66,22 @@ class TestUserTimesheet(FrappeTestCase):
 		self.assertIn("export async function checkLimits", limits_source)
 		self.assertIn("export async function showTaskPlanFact", limits_source)
 
+	def test_rejected_rows_read_the_saved_reason_and_highlight_without_it(self):
+		public = Path(frappe.get_app_path("dinext_timesheets", "public"))
+		data_source = (public / "js" / "user_timesheet" / "data.js").read_text()
+		table_source = (public / "js" / "user_timesheet" / "table.js").read_text()
+		rows_source = (public / "js" / "user_timesheet" / "rows.js").read_text()
+		css_source = (public / "css" / "user-timesheet.css").read_text()
+		row_class = table_source.split("function getTimesheetRowClass", 1)[1].split(
+			"function buildTableOptions", 1
+		)[0]
+		self.assertIn("doc.reject_reason", data_source)
+		self.assertNotIn('["comment_by", "!=", ""]', data_source)
+		self.assertIn('row.status === "Rejected"', row_class)
+		self.assertNotIn("row.reject_reason", row_class)
+		self.assertIn("row.reject_reason", rows_source)
+		self.assertIn(".ag-row.ut-rejected-row .ag-cell", css_source)
+
 	def test_replaced_client_scripts_are_not_retained_as_async_loaders(self):
 		app_path = Path(frappe.get_app_path("dinext_timesheets"))
 		fixtures = json.loads(
@@ -124,6 +140,17 @@ class TestUserTimesheet(FrappeTestCase):
 			),
 		):
 			workflow_approval._validate_positions(parent, [])
+
+	def test_start_takes_the_position_status_from_settings(self):
+		with patch("dinext_timesheets.timesheet_settings._settings_doc", return_value=None):
+			self.assertEqual(
+				workflow_approval._operation_states("Start", has_positions=True),
+				(workflow_approval.PENDING, workflow_approval.PENDING),
+			)
+			self.assertEqual(
+				workflow_approval._operation_states("Edit", has_positions=True),
+				(workflow_approval.REWORK, workflow_approval.EDITING),
+			)
 
 	def test_zero_position_operations_use_exact_parent_states(self):
 		self.assertEqual(
@@ -404,9 +431,8 @@ class TestUserTimesheet(FrappeTestCase):
 				changed,
 				workflow_approval.EDITING,
 			)
-		self.assertEqual(parent.ut_status, workflow_approval.PENDING)
-		self.assertIsNone(parent.ut_approval_date)
-		parent.save.assert_called_once()
+		self.assertEqual(parent.ut_status, workflow_approval.REWORK)
+		parent.save.assert_not_called()
 		transition.assert_not_called()
 
 	def test_pending_parent_waits_while_a_position_is_still_editing(self):

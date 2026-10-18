@@ -291,7 +291,7 @@ function getTimesheetRowClass(frm) {
 				classes.push("ut-reject-reason-row--open");
 			}
 		}
-		if (row.rowType === "position" && row.status === "Rejected" && row.reject_reason) {
+		if (row.rowType === "position" && row.status === "Rejected") {
 			classes.push("ut-rejected-row");
 		}
 		if (row.rowType === "position" && row.limit_status) {

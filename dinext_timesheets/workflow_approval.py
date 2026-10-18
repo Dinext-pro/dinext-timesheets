@@ -68,9 +68,10 @@ def _operation_states(
 		raise frappe.ValidationError(_("Unknown timesheet operation"))
 	if not has_positions:
 		return (REWORK, None) if operation == "Edit" else (PARENT_APPROVED, None)
-	if operation == "Start":
-		return PENDING, PENDING
-	return REWORK, EDITING
+	from dinext_timesheets.timesheet_settings import parent_position_target
+
+	parent_status = PENDING if operation == "Start" else REWORK
+	return parent_status, parent_position_target(parent_status)
 
 
 def _current_team_lead(user_group: str | None, target_date: object) -> str | None:

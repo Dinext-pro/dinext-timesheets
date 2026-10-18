@@ -1,0 +1,31 @@
+{
+ "actions": [],
+ "creation": "2026-10-15 02:45:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "position_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "position_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Position Status",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-15 02:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Timesheet Hidden List Status",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

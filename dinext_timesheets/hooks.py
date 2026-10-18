@@ -251,9 +251,9 @@ extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
+permission_query_conditions = {
+	"User Timesheet Position": "dinext_timesheets.timesheet_settings.utp_list_conditions",
+}
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",

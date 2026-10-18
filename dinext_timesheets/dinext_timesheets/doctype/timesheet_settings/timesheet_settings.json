@@ -7,7 +7,9 @@
   "position_section",
   "position_rules",
   "parent_section",
-  "parent_rules"
+  "parent_rules",
+  "hidden_section",
+  "hidden_list_statuses"
  ],
  "fields": [
   {
@@ -33,6 +35,18 @@
    "fieldtype": "Table",
    "label": "Parent Rules",
    "options": "Timesheet Parent Status Rule"
+  },
+  {
+   "fieldname": "hidden_section",
+   "fieldtype": "Section Break",
+   "label": "Hidden In Position List"
+  },
+  {
+   "description": "Positions in these statuses stay on the timesheet and are omitted from the position list.",
+   "fieldname": "hidden_list_statuses",
+   "fieldtype": "Table",
+   "label": "Hidden List Statuses",
+   "options": "Timesheet Hidden List Status"
   }
  ],
  "index_web_pages_for_search": 1,

@@ -10,7 +10,11 @@ from frappe.tests.utils import FrappeTestCase
 
 from dinext_timesheets.patches.v1_0.english_timesheet_statuses import execute
 from dinext_timesheets.timesheet_settings import (
+	hidden_list_statuses,
+	hidden_status_values,
+	parent_position_target,
 	position_rules,
+	utp_list_conditions,
 	validate_timesheet_settings,
 )
 from dinext_timesheets.timesheet_status import (
@@ -30,7 +34,6 @@ def _rule(position_status, timesheet_status, threshold):
 RULES = [
 	_rule("Rejected", "Rejected", "Any"),
 	_rule("Approved", "Approved", "All"),
-	_rule("Pending Approval", "Pending Approval", "All"),
 	_rule("Editing", "Rework", "Any"),
 ]
 
@@ -50,11 +53,8 @@ class TestTimesheetRuleMatcher(FrappeTestCase):
 			first_matching_rule([_rule("Approved", "Approved", "All")], {"Approved": 2, "Editing": 1})
 		)
 
-	def test_all_pending_matches_only_when_every_position_is_pending(self):
-		self.assertEqual(
-			first_matching_rule(RULES, {"Pending Approval": 3})["timesheet_status"],
-			"Pending Approval",
-		)
+	def test_pending_positions_do_not_set_the_timesheet(self):
+		self.assertIsNone(first_matching_rule(RULES, {"Pending Approval": 3}))
 		self.assertIsNone(first_matching_rule(RULES, {"Pending Approval": 1, "Approved": 1}))
 
 	def test_later_rule_is_not_used_when_an_earlier_one_matches(self):
@@ -118,13 +118,98 @@ class TestTimesheetSettingsValidation(FrappeTestCase):
 
 	def test_missing_singleton_uses_defaults_and_saved_empty_does_not(self):
 		with patch("dinext_timesheets.timesheet_settings.frappe.db.exists", return_value=False):
-			self.assertEqual(len(position_rules()), 4)
-		empty = SimpleNamespace(position_rules=[], parent_rules=[])
+			self.assertEqual(len(position_rules()), 3)
+			self.assertEqual(parent_position_target("Pending Approval"), "Pending Approval")
+			self.assertEqual(hidden_list_statuses(), ["Editing", "Not Set"])
+		empty = SimpleNamespace(
+			position_rules=[],
+			parent_rules=[],
+			hidden_list_statuses=[],
+		)
 		with (
 			patch("dinext_timesheets.timesheet_settings.frappe.db.exists", return_value=True),
 			patch("dinext_timesheets.timesheet_settings.frappe.get_single", return_value=empty),
 		):
 			self.assertEqual(position_rules(), [])
+			self.assertEqual(hidden_list_statuses(), [])
+
+	def test_not_set_is_hidden_once_and_rejected_on_a_position_rule(self):
+		hidden = SimpleNamespace(
+			position_rules=[],
+			parent_rules=[],
+			hidden_list_statuses=[
+				SimpleNamespace(position_status="Editing"),
+				SimpleNamespace(position_status="Not Set"),
+			],
+		)
+		with patch(
+			"dinext_timesheets.timesheet_settings.position_workflow_states",
+			return_value=["Editing"],
+		):
+			validate_timesheet_settings(hidden)
+		duplicate = SimpleNamespace(
+			position_rules=[],
+			parent_rules=[],
+			hidden_list_statuses=[
+				SimpleNamespace(position_status="Not Set"),
+				SimpleNamespace(position_status="Not Set"),
+			],
+		)
+		with (
+			patch(
+				"dinext_timesheets.timesheet_settings.position_workflow_states",
+				return_value=["Editing"],
+			),
+			self.assertRaises(frappe.ValidationError),
+		):
+			validate_timesheet_settings(duplicate)
+		position_rule = self._doc(
+			[{"position_status": "Not Set", "timesheet_status": "Draft", "threshold": "Any"}]
+		)
+		with (
+			patch(
+				"dinext_timesheets.timesheet_settings.position_workflow_states",
+				return_value=[],
+			),
+			self.assertRaises(frappe.ValidationError),
+		):
+			validate_timesheet_settings(position_rule)
+
+	def test_list_condition_excludes_hidden_statuses_only_for_the_position_list(self):
+		previous = frappe.local.form_dict
+		try:
+			frappe.local.form_dict = frappe._dict(cmd="frappe.desk.reportview.get")
+			with patch(
+				"dinext_timesheets.timesheet_settings.hidden_list_statuses",
+				return_value=["Editing"],
+			):
+				self.assertEqual(
+					utp_list_conditions(),
+					"ifnull(`tabUser Timesheet Position`.`status`, '') not in ('Editing')",
+				)
+			with patch(
+				"dinext_timesheets.timesheet_settings.hidden_list_statuses",
+				return_value=["Editing", "Not Set"],
+			):
+				self.assertEqual(
+					utp_list_conditions(),
+					"ifnull(`tabUser Timesheet Position`.`status`, '') not in ('Editing', '')",
+				)
+			with patch(
+				"dinext_timesheets.timesheet_settings.hidden_list_statuses",
+				return_value=[],
+			):
+				self.assertEqual(utp_list_conditions(), "")
+			frappe.local.form_dict = frappe._dict(cmd="frappe.client.get_list")
+			with patch(
+				"dinext_timesheets.timesheet_settings.hidden_list_statuses",
+				return_value=["Editing", "Not Set"],
+			):
+				self.assertEqual(utp_list_conditions(), "")
+		finally:
+			frappe.local.form_dict = previous
+		self.assertEqual(hidden_status_values(["Not Set"]), [""])
+		self.assertEqual(hidden_status_values(["Editing"]), ["Editing"])
 
 
 class TestEnglishStatusPatch(FrappeTestCase):

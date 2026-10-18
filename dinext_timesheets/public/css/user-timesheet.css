@@ -302,7 +302,7 @@ body.ut-hide-desk-sidebar
 	cursor: pointer;
 }
 
-.user-timesheet-table .ut-rejected-row {
+.user-timesheet-table .ag-row.ut-rejected-row .ag-cell {
 	background-color: color-mix(
 		in srgb,
 		var(--red-500, #e24c4c) 22%,

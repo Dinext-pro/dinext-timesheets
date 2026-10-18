@@ -159,5 +159,7 @@ def calculate_ut_hours(doc) -> None:
 
 def calculate_utp_all_hours(doc) -> None:
 	"""Sum row.hours into all_hours when position is editable."""
-	if doc.status in ("Черновик", "Редактирование"):
+	from dinext_timesheets.timesheet_status import HOUR_SUM_POSITION_STATUSES
+
+	if doc.status in HOUR_SUM_POSITION_STATUSES:
 		doc.all_hours = sum(row.hours for row in doc.table) if doc.table else 0

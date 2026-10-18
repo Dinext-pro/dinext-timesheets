@@ -37,6 +37,13 @@ UTP_STATUS_FROM_RUSSIAN = {
 	"Отклонено": POSITION_REJECTED,
 }
 
+# English keys plus the Russian values stored before the status migration.
+APPROVED_POSITION_STATUSES = (POSITION_APPROVED, "Согласовано")
+APPROVED_TIMESHEET_STATUSES = (PARENT_APPROVED, "Согласован")
+EDITING_POSITION_STATUSES = (POSITION_EDITING, "Редактирование")
+HOUR_SUM_POSITION_STATUSES = (POSITION_EDITING, "Редактирование", "Черновик")
+PENDING_POSITION_STATUSES = (POSITION_PENDING, "На согласовании")
+
 DEFAULT_POSITION_RULES = (
 	{
 		"position_status": POSITION_REJECTED,

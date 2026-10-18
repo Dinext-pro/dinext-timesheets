@@ -20,7 +20,13 @@ def notify_task_limit_exceeded(doc) -> None:
 	if not old_doc:
 		return
 
-	if not (old_doc.status != "На согласовании" and doc.status == "На согласовании"):
+	from dinext_timesheets.timesheet_status import PENDING_POSITION_STATUSES
+
+	entered_pending = (
+		old_doc.status not in PENDING_POSITION_STATUSES
+		and doc.status in PENDING_POSITION_STATUSES
+	)
+	if not entered_pending:
 		return
 
 	project_managers = frappe.db.get_all(

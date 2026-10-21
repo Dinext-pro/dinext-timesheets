@@ -1,5 +1,25 @@
 [English](README.md)
 
+<!-- dinext-presentation:start -->
+<p align="center">
+  <a href="https://dinext.ru"><img src="docs/assets/readme/dinext-logo.png" alt="Dinext" width="128"></a>
+</p>
+<h1 align="center">Dinext Timesheets</h1>
+
+<hr>
+
+<p align="center">Учёт рабочего времени, доступности сотрудников, отпусков и согласований по проектам и задачам.</p>
+
+<p align="center">
+  <img src="docs/assets/readme/overview.png" alt="Учёт времени по проектам и задачам на демонстрационных данных." width="960">
+</p>
+<p align="center"><sub>Учёт времени по проектам и задачам на демонстрационных данных.</sub></p>
+
+<p align="center">
+  <a href="https://dinext.ru">Сайт</a> · <a href="https://docs.dinext.ru">Документация</a>
+</p>
+<!-- dinext-presentation:end -->
+
 # Dinext Timesheets
 
 ## 📖 Обзор

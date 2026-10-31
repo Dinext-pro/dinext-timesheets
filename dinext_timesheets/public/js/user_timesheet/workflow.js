@@ -27,6 +27,22 @@ export function clearWorkflowButtons(frm) {
 	frm._ut_wf_button_labels = [];
 }
 
+/** New or Not Saved: same flag as the orange form pill. */
+function timesheetNeedsSave(frm) {
+	return !!(frm?.is_new?.() || frm?.doc?.__islocal || frm?.is_dirty?.());
+}
+
+function bindUnsavedWorkflowHide(frm) {
+	if (!frm?.$wrapper || frm._ut_wf_dirty_bound) {
+		return;
+	}
+	frm._ut_wf_dirty_bound = true;
+	frm.$wrapper.on("dirty.utWorkflow", () => {
+		frm._ut_wf_gen = (frm._ut_wf_gen || 0) + 1;
+		clearWorkflowButtons(frm);
+	});
+}
+
 function applyTimesheetAction(frm, transition) {
 	const submit = async (comment = "") => {
 		if (!(await guardEditableTimesheet(frm, transition))) {
@@ -115,16 +131,20 @@ function applyTimesheetAction(frm, transition) {
 
 /** Position workflow actions the current user can apply. */
 export async function processUTWorkflow(frm) {
+	if (!frm) {
+		return;
+	}
 	const gen = (frm._ut_wf_gen = (frm._ut_wf_gen || 0) + 1);
 	clearWorkflowButtons(frm);
-	if (!frm || frm.is_new() || frm.doc?.__islocal) {
+	bindUnsavedWorkflowHide(frm);
+	if (timesheetNeedsSave(frm)) {
 		return;
 	}
 
 	const response = await frappe
 		.xcall(POSITION_ACTIONS, { timesheet_name: frm.doc.name })
 		.catch(() => null);
-	if (gen !== frm._ut_wf_gen) {
+	if (gen !== frm._ut_wf_gen || timesheetNeedsSave(frm)) {
 		return;
 	}
 

@@ -35,6 +35,14 @@ class TestUserTimesheet(FrappeTestCase):
 		self.assertIn("guardEditableTimesheet", workflow_source)
 		self.assertIn("runs_timesheet_checks", submit_source)
 		self.assertIn("confirm_return_to_editing", workflow_source)
+		self.assertIn("function timesheetNeedsSave(frm)", workflow_source)
+		self.assertIn("frm?.is_dirty?.()", workflow_source)
+		self.assertIn("dirty.utWorkflow", workflow_source)
+		self.assertIn("if (timesheetNeedsSave(frm))", workflow_source)
+		self.assertIn(
+			"gen !== frm._ut_wf_gen || timesheetNeedsSave(frm)",
+			workflow_source,
+		)
 		self.assertNotIn("add_custom_button(__(BTN_STOP)", submit_source)
 		self.assertIn("frm._ut_wf_button_labels", submit_source)
 		chrome_source = (ut / "form_chrome.js").read_text()

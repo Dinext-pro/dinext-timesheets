@@ -34,7 +34,11 @@ class TestRollupTriggers(unittest.TestCase):
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup._maybe_approve_ut"
 	)
-	def test_enter_approved_updates_task_dates(self, approve, update_dates):
+	@patch(
+		"dinext_common.workflow_approval.lifecycle.is_engine_enabled",
+		return_value=False,
+	)
+	def test_enter_approved_updates_task_dates(self, _enabled, approve, update_dates):
 		doc = _Doc(
 			status="Approved",
 			document_type="Task",
@@ -49,7 +53,11 @@ class TestRollupTriggers(unittest.TestCase):
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup._update_task_act_dates"
 	)
-	def test_other_status_skips_task_dates(self, update_dates):
+	@patch(
+		"dinext_common.workflow_approval.lifecycle.is_engine_enabled",
+		return_value=False,
+	)
+	def test_other_status_skips_task_dates(self, _enabled, update_dates):
 		doc = _Doc(
 			status="Editing",
 			document_type="Task",
@@ -59,6 +67,30 @@ class TestRollupTriggers(unittest.TestCase):
 		doc._old = _Doc(status="Editing")
 		rollup_ut_status_and_task_dates(doc)
 		update_dates.assert_not_called()
+
+	@patch(
+		"dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup._update_task_act_dates"
+	)
+	@patch(
+		"dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup._maybe_approve_ut"
+	)
+	@patch(
+		"dinext_common.workflow_approval.lifecycle.is_engine_enabled",
+		return_value=True,
+	)
+	def test_parallel_engine_does_not_rewrite_timesheet_status(
+		self, _enabled, approve, update_dates
+	):
+		doc = _Doc(
+			status="Approved",
+			document_type="Task",
+			document_name="TASK-1",
+			user_timesheet="UT-1",
+		)
+		doc._old = _Doc(status="Editing")
+		rollup_ut_status_and_task_dates(doc)
+		approve.assert_not_called()
+		update_dates.assert_called_once_with(doc)
 
 	@patch(
 		"dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup.frappe.db.set_value"

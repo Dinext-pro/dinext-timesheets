@@ -12,12 +12,13 @@ from dinext_timesheets.patches.v1_0.english_timesheet_statuses import execute
 from dinext_timesheets.timesheet_settings import (
 	hidden_list_statuses,
 	hidden_status_values,
-	parent_position_target,
 	position_rules,
+	timesheet_check_status,
 	utp_list_conditions,
 	validate_timesheet_settings,
 )
 from dinext_timesheets.timesheet_status import (
+	DEFAULT_POSITION_RULES,
 	UTP_STATUS_FROM_RUSSIAN,
 	first_matching_rule,
 )
@@ -53,9 +54,19 @@ class TestTimesheetRuleMatcher(FrappeTestCase):
 			first_matching_rule([_rule("Approved", "Approved", "All")], {"Approved": 2, "Editing": 1})
 		)
 
-	def test_pending_positions_do_not_set_the_timesheet(self):
-		self.assertIsNone(first_matching_rule(RULES, {"Pending Approval": 3}))
-		self.assertIsNone(first_matching_rule(RULES, {"Pending Approval": 1, "Approved": 1}))
+	def test_pending_positions_set_the_timesheet_when_nothing_earlier_matches(self):
+		rule = first_matching_rule(DEFAULT_POSITION_RULES, {"Pending Approval": 3})
+		self.assertEqual(rule["timesheet_status"], "Pending Approval")
+		mixed = first_matching_rule(
+			DEFAULT_POSITION_RULES,
+			{"Pending Approval": 1, "Approved": 1},
+		)
+		self.assertEqual(mixed["timesheet_status"], "Pending Approval")
+		editing = first_matching_rule(
+			DEFAULT_POSITION_RULES,
+			{"Pending Approval": 1, "Editing": 1},
+		)
+		self.assertEqual(editing["timesheet_status"], "Rework")
 
 	def test_later_rule_is_not_used_when_an_earlier_one_matches(self):
 		rule = first_matching_rule(RULES, {"Rejected": 1, "Editing": 1})
@@ -118,9 +129,18 @@ class TestTimesheetSettingsValidation(FrappeTestCase):
 
 	def test_missing_singleton_uses_defaults_and_saved_empty_does_not(self):
 		with patch("dinext_timesheets.timesheet_settings.frappe.db.exists", return_value=False):
-			self.assertEqual(len(position_rules()), 3)
-			self.assertEqual(parent_position_target("Pending Approval"), "Pending Approval")
-			self.assertEqual(hidden_list_statuses(), ["Editing", "Not Set"])
+			rules = position_rules()
+			self.assertEqual(
+				[(row["position_status"], row["threshold"], row["move_all_positions"], row["check_timesheet"]) for row in rules],
+				[
+					("Rejected", "Any", 0, 0),
+					("Approved", "All", 0, 0),
+					("Editing", "Any", 1, 0),
+					("Pending Approval", "Any", 1, 1),
+				],
+			)
+			self.assertEqual(timesheet_check_status(), "Pending Approval")
+			self.assertEqual(hidden_list_statuses(), ["Editing", "Not Set", "Rejected"])
 		empty = SimpleNamespace(
 			position_rules=[],
 			parent_rules=[],
@@ -131,6 +151,7 @@ class TestTimesheetSettingsValidation(FrappeTestCase):
 			patch("dinext_timesheets.timesheet_settings.frappe.get_single", return_value=empty),
 		):
 			self.assertEqual(position_rules(), [])
+			self.assertIsNone(timesheet_check_status())
 			self.assertEqual(hidden_list_statuses(), [])
 
 	def test_not_set_is_hidden_once_and_rejected_on_a_position_rule(self):
@@ -175,6 +196,32 @@ class TestTimesheetSettingsValidation(FrappeTestCase):
 		):
 			validate_timesheet_settings(position_rule)
 
+	def test_only_one_timesheet_check_row_is_allowed(self):
+		doc = self._doc(
+			[
+				{
+					"position_status": "Editing",
+					"timesheet_status": "Rework",
+					"threshold": "Any",
+					"check_timesheet": 1,
+				},
+				{
+					"position_status": "Approved",
+					"timesheet_status": "Approved",
+					"threshold": "All",
+					"check_timesheet": 1,
+				},
+			]
+		)
+		with (
+			patch(
+				"dinext_timesheets.timesheet_settings.position_workflow_states",
+				return_value=["Editing", "Approved"],
+			),
+			self.assertRaises(frappe.ValidationError),
+		):
+			validate_timesheet_settings(doc)
+
 	def test_list_condition_excludes_hidden_statuses_only_for_the_position_list(self):
 		previous = frappe.local.form_dict
 		try:
@@ -189,11 +236,11 @@ class TestTimesheetSettingsValidation(FrappeTestCase):
 				)
 			with patch(
 				"dinext_timesheets.timesheet_settings.hidden_list_statuses",
-				return_value=["Editing", "Not Set"],
+				return_value=["Editing", "Not Set", "Rejected"],
 			):
 				self.assertEqual(
 					utp_list_conditions(),
-					"ifnull(`tabUser Timesheet Position`.`status`, '') not in ('Editing', '')",
+					"ifnull(`tabUser Timesheet Position`.`status`, '') not in ('Editing', '', 'Rejected')",
 				)
 			with patch(
 				"dinext_timesheets.timesheet_settings.hidden_list_statuses",

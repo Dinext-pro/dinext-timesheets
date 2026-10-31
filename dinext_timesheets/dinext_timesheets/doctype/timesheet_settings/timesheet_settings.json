@@ -6,8 +6,6 @@
  "field_order": [
   "position_section",
   "position_rules",
-  "parent_section",
-  "parent_rules",
   "hidden_section",
   "hidden_list_statuses"
  ],
@@ -23,18 +21,6 @@
    "fieldtype": "Table",
    "label": "Position Rules",
    "options": "Timesheet Position Status Rule"
-  },
-  {
-   "fieldname": "parent_section",
-   "fieldtype": "Section Break",
-   "label": "Timesheet Sets Positions"
-  },
-  {
-   "description": "When the timesheet enters this status, every position moves to the position status.",
-   "fieldname": "parent_rules",
-   "fieldtype": "Table",
-   "label": "Parent Rules",
-   "options": "Timesheet Parent Status Rule"
   },
   {
    "fieldname": "hidden_section",

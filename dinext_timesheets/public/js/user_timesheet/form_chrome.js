@@ -5,7 +5,7 @@ import { canEdit, canReprocessJournalEntries } from "./model.js";
 import { setupCopyButtons, disableCopyButtons } from "./copy.js";
 import { processUTWorkflow, clearWorkflowButtons } from "./workflow.js";
 import { refreshLimits } from "./limits.js";
-import { setupSubmitButtons, clearSubmitButtons } from "./submit.js";
+import { clearSubmitButtons } from "./submit.js";
 import { resetTimesheetRuntime } from "./state.js";
 import { applyToolbarChrome } from "./toolbar.js";
 import { showTimesheetDashboard } from "./dashboard.js";
@@ -96,7 +96,6 @@ export async function setupFormChrome(frm) {
 	setupCopyButtons(frm);
 	applyReprocessJournalEntriesButton(frm);
 	await processUTWorkflow(frm);
-	setupSubmitButtons(frm);
 	await showTimesheetDashboard(frm);
 	scheduleCascadeLayout(frm);
 }

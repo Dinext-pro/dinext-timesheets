@@ -59,21 +59,6 @@ def _value(row: object, fieldname: str, default=None):
 	return getattr(row, fieldname, default)
 
 
-def _operation_states(
-	operation: TimesheetOperation,
-	*,
-	has_positions: bool,
-) -> tuple[str, str | None]:
-	if operation not in {"Start", "Stop", "Edit"}:
-		raise frappe.ValidationError(_("Unknown timesheet operation"))
-	if not has_positions:
-		return (REWORK, None) if operation == "Edit" else (PARENT_APPROVED, None)
-	from dinext_timesheets.timesheet_settings import parent_position_target
-
-	parent_status = PENDING if operation == "Start" else REWORK
-	return parent_status, parent_position_target(parent_status)
-
-
 def _current_team_lead(user_group: str | None, target_date: object) -> str | None:
 	if not user_group or not target_date:
 		return None
@@ -975,6 +960,207 @@ def vote_timesheet_positions(
 	return {"timesheet": parent.name, "results": results, "messages": messages}
 
 
+def _position_action_items(doc) -> list[dict]:
+	"""Votes on the caller's open task, otherwise self-approval transitions."""
+	if _enabled():
+		task_names = frappe.get_all(
+			"Workflow Task",
+			filters={
+				"reference_doctype": "User Timesheet Position",
+				"reference_name": doc.name,
+				"approver": frappe.session.user,
+				"status": "Working",
+				"round_status": "Open",
+			},
+			pluck="name",
+			limit=2,
+		)
+		if len(task_names) == 1:
+			task = frappe.get_doc("Workflow Task", task_names[0])
+			return [
+				{
+					"action": transition.action,
+					"next_state": transition.next_state,
+					"comment_is_required": bool(transition.comment_is_required),
+					"mode": "vote",
+					"task": task.name,
+				}
+				for transition in getattr(task, "available_workflow_transitions", [])
+				if transition.action and transition.next_state
+			]
+	from frappe.model.workflow import get_transitions
+
+	try:
+		transitions = get_transitions(doc)
+	except (frappe.ValidationError, frappe.PermissionError):
+		return []
+	items = []
+	for transition in transitions:
+		if _enabled() and not transition.get("allow_self_approval"):
+			continue
+		action = transition.get("action")
+		next_state = transition.get("next_state")
+		if not action or not next_state:
+			continue
+		items.append(
+			{
+				"action": action,
+				"next_state": next_state,
+				"comment_is_required": bool(transition.get("custom_comment_is_required")),
+				"mode": "domain",
+			}
+		)
+	return items
+
+
+@frappe.whitelist()
+def get_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
+	"""Workflow actions the caller can apply to this timesheet's positions."""
+	parent = frappe.get_doc("User Timesheet", timesheet_name)
+	parent.check_permission("read")
+	position_names = frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": parent.name},
+		pluck="name",
+		order_by="name asc",
+	)
+	grouped: dict[str, dict] = {}
+	current: dict[str, str] = {}
+	for name in position_names:
+		doc = frappe.get_doc("User Timesheet Position", name)
+		current[name] = str(doc.workflow_state or doc.status or "")
+		for item in _position_action_items(doc):
+			row = grouped.setdefault(
+				item["action"],
+				{
+					"action": item["action"],
+					"comment_is_required": False,
+					"confirm_return_to_editing": False,
+					"positions": [],
+				},
+			)
+			row["comment_is_required"] = bool(
+				row["comment_is_required"] or item["comment_is_required"]
+			)
+			row["confirm_return_to_editing"] = bool(
+				row["confirm_return_to_editing"]
+				or (
+					current[name] == POSITION_APPROVED
+					and item["next_state"] == EDITING
+				)
+			)
+			row["positions"].append(
+				{
+					"name": name,
+					"mode": item["mode"],
+					"task": item.get("task"),
+					"next_state": item["next_state"],
+				}
+			)
+	from dinext_timesheets.timesheet_settings import (
+		matching_position_rule,
+		timesheet_check_status,
+	)
+
+	check_status = timesheet_check_status()
+	actions = []
+	for row in grouped.values():
+		updates = {item["name"]: item["next_state"] for item in row["positions"]}
+		counts: dict[str, int] = {}
+		for name, status in current.items():
+			status = updates.get(name) or status
+			if not status:
+				continue
+			counts[status] = counts.get(status, 0) + 1
+		rule = matching_position_rule(counts)
+		row["runs_timesheet_checks"] = bool(
+			rule
+			and check_status
+			and rule["timesheet_status"] == check_status
+			and parent.ut_status != check_status
+		)
+		actions.append(row)
+	actions.sort(key=lambda row: row["action"])
+	return {"actions": actions}
+
+
+@frappe.whitelist(methods=["POST"])
+def apply_timesheet_position_action(
+	timesheet_name: str,
+	action: str,
+	comment: object = None,
+	request_id: str | None = None,
+) -> dict[str, object]:
+	"""Apply one workflow action to every position that offers it, then roll the timesheet up."""
+	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
+	parent.check_permission("read")
+	available = get_timesheet_position_actions(parent.name)
+	chosen = next((row for row in available["actions"] if row["action"] == action), None)
+	if not chosen:
+		frappe.throw(_("The action is not available for the timesheet positions"))
+	frappe.flags.timesheet_transition_messages = []
+	frappe.flags.workflow_finalization_errors = []
+	results = []
+	frappe.flags.defer_timesheet_rollup = True
+	try:
+		for index, position in enumerate(chosen["positions"]):
+			if position["mode"] == "vote":
+				if _task_no_longer_matches_source(position["task"]):
+					continue
+				from dinext_common.workflow_approval.engine import (
+					WorkflowApprovalConflictError,
+					cast_vote,
+				)
+
+				try:
+					results.append(
+						cast_vote(
+							position["task"],
+							action=action,
+							comment=comment,
+							request_id=f"{request_id or frappe.generate_hash(length=16)}:{index}",
+							completion_source="Bulk",
+						)
+					)
+				except WorkflowApprovalConflictError as caught:
+					if not any(row.get("transitioned") for row in results):
+						raise
+					_note_timesheet_transition_message(str(caught))
+				continue
+			if _enabled():
+				from dinext_common.workflow_approval.engine import apply_domain_transition
+
+				apply_domain_transition(
+					"User Timesheet Position",
+					position["name"],
+					position["next_state"],
+					reason=_("Timesheet action {0}").format(action),
+					actor=frappe.session.user,
+				)
+			else:
+				from frappe.model.workflow import apply_workflow
+
+				apply_workflow(
+					frappe.get_doc("User Timesheet Position", position["name"]),
+					action,
+				)
+			results.append({"name": position["name"], "transitioned": True})
+	finally:
+		frappe.flags.defer_timesheet_rollup = False
+	parent.reload()
+	if chosen["positions"]:
+		sample = frappe.get_doc(
+			"User Timesheet Position",
+			chosen["positions"][-1]["name"],
+		)
+		_recalculate_parent(parent, sample, None)
+	messages = [
+		*(getattr(frappe.flags, "workflow_finalization_errors", None) or []),
+		*(getattr(frappe.flags, "timesheet_transition_messages", None) or []),
+	]
+	return {"timesheet": parent.name, "results": results, "messages": messages}
+
+
 def on_vote_completed(task, source, transition) -> None:
 	if (
 		source.doctype == "User Timesheet Position"
@@ -998,14 +1184,13 @@ def orchestrate_timesheet(
 	positions: object = None,
 	deleted_positions: object = None,
 ) -> TimesheetOrchestrationResponse:
-	"""Validate, persist, and transition one complete User Timesheet aggregate."""
+	"""Persist the timesheet grid. Status changes come from position workflow actions."""
 	parent = frappe.get_doc("User Timesheet", ts_name, for_update=True)
 	actor = frappe.session.user
 	_authorize_operation(parent, operation, actor=actor)
 	payloads = _parse_positions(positions)
 	deleted_names = _parse_names(deleted_positions)
 	position_docs, deleted_docs = _prepare_positions(parent, payloads, deleted_names)
-	_validate_positions(parent, position_docs)
 	for doc in sorted(deleted_docs, key=lambda row: row.name):
 		doc.delete(ignore_permissions=True)
 	persisted: list[object] = []
@@ -1015,44 +1200,7 @@ def orchestrate_timesheet(
 		else:
 			doc.save(ignore_permissions=True)
 		persisted.append(doc)
-	parent_status, position_status = _operation_states(
-		operation,
-		has_positions=bool(persisted),
-	)
-	if position_status:
-		from dinext_common.workflow_approval.engine import apply_domain_transition
-
-		transition_actor = _domain_transition_actor(actor)
-		for position in sorted(persisted, key=lambda row: row.name):
-			apply_domain_transition(
-				"User Timesheet Position",
-				position.name,
-				position_status,
-				reason=_("Timesheet operation {0} from parent {1}").format(
-					operation,
-					parent.name,
-				),
-				actor=transition_actor,
-			)
 	parent.reload()
-	if (
-		operation == "Start"
-		and persisted
-		and not frappe.db.count(
-			"User Timesheet Position",
-			{
-				"user_timesheet": parent.name,
-				"status": ("!=", POSITION_APPROVED),
-			},
-		)
-	):
-		parent_status = PARENT_APPROVED
-	parent.ut_status = parent_status
-	if parent_status == PARENT_APPROVED:
-		parent.ut_approval_date = nowdate()
-	else:
-		parent.ut_approval_date = None
-	parent.save(ignore_permissions=True)
 	return {
 		"timesheet": parent.name,
 		"status": parent.ut_status,
@@ -1069,7 +1217,9 @@ def on_utp_update(doc, method=None) -> None:
 	if old_status == doc.status:
 		return
 	parent = frappe.get_doc("User Timesheet", doc.user_timesheet, for_update=True)
-	if not getattr(frappe.flags, "in_timesheet_approval_cascade", False):
+	if not getattr(frappe.flags, "in_timesheet_approval_cascade", False) and not getattr(
+		frappe.flags, "defer_timesheet_rollup", False
+	):
 		_recalculate_parent(parent, doc, old_status)
 	if (
 		doc.document_type == "Task"
@@ -1129,14 +1279,8 @@ def load_position_statuses(timesheet_name: str) -> list[str]:
 	)
 
 
-def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
-	del old_status
-	from dinext_timesheets.timesheet_settings import (
-		matching_position_rule,
-		parent_position_target,
-	)
-
-	statuses = list(load_position_statuses(parent.name) or [])
+def _position_status_counts(parent_name: str, changed_position) -> dict[str, int]:
+	statuses = list(load_position_statuses(parent_name) or [])
 	if changed_position.status and changed_position.status not in statuses:
 		statuses.append(changed_position.status)
 	counts: dict[str, int] = {}
@@ -1144,16 +1288,37 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 		if not status:
 			continue
 		counts[status] = counts.get(status, 0) + 1
-	rule = matching_position_rule(counts)
+	return counts
+
+
+def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
+	del old_status
+	from dinext_timesheets.timesheet_settings import (
+		matching_position_rule,
+		timesheet_check_status,
+	)
+
+	rule = matching_position_rule(_position_status_counts(parent.name, changed_position))
 	if not rule or parent.ut_status == rule["timesheet_status"]:
 		return
 	new_status = rule["timesheet_status"]
+	if new_status == timesheet_check_status():
+		names = frappe.get_all(
+			"User Timesheet Position",
+			filters={"user_timesheet": parent.name},
+			pluck="name",
+			order_by="name asc",
+		)
+		_validate_positions(
+			parent,
+			[frappe.get_doc("User Timesheet Position", name) for name in names],
+		)
 	parent.ut_status = new_status
 	if new_status == PARENT_APPROVED:
 		parent.ut_approval_date = nowdate()
-	elif new_status == PENDING:
+	else:
 		parent.ut_approval_date = None
-	target = parent_position_target(new_status)
+	target = rule["position_status"] if rule.get("move_all_positions") else None
 	if not target:
 		parent.save(ignore_permissions=True)
 		return
@@ -1178,7 +1343,7 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 					"User Timesheet Position",
 					sibling_name,
 					target,
-					reason=_("Timesheet returned for rework"),
+					reason=_("Timesheet status {0}").format(new_status),
 					actor=frappe.session.user,
 				)
 			except Exception:

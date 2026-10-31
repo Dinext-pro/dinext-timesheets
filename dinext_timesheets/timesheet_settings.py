@@ -7,7 +7,6 @@ from frappe import _
 
 from dinext_timesheets.timesheet_status import (
 	DEFAULT_HIDDEN_LIST_STATUSES,
-	DEFAULT_PARENT_RULES,
 	DEFAULT_POSITION_RULES,
 	POSITION_STATUS_UNSET,
 	first_matching_rule,
@@ -52,39 +51,35 @@ def _settings_doc():
 	return frappe.get_single("Timesheet Settings")
 
 
+def _position_rule_row(row) -> dict:
+	source = row if isinstance(row, dict) else row
+	value = source.get if isinstance(source, dict) else lambda key, default=None: getattr(source, key, default)
+	return {
+		"position_status": value("position_status"),
+		"timesheet_status": value("timesheet_status"),
+		"threshold": value("threshold"),
+		"check_timesheet": int(value("check_timesheet", 0) or 0),
+		"move_all_positions": int(value("move_all_positions", 0) or 0),
+	}
+
+
 def position_rules() -> list[dict]:
 	"""Saved position-to-timesheet rules. Missing singleton uses the defaults."""
 	doc = _settings_doc()
-	if doc is None:
-		return [dict(row) for row in DEFAULT_POSITION_RULES]
-	return [
-		{
-			"position_status": row.position_status,
-			"timesheet_status": row.timesheet_status,
-			"threshold": row.threshold,
-		}
-		for row in (doc.position_rules or [])
-		if row.position_status and row.timesheet_status and row.threshold
-	]
-
-
-def parent_position_target(timesheet_status: str) -> str | None:
-	"""Position status applied to every position when the timesheet enters timesheet_status."""
-	doc = _settings_doc()
-	rows = (
-		[dict(row) for row in DEFAULT_PARENT_RULES]
-		if doc is None
-		else [
-			{
-				"timesheet_status": row.timesheet_status,
-				"position_status": row.position_status,
-			}
-			for row in (doc.parent_rules or [])
-		]
-	)
+	rows = DEFAULT_POSITION_RULES if doc is None else (doc.position_rules or [])
+	result = []
 	for row in rows:
-		if row.get("timesheet_status") == timesheet_status and row.get("position_status"):
-			return row["position_status"]
+		item = _position_rule_row(row)
+		if item["position_status"] and item["timesheet_status"] and item["threshold"]:
+			result.append(item)
+	return result
+
+
+def timesheet_check_status() -> str | None:
+	"""Timesheet status before which filling checks run. None skips the checks."""
+	for row in position_rules():
+		if row["check_timesheet"]:
+			return row["timesheet_status"]
 	return None
 
 
@@ -104,6 +99,7 @@ def matching_position_rule(counts: dict[str, int]) -> dict | None:
 def validate_timesheet_settings(doc) -> None:
 	known = set(position_workflow_states())
 	seen_positions: set[str] = set()
+	checked_rows = 0
 	for row in doc.position_rules or []:
 		status = row.position_status or ""
 		if not status:
@@ -119,6 +115,10 @@ def validate_timesheet_settings(doc) -> None:
 			)
 		if row.threshold not in {"Any", "All"}:
 			frappe.throw(_("Threshold must be Any or All"))
+		if getattr(row, "check_timesheet", 0):
+			checked_rows += 1
+	if checked_rows > 1:
+		frappe.throw(_("Timesheet Check can be set on only one row"))
 	seen_hidden: set[str] = set()
 	for row in getattr(doc, "hidden_list_statuses", None) or []:
 		status = row.position_status or ""
@@ -133,34 +133,18 @@ def validate_timesheet_settings(doc) -> None:
 			frappe.throw(
 				_("{0} is not a state of the User Timesheet Position workflow").format(status)
 			)
-	seen_parents: set[str] = set()
-	for row in doc.parent_rules or []:
-		status = row.position_status or ""
-		if status == POSITION_STATUS_UNSET or (status and known and status not in known):
-			frappe.throw(
-				_("{0} is not a state of the User Timesheet Position workflow").format(status)
-			)
-		parent_status = row.timesheet_status or ""
-		if parent_status and parent_status in seen_parents:
-			frappe.throw(
-				_("A position rule for timesheet status {0} is already set").format(parent_status)
-			)
-		if parent_status:
-			seen_parents.add(parent_status)
 
 
 def seed_default_rules() -> None:
 	"""Fill an empty singleton. A saved empty table stays empty."""
 	if frappe.db.exists("Timesheet Settings", "Timesheet Settings"):
 		doc = frappe.get_single("Timesheet Settings")
-		if doc.position_rules or doc.parent_rules:
+		if doc.position_rules:
 			return
 	else:
 		doc = frappe.new_doc("Timesheet Settings")
 	for row in DEFAULT_POSITION_RULES:
 		doc.append("position_rules", row)
-	for row in DEFAULT_PARENT_RULES:
-		doc.append("parent_rules", row)
 	for row in DEFAULT_HIDDEN_LIST_STATUSES:
 		doc.append("hidden_list_statuses", row)
 	doc.save(ignore_permissions=True)

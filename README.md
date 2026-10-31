@@ -25,10 +25,10 @@
 
 - **UTP Workflow** и **AFL Workflow** остаются Frappe Workflow metadata этого приложения.
 - Исполнение — общий engine `dinext_common.workflow_approval` плюс
-  `dinext_timesheets.workflow_approval`: `orchestrate_timesheet` (Start / Stop / Edit),
+  `dinext_timesheets.workflow_approval`: действия workflow позиций,
   pending approvers, digest и cascade голоса.
 - Состояния позиции хранятся по-английски: Editing → Pending Approval → Approved / Rejected. Статусы табеля: Draft, Pending Approval, Rejected, Rework, Approved. Русские подписи — в `translations/ru.csv`.
-- Синглтон **Timesheet Settings** задаёт пересчёт. Строка «позиция → табель» с порогом Any или All: первая подходящая побеждает. Строка «табель → позиции» переводит все позиции в выбранный статус workflow. Список статусов позиции берётся из активного Workflow `User Timesheet Position`. Начальные строки: одна Rejected ставит табель Rejected; все Approved ставят Approved; одна Editing ставит Rework и переводит остальные позиции в Editing. Табель Pending Approval переводит все позиции в Pending Approval. Позиции сами табель в Pending Approval не ставят. Пустой табель правила не двигает. Третья таблица скрывает статусы в списке позиций; по умолчанию это Editing и Not Set (позиция без статуса). На карточке табеля эти позиции остаются.
+- Синглтон **Timesheet Settings** задаёт пересчёт строками «позиция → табель» с порогом Any или All: первая подходящая побеждает. «Перевести все позиции» переводит остальные позиции в статус позиции этой строки. «Проверка ТШ» — одна строка; проверки заполнения выполняются только перед входом табеля в её статус. Начальные строки: одна Rejected ставит табель Rejected и позиции не двигает; все Approved ставят Approved; одна Editing ставит Rework и переводит остальные в Editing; одна Pending Approval при отсутствии Editing и Rejected ставит табель Pending Approval, проверяет заполнение и переводит остальные в Pending Approval. Пустой табель остаётся Draft. Вторая таблица скрывает статусы в списке позиций; по умолчанию это Editing, Not Set (позиция без статуса) и Rejected. На карточке табеля эти позиции остаются.
 - Форма `User Timesheet Position` открывает родительский User Timesheet.
 - Роли в фикстурах: `Dinext_UTP_Appoval`, `Dinext_UT_Full_Access` (роль `Dinext_Worker` остаётся в **dinext_projects**).
 - UX дат AFL и индикатор pending approvers — в `dinext_projects`.
@@ -84,7 +84,7 @@ bench --site <site> clear-cache
 
 1. Откройте рабочее пространство **Мои Таймшиты** (роль `Dinext_Worker` обычно ведёт сюда как домашнюю страницу из **dinext_projects**).
 2. Создайте или откройте **User Timesheet** за отчётный период; позиции добавляются как **User Timesheet Position** (проект, роль, Task/Issue, часы по датам).
-3. Отправьте таймшит операциями Start / Stop / Edit через `dinext_timesheets.workflow_approval.orchestrate_timesheet`. Форма позиции открывает родительский UT. Согласующий с ролью `Dinext_UTP_Appoval` работает из workspace **«Мои согласования»** или list bulk (`bulk_vote` / `get_my_queue`).
+3. На форме табеля доступны действия workflow позиций: «Передать на согласование», «Остановить Воркфлоу», «Редактировать» и голос согласующего по открытой задаче. Форма позиции открывает родительский UT. Согласующий с ролью `Dinext_UTP_Appoval` работает из workspace **«Мои согласования»** или list bulk (`bulk_vote` / `get_my_queue`).
 4. Для отсутствия создайте **Application For Leave**, укажите тип, даты и проекты (таблица **User Projects**), отправьте по AFL Workflow.
 5. Отчёты доступны из рабочего пространства: по ТШ, для подрядчиков, по утилизации, статистика.
 
@@ -99,7 +99,7 @@ bench --site <site> clear-cache
 | `Task Limit Exceeded_V4` | Проверка лимитов по задаче |
 | `Copy_Positions_From_Previous_Timesheet` | Копирование позиций с прошлого периода |
 | `AFL_Calculate_Hours` | Часы по заявке на отсутствие |
-| `orchestrate_timesheet` | Python API: Start / Stop / Edit агрегата User Timesheet |
+| `apply_timesheet_position_action` | Действие workflow для позиций табеля |
 
 ### Типы документов модуля
 
@@ -227,7 +227,7 @@ dinext_timesheets/                      # Корень репозитория / 
 | Путь | Назначение |
 |------|------------|
 | `hooks.py` | Точка интеграции: экспорт фикстур, doctype JS, domain hooks |
-| `workflow_approval.py` | `orchestrate_timesheet` и hooks `workflow_approval_*` |
+| `workflow_approval.py` | Действия workflow позиций и hooks `workflow_approval_*` |
 | `public/js/` | Form/list UT и UTP |
 | `fixtures/` | Переносимые скрипты, workflow, роли, пользовательские поля, права |
 | `doctype/` | Схемы и тонкие контроллеры типов документов модуля |
@@ -246,7 +246,7 @@ flowchart TD
     A[Планировщик TSCrW2 / ручное создание] --> B[User Timesheet]
     B --> C[User Timesheet Position + Details]
     C --> D[Серверные скрипты: часы, утилизация, лимиты]
-    D --> E[orchestrate_timesheet Start Stop Edit]
+    D --> E[Действия workflow позиций]
     E --> F[apply_domain_transition]
     F --> G[dinext_common.workflow_approval]
     G -->|На согласовании| H[Согласующий Dinext_UTP_Appoval]
@@ -254,9 +254,9 @@ flowchart TD
     H -->|Отклонено| C
 ```
 
-Start / Stop / Edit валидируют агрегат и переводят позиции через
-`apply_domain_transition`. Согласующий голосует в общем engine; после кворума
-остаются проводки Journal Entry.
+Действия workflow позиций переводят позиции через голос по открытой задаче или
+`apply_domain_transition`. Статус табеля ставит первая подходящая строка настроек.
+Согласующий голосует в общем engine; после кворума остаются проводки Journal Entry.
 
 ### Заявка на отсутствие и зависимости
 

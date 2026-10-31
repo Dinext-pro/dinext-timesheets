@@ -1,11 +1,11 @@
 /**
  * Approver actions on the User Timesheet form.
- * Parallel engine: get_timesheet_approval_actions + vote_timesheet_positions.
+ * Position workflow actions: get_timesheet_position_actions + apply_timesheet_position_action.
  */
-import { guardEditableTimesheet } from "./submit.js";
-const APPROVAL_ACTIONS =
-	"dinext_timesheets.workflow_approval.get_timesheet_approval_actions";
-const VOTE = "dinext_timesheets.workflow_approval.vote_timesheet_positions";
+import { guardEditableTimesheet, reportTimesheetError } from "./submit.js";
+const POSITION_ACTIONS =
+	"dinext_timesheets.workflow_approval.get_timesheet_position_actions";
+const APPLY = "dinext_timesheets.workflow_approval.apply_timesheet_position_action";
 
 const WORKFLOW_GROUP = "Workflow";
 
@@ -29,15 +29,21 @@ export function clearWorkflowButtons(frm) {
 
 function applyTimesheetAction(frm, transition) {
 	const submit = async (comment = "") => {
-		if (!(await guardEditableTimesheet(frm))) {
+		if (!(await guardEditableTimesheet(frm, transition))) {
 			return;
 		}
-		const result = await frappe.xcall(VOTE, {
-			timesheet_name: frm.doc.name,
-			action: transition.action,
-			comment,
-			request_id: requestId(),
-		});
+		let result;
+		try {
+			result = await frappe.xcall(APPLY, {
+				timesheet_name: frm.doc.name,
+				action: transition.action,
+				comment,
+				request_id: requestId(),
+			});
+		} catch (error) {
+			reportTimesheetError(frm, error);
+			return;
+		}
 		const results = result?.results || [];
 		const messages = result?.messages || [];
 		const transitioned = results.some((row) => row.transitioned);
@@ -72,37 +78,51 @@ function applyTimesheetAction(frm, transition) {
 		});
 		await frm.reload_doc();
 	};
-	if (!transition.comment_is_required) {
-		return submit();
+	const ask = () => {
+		if (!transition.comment_is_required) {
+			return submit();
+		}
+		return promptForComment();
+	};
+	if (transition.confirm_return_to_editing) {
+		frappe.warn(
+			__("Are you sure you want to return the timesheet to editing?"),
+			__("The entire timesheet will need to be re-approved!"),
+			() => ask(),
+			__("Continue"),
+			true
+		);
+		return;
 	}
-	frappe.prompt(
-		[
-			{
-				fieldname: "comment",
-				fieldtype: "Small Text",
-				label: __("Comment"),
-				reqd: 1,
-			},
-		],
-		(values) => submit(values.comment),
-		__("Comment required for {0}", [__(transition.action)]),
-		__("Apply")
-	);
+	return ask();
+
+	function promptForComment() {
+		frappe.prompt(
+			[
+				{
+					fieldname: "comment",
+					fieldtype: "Small Text",
+					label: __("Comment"),
+					reqd: 1,
+				},
+			],
+			(values) => submit(values.comment),
+			__("Comment required for {0}", [__(transition.action)]),
+			__("Apply")
+		);
+	}
 }
 
-/** Common approval actions for the current user, when parallel workflow is on. */
+/** Position workflow actions the current user can apply. */
 export async function processUTWorkflow(frm) {
 	const gen = (frm._ut_wf_gen = (frm._ut_wf_gen || 0) + 1);
 	clearWorkflowButtons(frm);
 	if (!frm || frm.is_new() || frm.doc?.__islocal) {
 		return;
 	}
-	if (!frappe.boot?.enable_parallel_workflow_approval) {
-		return;
-	}
 
 	const response = await frappe
-		.xcall(APPROVAL_ACTIONS, { timesheet_name: frm.doc.name })
+		.xcall(POSITION_ACTIONS, { timesheet_name: frm.doc.name })
 		.catch(() => null);
 	if (gen !== frm._ut_wf_gen) {
 		return;

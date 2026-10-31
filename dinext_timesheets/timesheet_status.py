@@ -49,27 +49,29 @@ DEFAULT_POSITION_RULES = (
 		"position_status": POSITION_REJECTED,
 		"timesheet_status": PARENT_REJECTED,
 		"threshold": "Any",
+		"check_timesheet": 0,
+		"move_all_positions": 0,
 	},
 	{
 		"position_status": POSITION_APPROVED,
 		"timesheet_status": PARENT_APPROVED,
 		"threshold": "All",
+		"check_timesheet": 0,
+		"move_all_positions": 0,
 	},
 	{
 		"position_status": POSITION_EDITING,
 		"timesheet_status": PARENT_REWORK,
 		"threshold": "Any",
-	},
-)
-
-DEFAULT_PARENT_RULES = (
-	{
-		"timesheet_status": PARENT_REWORK,
-		"position_status": POSITION_EDITING,
+		"check_timesheet": 0,
+		"move_all_positions": 1,
 	},
 	{
-		"timesheet_status": PARENT_PENDING,
 		"position_status": POSITION_PENDING,
+		"timesheet_status": PARENT_PENDING,
+		"threshold": "Any",
+		"check_timesheet": 1,
+		"move_all_positions": 1,
 	},
 )
 
@@ -79,6 +81,9 @@ DEFAULT_HIDDEN_LIST_STATUSES = (
 	},
 	{
 		"position_status": POSITION_STATUS_UNSET,
+	},
+	{
+		"position_status": POSITION_REJECTED,
 	},
 )
 

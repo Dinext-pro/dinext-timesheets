@@ -41,6 +41,14 @@ def _position(**overrides):
 	return SimpleNamespace(**values)
 
 
+def _title_value(_doctype, _name, field=None, **_kwargs):
+	if field == "project_name":
+		return "Project One"
+	if field == "subject":
+		return "Task One"
+	return None
+
+
 def _template(*doctypes):
 	return SimpleNamespace(
 		doctype_for_timesheet=[SimpleNamespace(dtdoctype=name) for name in doctypes]
@@ -132,8 +140,8 @@ class TestSubmitValidation(FrappeTestCase):
 		self.assertEqual(
 			_texts(errors),
 			[
-				"Position UTP-1: date is required",
-				"Position UTP-1: total hours must be positive",
+				"date is required",
+				"total hours must be positive",
 			],
 		)
 
@@ -150,7 +158,7 @@ class TestSubmitValidation(FrappeTestCase):
 		)
 		self.assertEqual(
 			_texts(errors),
-			["Position UTP-1: duplicate date 2026-09-02"],
+			["duplicate date 2026-09-02"],
 		)
 
 	def test_position_total_hours_must_be_positive(self):
@@ -161,7 +169,7 @@ class TestSubmitValidation(FrappeTestCase):
 		)
 		self.assertEqual(
 			_texts(errors),
-			["Position UTP-1: total hours must be positive"],
+			["total hours must be positive"],
 		)
 
 	def test_linked_position_with_a_covered_task_is_accepted(self):
@@ -176,28 +184,28 @@ class TestSubmitValidation(FrappeTestCase):
 			with self.subTest(project=project):
 				self.assertEqual(
 					self._link_errors(project=project),
-					["Position UTP-1: project is not active and open"],
+					["project is not active and open"],
 				)
 
 	def test_document_type_must_be_enabled_by_the_template(self):
 		self.assertEqual(
 			self._link_errors(doctypes=("Issue",)),
 			[
-				"Position UTP-1: document type is not enabled by the timesheet template"
+				"document type is not enabled by the timesheet template"
 			],
 		)
 
 	def test_unknown_project_role_is_rejected(self):
 		self.assertEqual(
 			self._link_errors(role_exists=False),
-			["Position UTP-1: project role does not exist"],
+			["project role does not exist"],
 		)
 
 	def test_task_from_another_project_is_rejected(self):
 		self.assertEqual(
 			self._link_errors(task={"project": "OTHER"}),
 			[
-				"Position UTP-1: task or issue does not belong to the selected project"
+				"task or issue does not belong to the selected project"
 			],
 		)
 
@@ -210,28 +218,113 @@ class TestSubmitValidation(FrappeTestCase):
 			with self.subTest(task=task):
 				self.assertEqual(
 					self._link_errors(task=task),
-					["Position UTP-1: task is not eligible for timesheets"],
+					["task is not eligible for timesheets"],
 				)
 
 	def test_task_outside_the_timesheet_period_is_rejected(self):
 		self.assertEqual(
 			self._link_errors(task={"exp_end_date": "2026-08-01"}),
-			["Position UTP-1: task is outside the timesheet period"],
+			["task is outside the timesheet period"],
 		)
 
 	def test_unassigned_task_is_rejected(self):
 		self.assertEqual(
 			self._link_errors(assigned=False, shared=False),
 			[
-				"Position UTP-1: task or issue is not assigned or shared with the owner"
+				"task or issue is not assigned or shared with the owner"
 			],
 		)
 
 	def test_role_outside_the_owner_period_is_rejected(self):
 		self.assertEqual(
 			self._link_errors(team=False),
-			["Position UTP-1: project role is not valid for the owner and period"],
+			["project role is not valid for the owner and period"],
 		)
+
+	def test_fill_errors_are_grouped_under_one_label(self):
+		positions = [_position(name=f"UTP-{index}") for index in range(1, 5)]
+
+		def shape(_parent_doc, position, **_kwargs):
+			if position.name == "UTP-1":
+				return [
+					"task is outside the timesheet period",
+					"task or issue is not assigned or shared with the owner",
+					"task is outside the timesheet period",
+				]
+			return []
+
+		def links(_parent_doc, position, _template):
+			if position.name == "UTP-4":
+				return ["task is outside the timesheet period"]
+			return []
+
+		with (
+			patch.object(frappe, "get_all", return_value=[]),
+			patch.object(
+				workflow_approval,
+				"_calendar_context",
+				return_value=(SimpleNamespace(_is_mandatory=False), set(), {}, {}),
+			),
+			patch.object(
+				workflow_approval,
+				"_validate_position_shape",
+				side_effect=shape,
+			),
+			patch.object(
+				workflow_approval,
+				"_validate_position_links",
+				side_effect=links,
+			),
+			patch.object(
+				workflow_approval,
+				"_validate_daily_totals",
+				return_value=["2026-09-01: total hours cannot be less than 8.0"],
+			),
+			patch.object(
+				workflow_approval,
+				"_validate_planned_limits",
+				return_value=[],
+			),
+			patch.object(frappe.db, "get_value", side_effect=_title_value),
+			self.assertRaises(frappe.ValidationError) as caught,
+		):
+			workflow_approval._validate_positions(_parent(), positions)
+
+		self.assertEqual(
+			str(caught.exception),
+			"<br><br>".join(
+				[
+					(
+						"Position 1 (Project One, Task One, Developer):<br>"
+						"task is outside the timesheet period<br>"
+						"task or issue is not assigned or shared with the owner"
+					),
+					(
+						"Position 4 (Project One, Task One, Developer): "
+						"task is outside the timesheet period"
+					),
+					"2026-09-01: total hours cannot be less than 8.0",
+				]
+			),
+		)
+		self.assertNotIn("UTP-", str(caught.exception))
+
+	def test_label_drops_an_empty_part(self):
+		with patch.object(frappe.db, "get_value", side_effect=_title_value):
+			label = workflow_approval._position_label(_position(project=None), 2)
+		self.assertEqual(label, "Position 2 (Task One, Developer)")
+
+	def test_label_without_context_has_no_parentheses(self):
+		label = workflow_approval._position_label(
+			_position(
+				project=None,
+				document_type=None,
+				document_name=None,
+				project_role=None,
+			),
+			1,
+		)
+		self.assertEqual(label, "Position 1")
 
 	def test_daily_total_below_the_minimum_is_rejected(self):
 		errors = self._daily_errors(hours=7)

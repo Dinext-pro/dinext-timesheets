@@ -882,17 +882,9 @@ def pending_approvers(doctype: str, name: str):
 	)
 	if not position_names:
 		return []
-	return frappe.get_all(
-		"Workflow Task",
-		filters={
-			"reference_doctype": "User Timesheet Position",
-			"reference_name": ("in", position_names),
-			"status": "Working",
-			"round_status": "Open",
-		},
-		fields=["approver", "approval_round_id", "workflow_state", "reference_name"],
-		order_by="approver asc, reference_name asc",
-	)
+	from dinext_common.workflow_approval.pending import get_required_state_pending_tasks
+
+	return get_required_state_pending_tasks("User Timesheet Position", position_names)
 
 
 def digest_item(task):

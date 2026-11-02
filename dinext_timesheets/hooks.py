@@ -312,6 +312,18 @@ workflow_approval_digest_item = [
 	"dinext_timesheets.workflow_approval.digest_item",
 ]
 
+workflow_approval_fingerprint_excluded_fields = [
+	{
+		"User Timesheet Position": [
+			"reject_reason",
+			"custom_username",
+			"all_hours",
+			"custom_data",
+			"table.utilized_hours",
+		],
+	},
+]
+
 # Scheduled Tasks
 # ---------------
 # TSCrW2 weekly UT create (ISS-2026-00926 phase 2 F). Demodev cron: Mon 08:30.

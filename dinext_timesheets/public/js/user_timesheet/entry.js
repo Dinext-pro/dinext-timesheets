@@ -10,27 +10,31 @@ async function loadAndMount(frm) {
 	if (!window.UserTimesheet?.ensureMounted) {
 		return;
 	}
+	frm._ut_refresh_pending = true;
 	if (frm._ut_load_promise) {
 		return frm._ut_load_promise;
 	}
 	frm._ut_load_promise = (async () => {
 		try {
-			try {
-				await window.UserTimesheet.ensureMounted(frm);
-			} catch (err) {
-				console.error("[UserTimesheet] ensureMounted", err);
-			}
-			try {
-				if (window.UserTimesheet.setupFormChrome) {
-					await window.UserTimesheet.setupFormChrome(frm);
+			while (frm._ut_refresh_pending) {
+				frm._ut_refresh_pending = false;
+				try {
+					await window.UserTimesheet.ensureMounted(frm);
+				} catch (err) {
+					console.error("[UserTimesheet] ensureMounted", err);
 				}
-			} catch (err) {
-				console.error("[UserTimesheet] setupFormChrome", err);
-			}
-			try {
-				await window.UserTimesheet.showTimesheetDashboard?.(frm);
-			} catch (err) {
-				console.error("[UserTimesheet] showTimesheetDashboard", err);
+				try {
+					if (window.UserTimesheet.setupFormChrome) {
+						await window.UserTimesheet.setupFormChrome(frm);
+					}
+				} catch (err) {
+					console.error("[UserTimesheet] setupFormChrome", err);
+				}
+				try {
+					await window.UserTimesheet.showTimesheetDashboard?.(frm);
+				} catch (err) {
+					console.error("[UserTimesheet] showTimesheetDashboard", err);
+				}
 			}
 		} catch (err) {
 			console.error("[UserTimesheet] loadAndMount", err);
@@ -44,10 +48,7 @@ async function loadAndMount(frm) {
 document.body.classList.add("ut-hide-desk-sidebar");
 
 frappe.require(
-	[
-		"/assets/dinext_timesheets/css/user-timesheet.css",
-		"user-timesheet.bundle.js",
-	],
+	["/assets/dinext_timesheets/css/user-timesheet.css", "user-timesheet.bundle.js"],
 	() => {
 		if (!window.UserTimesheet?.ensureMounted) {
 			console.error("[UserTimesheet] user-timesheet.bundle: API missing");
@@ -67,14 +68,10 @@ frappe.ui.form.on("User Timesheet", {
 			frm.set_value("timesheet_from", frappe.session.user);
 		}
 		if (window.UserTimesheet?.ensureMounted) {
-			loadAndMount(frm);
-			return;
+			return loadAndMount(frm);
 		}
 		frappe.require(
-			[
-				"/assets/dinext_timesheets/css/user-timesheet.css",
-				"user-timesheet.bundle.js",
-			],
+			["/assets/dinext_timesheets/css/user-timesheet.css", "user-timesheet.bundle.js"],
 			() => loadAndMount(frm)
 		);
 	},

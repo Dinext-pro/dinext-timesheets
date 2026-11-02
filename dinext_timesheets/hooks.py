@@ -294,7 +294,6 @@ doc_events = {
 		# Server Script "After Insert" ≡ Document.after_insert
 		"after_insert": [
 			"dinext_timesheets.dinext_timesheets.user_timesheet.events.comment.transfer_utp_comment_to_ut",
-			"dinext_timesheets.workflow_approval.mirror_utp_comment",
 		],
 	},
 }

@@ -140,11 +140,16 @@ def _pause_approval_engine():
 	from dinext_common.workflow_approval import lifecycle
 
 	original = lifecycle._should_handle
-	lifecycle._should_handle = lambda _doc: False
+	previous = frappe.flags.get("ut_workflow_fixture")
+	frappe.flags.ut_workflow_fixture = True
+	lifecycle._should_handle = lambda doc: (
+		False if frappe.flags.get("ut_workflow_fixture") else original(doc)
+	)
 	try:
 		yield
 	finally:
 		lifecycle._should_handle = original
+		frappe.flags.ut_workflow_fixture = previous
 
 
 def _delete_workflow_tasks(position_name):
@@ -156,13 +161,16 @@ def _delete_workflow_tasks(position_name):
 		},
 		pluck="name",
 	)
-	for task_name in tasks:
-		frappe.delete_doc(
-			"Workflow Task",
-			task_name,
-			ignore_permissions=True,
-			force=True,
-		)
+	previous = frappe.flags.get("in_workflow_task_retention")
+	frappe.flags.in_workflow_task_retention = True
+	try:
+		for task_name in tasks:
+			frappe.delete_doc(
+				"Workflow Task", task_name, ignore_permissions=True, force=True,
+			)
+	finally:
+		frappe.flags.in_workflow_task_retention = previous
+
 
 
 @whitelist_for_tests
@@ -228,3 +236,82 @@ def seed_ut_workflow_button():
 	if not actions:
 		frappe.throw("Seeded timesheet has no workflow action for the test user")
 	return {"name": doc.name, "position": position.name, "actions": actions}
+
+
+WORKFLOW_EVENT_USER = "cypress.ut.workflow@example.com"
+WORKFLOW_EVENT_GROUP = "_Cypress UT Workflow Group"
+WORKFLOW_EVENT_ROLE = "_Cypress UT Workflow Events"
+
+
+@whitelist_for_tests
+def cleanup_ut_workflow_stop():
+	cleanup_ut_workflow_button()
+	for name in frappe.get_all("Worker", filters={"wuser": WORKFLOW_EVENT_USER}, pluck="name"):
+		frappe.delete_doc("Worker", name, ignore_permissions=True, force=True)
+	if frappe.db.exists("User Group", WORKFLOW_EVENT_GROUP):
+		frappe.delete_doc("User Group", WORKFLOW_EVENT_GROUP, ignore_permissions=True, force=True)
+	if frappe.db.exists("User", WORKFLOW_EVENT_USER):
+		frappe.delete_doc("User", WORKFLOW_EVENT_USER, ignore_permissions=True, force=True)
+	frappe.db.delete("Custom DocPerm", {"role": WORKFLOW_EVENT_ROLE})
+	if frappe.db.exists("Role", WORKFLOW_EVENT_ROLE):
+		frappe.delete_doc("Role", WORKFLOW_EVENT_ROLE, ignore_permissions=True, force=True)
+
+
+@whitelist_for_tests
+def seed_ut_workflow_stop():
+	"""Own user and position using the installed stop/edit workflow, without changing it."""
+	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
+	from frappe.utils.password import update_password
+
+	from dinext_timesheets.workflow_approval import get_timesheet_position_actions
+
+	cleanup_ut_workflow_stop()
+	frappe.get_doc({"doctype": "Role", "role_name": WORKFLOW_EVENT_ROLE}).insert(ignore_permissions=True)
+	for doctype in ("Kanban Board", "Report", "Support Settings"):
+		_ensure_read_perm(doctype, WORKFLOW_EVENT_ROLE)
+	calendar = _worker()
+	start, end = calendar.period
+	password = "cypress-ut-workflow-events"
+	user = frappe.get_doc({
+		"doctype": "User", "email": WORKFLOW_EVENT_USER,
+		"first_name": WORKFLOW_MARKER, "enabled": 1, "send_welcome_email": 0,
+		"user_type": "System User", "language": "ru",
+		"roles": [{"role": "Dinext_Worker"}, {"role": "System Manager"}, {"role": WORKFLOW_EVENT_ROLE}],
+	}).insert(ignore_permissions=True)
+	update_password(user.name, password)
+	frappe.clear_cache()
+	frappe.get_doc({
+		"doctype": "User Group", "name": WORKFLOW_EVENT_GROUP,
+		"user_group_members": [{"user": user.name}],
+	}).insert(ignore_permissions=True)
+	frappe.get_doc({
+		"doctype": "Worker", "wuser": user.name, "wfullname": WORKFLOW_MARKER,
+		"wuser_group": WORKFLOW_EVENT_GROUP, "wvalid_from": start,
+		"wtimesheet_template": calendar.wtimesheet_template,
+		"wholiday_list": calendar.wholiday_list,
+	}).insert(ignore_permissions=True)
+	doc = frappe.get_doc({
+		"doctype": "User Timesheet", "timesheet_from": user.name,
+		"timesheet_from_name": WORKFLOW_MARKER,
+		"ts_valid_from": start, "ts_valid_for": end, "ut_status": "Draft",
+	}).insert(ignore_permissions=True)
+	with _pause_approval_engine():
+		position = frappe.get_doc({
+			"doctype": "User Timesheet Position", "user_timesheet": doc.name,
+			"user": user.name, "status": "Editing", "workflow_state": "Editing",
+		}).insert(ignore_permissions=True)
+	previous = frappe.session.user
+	try:
+		frappe.set_user(user.name)
+		editing = get_timesheet_position_actions(doc.name)["actions"]
+		frappe.db.set_value("User Timesheet Position", position.name, {
+			"status": "Pending Approval", "workflow_state": "Pending Approval",
+		}, update_modified=False)
+		frappe.db.set_value("User Timesheet", doc.name, "ut_status", "Pending Approval", update_modified=False)
+		pending = get_timesheet_position_actions(doc.name)["actions"]
+		stop = next(row for row in pending if all(p["next_state"] == "Editing" for p in row["positions"]))
+	finally:
+		frappe.set_user(previous)
+	return {"name": doc.name, "position": position.name, "user": user.name,
+		"password": password, "stop_action": stop["action"],
+		"editing_actions": [row["action"] for row in editing]}

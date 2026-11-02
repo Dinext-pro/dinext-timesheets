@@ -1491,29 +1491,6 @@ def _save_system_task(task) -> None:
 			frappe.set_user(previous)
 
 
-def mirror_utp_comment(doc, method=None) -> None:
-	if not _enabled() or doc.reference_doctype != "User Timesheet Position":
-		return
-	parent = frappe.db.get_value(
-		"User Timesheet Position",
-		doc.reference_name,
-		"user_timesheet",
-	)
-	if not parent:
-		return
-	comment = frappe.new_doc("Comment")
-	comment.reference_doctype = "User Timesheet"
-	comment.reference_name = parent
-	comment.subject = doc.subject
-	comment.comment_type = doc.comment_type
-	comment.comment_email = doc.comment_email
-	comment.comment_by = doc.comment_by
-	comment.published = doc.published
-	comment.seen = doc.seen
-	comment.content = f"{doc.reference_name}: {doc.content}"
-	comment.insert(ignore_permissions=True)
-
-
 def notify_task_limit_if_pending(position_name: str) -> None:
 	"""Recheck committed round before emitting the retained limit Notification."""
 	if not frappe.db.exists(

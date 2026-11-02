@@ -15,9 +15,22 @@ async function loadAndMount(frm) {
 	}
 	frm._ut_load_promise = (async () => {
 		try {
-			await window.UserTimesheet.ensureMounted(frm);
-			if (window.UserTimesheet.setupFormChrome) {
-				await window.UserTimesheet.setupFormChrome(frm);
+			try {
+				await window.UserTimesheet.ensureMounted(frm);
+			} catch (err) {
+				console.error("[UserTimesheet] ensureMounted", err);
+			}
+			try {
+				if (window.UserTimesheet.setupFormChrome) {
+					await window.UserTimesheet.setupFormChrome(frm);
+				}
+			} catch (err) {
+				console.error("[UserTimesheet] setupFormChrome", err);
+			}
+			try {
+				await window.UserTimesheet.showTimesheetDashboard?.(frm);
+			} catch (err) {
+				console.error("[UserTimesheet] showTimesheetDashboard", err);
 			}
 		} catch (err) {
 			console.error("[UserTimesheet] loadAndMount", err);

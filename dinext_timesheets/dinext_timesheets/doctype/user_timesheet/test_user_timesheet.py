@@ -52,6 +52,12 @@ class TestUserTimesheet(FrappeTestCase):
 			"dinext_common.workflow_approval.api.get_pending_approvers",
 			dashboard_source,
 		)
+		self.assertIn(
+			"dinext_timesheets.workflow_approval.get_timesheet_rebuild_rounds",
+			dashboard_source,
+		)
+		self.assertIn("paintRebuildRounds", dashboard_source)
+		self.assertNotIn("get_form_approval_banner", dashboard_source)
 		self.assertIn("Action expected from: {0}", dashboard_source)
 		self.assertIn("reference_name", dashboard_source)
 		self.assertIn("approver_tooltip", dashboard_source)

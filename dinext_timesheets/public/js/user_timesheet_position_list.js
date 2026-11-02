@@ -1,10 +1,13 @@
 (function () {
+	if (!frappe.boot?.enable_parallel_workflow_approval) return;
 	frappe.provide("dinext_timesheets.approvals");
 	const approvals = dinext_timesheets.approvals;
 	if (approvals.utpListInstalled) return;
 	approvals.utpListInstalled = true;
 
 	const SOURCE_DOCTYPE = "User Timesheet Position";
+	const TIMESHEET_LIMITS_METHOD =
+		"project_workload_assignment.api.calculate_user_timesheet_limits";
 	const helperAssets = [
 		"/assets/dinext_timesheets/js/utp_approval_helpers.js",
 		"/assets/dinext_timesheets/css/timesheet_approvals.css",
@@ -16,7 +19,7 @@
 
 	const getHoursData = async (position) => {
 		const response = await frappe.call({
-			method: "calculate_timesheet_limits",
+			method: TIMESHEET_LIMITS_METHOD,
 			args: { timesheet_name: "", positions: [position] },
 			freeze: false,
 		});
@@ -103,8 +106,9 @@
 	};
 
 	const refreshListLimits = async (positions) => {
+		if (!positions.length) return;
 		const response = await frappe.call({
-			method: "calculate_timesheet_limits",
+			method: TIMESHEET_LIMITS_METHOD,
 			args: { timesheet_name: "", positions },
 		});
 		const styles = {

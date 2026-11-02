@@ -14,7 +14,7 @@ async function loadTemplate(frm) {
 		"wtimesheet_template"
 	);
 	const templateName = r?.message?.wtimesheet_template;
-	if (!templateName) {
+	if (!templateName || !frappe.model.can_read?.("Timesheet Template")) {
 		frm.template_doc = null;
 		return;
 	}
@@ -23,7 +23,7 @@ async function loadTemplate(frm) {
 
 async function loadWorkHours(frm) {
 	const name = frm.template_doc?.tt_working_hours_on_date;
-	if (!name) {
+	if (!name || !frappe.model.can_read?.("Working Hours On Date")) {
 		return [];
 	}
 	const doc = await frappe.db.get_doc("Working Hours On Date", name);
@@ -31,6 +31,9 @@ async function loadWorkHours(frm) {
 }
 
 async function loadHolidays(frm) {
+	if (!frappe.model.can_read?.("Holiday List")) {
+		return [];
+	}
 	const r = await frappe.db.get_value(
 		"Worker",
 		{ wuser: frm.doc.timesheet_from },

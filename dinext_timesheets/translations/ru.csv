@@ -218,3 +218,4 @@ Worker Level,Уровень Исполнителя,
 "task is outside the timesheet period","задача вне периода таймшита",""
 "task or issue is not assigned or shared with the owner","задача или запрос не назначены владельцу и не расшарены ему",""
 "project role is not valid for the owner and period","проектная роль не действует для владельца в этом периоде",""
+"Approval needs rebuilding for {0} positions","Нужна пересборка позиций: {0}",""

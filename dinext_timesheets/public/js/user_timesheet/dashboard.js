@@ -8,17 +8,21 @@
  */
 const PENDING_APPROVERS =
 	"dinext_common.workflow_approval.api.get_pending_approvers";
+const REBUILD_ROUNDS =
+	"dinext_timesheets.workflow_approval.get_timesheet_rebuild_rounds";
 const APPROVALS_CSS = "/assets/dinext_timesheets/css/timesheet_approvals.css";
 const APPROVER_TITLE_COLUMNS = ["project_label", "document_label", "project_role"];
 
 export async function showTimesheetDashboard(frm) {
-	if (!frm?.dashboard || frm.is_new()) {
+	if (!frm?.dashboard) {
 		return;
 	}
 
-	frappe.require(APPROVALS_CSS);
-
+	frappe.dinext?.paintRebuildRounds?.(frm.dashboard, [], rebuildOptions(frm));
 	const gen = (frm._ut_dash_gen = (frm._ut_dash_gen || 0) + 1);
+	if (frm.is_new()) return;
+
+	frappe.require(APPROVALS_CSS);
 	const headline = await loadPendingApprovers(frm, gen);
 	if (gen !== frm._ut_dash_gen) {
 		return;
@@ -48,6 +52,29 @@ export async function showTimesheetDashboard(frm) {
 	}
 
 	applyJournalEntryConnections(frm);
+	await showRebuildRounds(frm, gen);
+}
+
+function rebuildOptions(frm) {
+	return {
+		fullWidth: true,
+		container: frm.page?.wrapper?.find(".page-body").first(),
+		reload: () => frm.reload_doc(),
+	};
+}
+
+async function showRebuildRounds(frm, gen) {
+	if (frm.is_new() || !frm.doc?.name) return;
+	const requested = frm.doc.name;
+	const rounds = await frappe
+		.xcall(REBUILD_ROUNDS, { timesheet_name: requested })
+		.catch(() => []);
+	if (gen !== frm._ut_dash_gen || frm.doc?.name !== requested) return;
+	const positions = new Set((rounds || []).map((round) => round.reference_name));
+	frappe.dinext?.paintRebuildRounds?.(frm.dashboard, rounds || [], {
+		...rebuildOptions(frm),
+		message: __("Approval needs rebuilding for {0} positions", [positions.size]),
+	});
 }
 
 function uniqueApproverNames(rows, excludeSession) {

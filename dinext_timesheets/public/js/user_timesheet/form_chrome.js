@@ -1,5 +1,5 @@
 /**
- * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly, dashboard).
+ * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly).
  */
 import { canEdit, canReprocessJournalEntries } from "./model.js";
 import { setupCopyButtons, disableCopyButtons } from "./copy.js";
@@ -8,7 +8,6 @@ import { refreshLimits } from "./limits.js";
 import { clearSubmitButtons } from "./submit.js";
 import { resetTimesheetRuntime } from "./state.js";
 import { applyToolbarChrome } from "./toolbar.js";
-import { showTimesheetDashboard } from "./dashboard.js";
 import { resolveTeamLeadAccess } from "./team_lead.js";
 import { applyNewTimesheetDefaults } from "./new_doc.js";
 import { applyTimesheetSidebarHide } from "./sidebar.js";
@@ -96,6 +95,5 @@ export async function setupFormChrome(frm) {
 	setupCopyButtons(frm);
 	applyReprocessJournalEntriesButton(frm);
 	await processUTWorkflow(frm);
-	await showTimesheetDashboard(frm);
 	scheduleCascadeLayout(frm);
 }

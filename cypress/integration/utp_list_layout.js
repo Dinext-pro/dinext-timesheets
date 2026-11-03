@@ -134,6 +134,29 @@ context("Productive timesheet position List View", () => {
 		assertGeometry();
 	});
 
+	it("keeps the toolbar compact after selection, refresh and theme changes", () => {
+		openList();
+		const assertNoExtraAction = () =>
+			cy
+				.contains(
+					".page-container:visible .inner-toolbar button",
+					/Apply workflow action|Применить действие согласования/
+				)
+				.should("not.exist");
+		assertNoExtraAction();
+		cy.get(`${root} .list-row-checkbox`).first().check({ force: true });
+		cy.get(".page-container:visible .actions-btn-group > button").should("be.visible").click();
+		cy.get(".page-container:visible .actions-btn-group .dropdown-menu").should("be.visible");
+		assertNoExtraAction();
+		cy.get(".page-container:visible .actions-btn-group > button").click();
+		for (const theme of ["light", "dark"]) {
+			cy.window().then((win) => win.frappe.ui.set_theme(theme));
+			cy.window().then((win) => win.cur_list.refresh());
+			cy.get(`${root} .dinext-utp-action-select`).should("have.length", 20);
+			assertNoExtraAction();
+		}
+	});
+
 	it("shows only a status indicator when the viewer has no personal transitions", () => {
 		openList(fixture.viewer);
 		cy.get(`${root} .dinext-utp-action-select`).should("not.exist");

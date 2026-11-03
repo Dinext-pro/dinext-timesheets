@@ -237,70 +237,6 @@
 		return result;
 	};
 
-	const installBulkActions = (listview, tasksBySource) => {
-		listview.page.remove_inner_button(__("Apply workflow action"));
-		listview.page.add_inner_button(__("Apply workflow action"), () => {
-			const selected = listview.get_checked_items().map((row) => row.name);
-			const tasks = selected.map((name) => tasksBySource.get(name)).filter(Boolean);
-			if (!selected.length || tasks.length !== selected.length) {
-				frappe.msgprint(__("Select rows that require your decision"));
-				return;
-			}
-			const common = tasks
-				.map(
-					(task) => new Set(task.available_transitions.map((row) => row.transition_uuid))
-				)
-				.reduce((left, right) => new Set([...left].filter((uuid) => right.has(uuid))));
-			const catalog = new Map();
-			tasks.forEach((task) => {
-				task.available_transitions.forEach((row) => catalog.set(row.transition_uuid, row));
-			});
-			const choices = [...common].sort().map((uuid) => {
-				const row = catalog.get(uuid);
-				const sameAction = [...catalog.values()].filter(
-					(item) => item.action === row.action
-				);
-				const suffix =
-					sameAction.length > 1
-						? [row.allowed, row.next_state].filter(Boolean).join(" → ")
-						: "";
-				return {
-					uuid,
-					label: suffix ? `${__(row.action)} (${suffix})` : __(row.action),
-				};
-			});
-			if (!choices.length) {
-				frappe.msgprint(__("The selected rows have no common workflow action"));
-				return;
-			}
-			frappe.prompt(
-				{
-					fieldname: "action",
-					fieldtype: "Select",
-					label: __("Action"),
-					options: choices.map((row) => row.label).join("\n"),
-					reqd: 1,
-				},
-				async ({ action }) => {
-					const chosen = choices.find((row) => row.label === action);
-					const transition = catalog.get(chosen.uuid);
-					await bulkVote(selected, {
-						...transition,
-						comment_is_required: tasks.some((task) =>
-							task.available_transitions.some(
-								(row) =>
-									row.transition_uuid === chosen.uuid && row.comment_is_required
-							)
-						),
-					});
-					listview.refresh();
-				},
-				__("Apply workflow action"),
-				__("Apply")
-			);
-		});
-	};
-
 	const loadDocumentSubjects = async (listview) => {
 		const column = listview.columns?.findIndex(
 			(item) => item.df?.fieldname === "document_name"
@@ -353,7 +289,6 @@
 				.filter((task) => task.reference_doctype === SOURCE_DOCTYPE)
 				.map((task) => [task.reference_name, task])
 		);
-		installBulkActions(listview, tasksBySource);
 		listview.data.forEach((position) => {
 			const row = listview.$frappe_list
 				.find(`a[data-name="${frappe.utils.escape_html(position.name)}"]`)

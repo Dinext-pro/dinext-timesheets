@@ -1,4 +1,5 @@
 (function () {
+	if (!frappe.boot?.enable_parallel_workflow_approval) return;
 	frappe.provide("dinext_timesheets.approvals");
 	const approvals = dinext_timesheets.approvals;
 	if (approvals.utpListInstalled) return;
@@ -16,7 +17,7 @@
 
 	const getHoursData = async (position) => {
 		const response = await frappe.call({
-			method: "calculate_timesheet_limits",
+			method: "project_workload_assignment.api.calculate_user_timesheet_limits",
 			args: { timesheet_name: "", positions: [position] },
 			freeze: false,
 		});
@@ -104,7 +105,7 @@
 
 	const refreshListLimits = async (positions) => {
 		const response = await frappe.call({
-			method: "calculate_timesheet_limits",
+			method: "project_workload_assignment.api.calculate_user_timesheet_limits",
 			args: { timesheet_name: "", positions },
 		});
 		const styles = {
@@ -272,7 +273,7 @@
 				frappe.msgprint(__("The selected rows have no common workflow action"));
 				return;
 			}
-			frappe.prompt(
+			const dialog = frappe.prompt(
 				{
 					fieldname: "action",
 					fieldtype: "Select",
@@ -297,6 +298,12 @@
 				__("Apply workflow action"),
 				__("Apply")
 			);
+			choices.forEach((choice) => {
+				const option = dialog.fields_dict.action.$input
+					.find("option")
+					.filter((_index, element) => element.value === choice.label);
+				frappe.dinext?.decorateWorkflowTransition?.(option, catalog.get(choice.uuid));
+			});
 		});
 	};
 
@@ -357,15 +364,13 @@
 						sameAction.length > 1
 							? [transition.allowed, transition.next_state].filter(Boolean).join(" → ")
 							: "";
-					select.append(
-						$("<option>")
-							.val(String(index))
-							.text(
-								suffix
-									? `${__(transition.action)} (${suffix})`
-									: __(transition.action)
-							)
-					);
+					const option = $("<option>")
+						.val(String(index))
+						.text(
+							suffix ? `${__(transition.action)} (${suffix})` : __(transition.action)
+						);
+					frappe.dinext?.decorateWorkflowTransition?.(option, transition);
+					select.append(option);
 				});
 				select.on("click", (event) => event.stopPropagation());
 				select.on("change", async (event) => {

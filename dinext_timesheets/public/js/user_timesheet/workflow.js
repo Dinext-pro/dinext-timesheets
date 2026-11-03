@@ -111,6 +111,7 @@ export async function processUTWorkflow(frm) {
 	frm._ut_wf_button_labels = [];
 	for (const transition of response?.actions || []) {
 		const label =
+			frappe.dinext?.workflowTransitionLabel?.(transition) ||
 			frappe.dinext?.workflowActionLabel?.(transition.action) || __(transition.action);
 		frm.add_custom_button(
 			label,

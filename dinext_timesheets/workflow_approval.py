@@ -924,7 +924,16 @@ def get_timesheet_approval_actions(timesheet_name: str) -> dict[str, object]:
 		"tasks": [task["name"] for task in tasks],
 		"position_count": len({task["reference_name"] for task in tasks}),
 		"actions": [
-			{"action": action, "comment_is_required": action in required}
+			{
+				"action": action,
+				"comment_is_required": action in required,
+				"positions": [
+					{"next_state": row["next_state"]}
+					for task in tasks
+					for row in task["available_transitions"]
+					if row["action"] == action
+				],
+			}
 			for action in common_actions
 		],
 	}

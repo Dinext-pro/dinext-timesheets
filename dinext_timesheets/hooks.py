@@ -169,12 +169,12 @@ doctype_list_js = {
 		"public/js/user_timesheet/list/status_color.js",
 	],
 	"User Timesheet Position": [
-		"public/js/user_timesheet_position_list.js",
 		"public/js/user_timesheet_position/list/style.js",
 		"public/js/user_timesheet_position/list/period_filter.js",
 		"public/js/user_timesheet_position/list/functions.js",
 		"public/js/user_timesheet_position/list/history.js",
 		"public/js/user_timesheet_position/list/custom_listview.js",
+		"public/js/user_timesheet_position_list.js",
 	],
 }
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}

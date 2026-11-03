@@ -11,6 +11,10 @@ app_license = "GNU General Public License (v3)"
 # ------------------
 
 fixtures = [
+    {
+        "doctype": "List View Settings",
+        "filters": [["name", "=", "User Timesheet Position"]],
+    },
     "Type Of Leave",    
     "Workflow State",
     "Workflow Action Master",    

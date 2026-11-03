@@ -1,19 +1,103 @@
-.dinext-utp-actions {
-	display: flex;
-	flex-wrap: wrap;
+.dinext-utp-list {
+	--utp-state-width: 180px;
+	--utp-button-size: 24px;
+	--utp-action-gap: 5px;
+	--utp-actions-width: calc(
+		var(--utp-state-width) + 3 * var(--utp-button-size) + 3 * var(--utp-action-gap)
+	);
+	overflow-x: auto;
+}
+
+.dinext-utp-list .result {
+	min-width: 1080px;
+}
+
+.dinext-utp-list .list-row,
+.dinext-utp-list .list-row-head {
+	flex-wrap: nowrap;
+	column-gap: var(--margin-sm);
+}
+
+.dinext-utp-list .list-row {
+	height: 40px;
+}
+
+.dinext-utp-list .list-row > .level-left,
+.dinext-utp-list .list-row-head > .level-left {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.dinext-utp-list .list-row > .level-right,
+.dinext-utp-list .list-row-head > .level-right {
+	flex: 0 0 var(--utp-actions-width);
+	width: var(--utp-actions-width);
+	min-width: var(--utp-actions-width);
+	overflow: visible !important;
+}
+
+.dinext-utp-list .level-left > .list-row-col.hidden-xs:not(.hide) {
+	display: block !important;
+}
+
+.dinext-utp-list .level-right > .visible-xs,
+.dinext-utp-list .list-row-activity {
+	display: none !important;
+}
+
+.dinext-utp-list .dinext-utp-actions {
+	display: inline-flex;
+	flex-wrap: nowrap;
 	align-items: center;
 	justify-content: flex-end;
-	gap: var(--margin-xs);
+	gap: var(--utp-action-gap);
 	margin-inline-start: auto;
 }
 
-.dinext-utp-actions .indicator-pill {
+.dinext-utp-list .dinext-utp-actions > .indicator-pill,
+.dinext-utp-list .dinext-utp-action-select {
+	flex: 0 0 var(--utp-state-width);
+	width: var(--utp-state-width);
+	min-width: 0;
+	height: var(--utp-button-size);
+	margin: 0;
+	border-radius: var(--border-radius-full);
 	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	justify-content: center;
 }
 
-.dinext-utp-action-select {
-	width: auto;
-	min-width: 10rem;
+.dinext-utp-list .dinext-utp-action-select {
+	padding: 0 22px 0 10px;
+	border-width: 2px;
+}
+
+.dinext-utp-list .dinext-utp-action-select.blue {
+	border-color: var(--bg-dark-blue);
+}
+
+.dinext-utp-list .dinext-utp-action-select.green {
+	border-color: var(--bg-green);
+}
+
+.dinext-utp-list .dinext-utp-action-select.red {
+	border-color: var(--bg-red);
+}
+
+.dinext-utp-list .dinext-utp-action-select.gray {
+	border-color: var(--bg-gray);
+}
+
+.dinext-utp-list .dinext-utp-actions > .btn {
+	display: inline-flex;
+	flex: 0 0 var(--utp-button-size);
+	align-items: center;
+	justify-content: center;
+	width: var(--utp-button-size);
+	height: var(--utp-button-size);
+	padding: 0;
+	border-radius: 50%;
 }
 
 .dinext-pending-approvers .dinext-approver-row {

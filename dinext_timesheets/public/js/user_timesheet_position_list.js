@@ -14,8 +14,7 @@
 	];
 
 	const requestId = () =>
-		window.crypto?.randomUUID?.() ||
-		`${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 	const getHoursData = async (position) => {
 		const response = await frappe.call({
@@ -47,10 +46,7 @@
 				frappe.datetime.add_days(frappe.datetime.week_start(today()), -7),
 				frappe.datetime.add_days(frappe.datetime.week_end(today()), -7),
 			],
-			"Последние 4 недели": () => [
-				frappe.datetime.add_days(today(), -27),
-				today(),
-			],
+			"Последние 4 недели": () => [frappe.datetime.add_days(today(), -27), today()],
 			"Текущий месяц": () => [
 				frappe.datetime.month_start(today()),
 				frappe.datetime.month_end(today()),
@@ -120,17 +116,15 @@
 		};
 		(response.message || []).forEach((row) => {
 			const button = $(
-				`button.plan-fact-button[data-docname="${CSS.escape(
-					String(row.position)
-				)}"]`
+				`button.plan-fact-button[data-docname="${CSS.escape(String(row.position))}"]`
 			);
 			button.css("color", styles[row.status] || styles["no-plan"]);
 			button.attr(
 				"title",
 				row.planned_hours > 0
-					? `${flt(row.completion_percentage).toFixed(1)}% ${__(
-							"of"
-					  )} ${flt(row.planned_hours).toFixed(1)} ${__("hours")}`
+					? `${flt(row.completion_percentage).toFixed(1)}% ${__("of")} ${flt(
+							row.planned_hours
+					  ).toFixed(1)} ${__("hours")}`
 					: __("Planned work efforts are not defined")
 			);
 		});
@@ -191,7 +185,9 @@
 				.filter(([, value]) => value !== undefined)
 				.map(
 					([label, value]) =>
-						`<tr><th>${escape(label)}</th><td>${escape(flt(value).toFixed(1))}</td></tr>`
+						`<tr><th>${escape(label)}</th><td>${escape(
+							flt(value).toFixed(1)
+						)}</td></tr>`
 				)
 				.join("")}</tbody></table>`
 		);
@@ -221,17 +217,14 @@
 
 	const bulkVote = async (names, transition) => {
 		const comment = await commentFor(transition);
-		const result = await frappe.xcall(
-			"dinext_common.workflow_approval.api.bulk_vote",
-			{
-				doctype: SOURCE_DOCTYPE,
-				names,
-				action: transition.action,
-				transition_uuid: transition.transition_uuid,
-				comment,
-				request_id: requestId(),
-			}
-		);
+		const result = await frappe.xcall("dinext_common.workflow_approval.api.bulk_vote", {
+			doctype: SOURCE_DOCTYPE,
+			names,
+			action: transition.action,
+			transition_uuid: transition.transition_uuid,
+			comment,
+			request_id: requestId(),
+		});
 		const failures = result.failed || [];
 		if (failures.length) {
 			frappe.msgprint({
@@ -254,7 +247,9 @@
 				return;
 			}
 			const common = tasks
-				.map((task) => new Set(task.available_transitions.map((row) => row.transition_uuid)))
+				.map(
+					(task) => new Set(task.available_transitions.map((row) => row.transition_uuid))
+				)
 				.reduce((left, right) => new Set([...left].filter((uuid) => right.has(uuid))));
 			const catalog = new Map();
 			tasks.forEach((task) => {
@@ -262,7 +257,9 @@
 			});
 			const choices = [...common].sort().map((uuid) => {
 				const row = catalog.get(uuid);
-				const sameAction = [...catalog.values()].filter((item) => item.action === row.action);
+				const sameAction = [...catalog.values()].filter(
+					(item) => item.action === row.action
+				);
 				const suffix =
 					sameAction.length > 1
 						? [row.allowed, row.next_state].filter(Boolean).join(" → ")
@@ -304,7 +301,47 @@
 		});
 	};
 
+	const loadDocumentSubjects = async (listview) => {
+		const column = listview.columns?.findIndex(
+			(item) => item.df?.fieldname === "document_name"
+		);
+		if (column == null || column < 0) return;
+		const positions = [...listview.data];
+		await Promise.all(
+			["Task", "Issue"].map(async (doctype) => {
+				if (!frappe.model.can_read(doctype)) return;
+				const matching = positions.filter(
+					(row) => row.document_type === doctype && row.document_name
+				);
+				const names = [...new Set(matching.map((row) => row.document_name))];
+				if (!names.length) return;
+				const records = await frappe.db
+					.get_list(doctype, {
+						fields: ["name", "subject"],
+						filters: { name: ["in", names] },
+						limit: names.length,
+					})
+					.catch(() => []);
+				const subjects = new Map(records.map((row) => [row.name, row.subject]));
+				for (const position of matching) {
+					const subject = subjects.get(position.document_name);
+					if (!subject || !listview.data.includes(position)) continue;
+					position.document_subject = subject;
+					listview.$frappe_list
+						.find(`a[data-name="${CSS.escape(position.name)}"]`)
+						.closest(".list-row")
+						.children(".level-left")
+						.children(".list-row-col")
+						.eq(column)
+						.text(subject)
+						.attr("title", subject);
+				}
+			})
+		);
+	};
+
 	const renderRows = async (listview) => {
+		listview.$frappe_list.addClass("dinext-utp-list");
 		await new Promise((resolve) => frappe.require(helperAssets, resolve));
 		approvals.hideColumnsAndSidebar(listview);
 		initializePeriodFilter(listview);
@@ -346,11 +383,13 @@
 			actions.append(plan, details);
 			approvals.addHistoryButton(actions, position);
 			const task = tasksBySource.get(position.name);
-			if (task) {
+			if (task?.available_transitions?.length) {
 				const select = $(
-					`<select class="form-control input-xs dinext-utp-action-select"
+					`<select class="form-control input-xs dinext-utp-action-select ${escape(
+						approvals.getSelectStyle(position.status)
+					)}"
 						aria-label="${escape(__("Workflow action"))}">
-						<option value="">${escape(position.status)}</option>
+						<option value="">${escape(__(position.status))}</option>
 					</select>`
 				);
 				task.available_transitions.forEach((transition, index) => {
@@ -359,7 +398,9 @@
 					);
 					const suffix =
 						sameAction.length > 1
-							? [transition.allowed, transition.next_state].filter(Boolean).join(" → ")
+							? [transition.allowed, transition.next_state]
+									.filter(Boolean)
+									.join(" → ")
 							: "";
 					select.append(
 						$("<option>")
@@ -380,17 +421,18 @@
 					await bulkVote([position.name], transition);
 					listview.refresh();
 				});
-				actions.append(select);
+				actions.prepend(select);
+			} else {
+				const status = $(
+					`<span class="indicator-pill ${escape(
+						approvals.getSelectStyle(position.status)
+					)}">${escape(__(position.status))}</span>`
+				);
+				actions.prepend(status);
 			}
-			const status = $(
-				`<span class="indicator-pill ${escape(
-					approvals.getSelectStyle(position.status)
-				)}">${escape(position.status)}</span>`
-			);
-			actions.prepend(status);
 			row.find(".level-right").prepend(actions);
 		});
-		await refreshListLimits(listview.data);
+		await Promise.all([refreshListLimits(listview.data), loadDocumentSubjects(listview)]);
 	};
 
 	frappe.listview_settings[SOURCE_DOCTYPE] = {
@@ -408,12 +450,11 @@
 			"document_subject",
 		],
 		formatters: {
-			all_hours: (value) => frappe.format(value, { fieldtype: "Float" }),
-			document_name: (value, _df, doc) => doc.document_subject || value,
+			all_hours: (value) => frappe.format(value, { fieldtype: "Data" }),
+			document_name: (value, _df, doc) => escape(doc.document_subject || value),
 			user: (value, _df, doc) => doc.custom_username || value,
 		},
-		get_form_link: (doc) =>
-			frappe.utils.get_form_link("User Timesheet", doc.user_timesheet),
+		get_form_link: (doc) => frappe.utils.get_form_link("User Timesheet", doc.user_timesheet),
 		refresh: renderRows,
 	};
 })();

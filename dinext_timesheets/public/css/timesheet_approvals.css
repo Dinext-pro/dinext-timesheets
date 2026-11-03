@@ -69,24 +69,27 @@
 }
 
 .dinext-utp-list .dinext-utp-action-select {
-	padding: 0 22px 0 10px;
+	appearance: auto;
+	text-align: center;
+	text-align-last: center;
+	padding: 0 8px;
 	border-width: 2px;
 }
 
 .dinext-utp-list .dinext-utp-action-select.blue {
-	border-color: var(--bg-dark-blue);
+	border-color: var(--text-on-blue);
 }
 
 .dinext-utp-list .dinext-utp-action-select.green {
-	border-color: var(--bg-green);
+	border-color: var(--text-on-green);
 }
 
 .dinext-utp-list .dinext-utp-action-select.red {
-	border-color: var(--bg-red);
+	border-color: var(--text-on-red);
 }
 
 .dinext-utp-list .dinext-utp-action-select.gray {
-	border-color: var(--bg-gray);
+	border-color: var(--text-muted);
 }
 
 .dinext-utp-list .dinext-utp-actions > .btn {

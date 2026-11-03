@@ -124,6 +124,13 @@ context("Productive timesheet position List View", () => {
 		});
 		cy.get(`${root} .dinext-utp-actions .indicator-pill`).should("not.exist");
 		cy.get(`${root} .dinext-utp-action-select`).should("have.length", 20);
+		cy.get(`${root} .dinext-utp-action-select`)
+			.first()
+			.should(($select) => {
+				const style = $select[0].ownerDocument.defaultView.getComputedStyle($select[0]);
+				expect(style.appearance, "visible native dropdown affordance").not.to.eq("none");
+				expect(style.textAlignLast).to.eq("center");
+			});
 		assertGeometry();
 	});
 

@@ -25,6 +25,10 @@ class TestApprovalFingerprint(unittest.TestCase):
 		)
 		self.fields = json.loads(path.read_text())["fields"]
 		self.workflow = {
+			"document_type": "User Timesheet Position",
+			"custom_fingerprint_excluded_fields": [{"field_path": path} for path in (
+				"reject_reason", "custom_username", "all_hours", "custom_data", "table.utilized_hours"
+			)],
 			"workflow_state_field": "workflow_state",
 			"states": [{"state": "Pending Approval", "update_field": "status"}],
 		}

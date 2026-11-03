@@ -107,6 +107,8 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				],
 			}
 		).insert(ignore_permissions=True)
+		from dinext_timesheets.patches.v1_0.migrate_fingerprint_exclusions import execute
+		execute()
 		frappe.clear_cache(doctype="User Timesheet Position")
 		self.parent = frappe.get_doc(
 			{

@@ -9,6 +9,38 @@
    }
   ],
   "custom_attach_document_pdf": 0,
+  "custom_fingerprint_excluded_fields": [
+   {
+    "field_path": "reject_reason",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "custom_username",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "all_hours",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "custom_data",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "table.utilized_hours",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   }
+  ],
   "custom_group_email_template": "Dinext Timesheet Approval Digest",
   "custom_group_interval_unit": "Days",
   "custom_group_interval_value": 1,
@@ -20,7 +52,7 @@
   "doctype": "Workflow",
   "document_type": "User Timesheet Position",
   "is_active": 1,
-  "modified": "2026-09-10 20:44:45.812103",
+  "modified": "2026-11-04 02:25:41.716133",
   "name": "UTP Workflow",
   "override_status": 1,
   "send_email_alert": 1,
@@ -226,6 +258,7 @@
    }
   ],
   "custom_attach_document_pdf": 0,
+  "custom_fingerprint_excluded_fields": [],
   "custom_group_email_template": null,
   "custom_group_interval_unit": null,
   "custom_group_interval_value": 0,
@@ -237,7 +270,7 @@
   "doctype": "Workflow",
   "document_type": "Application For Leave",
   "is_active": 1,
-  "modified": "2026-09-10 20:44:46.223456",
+  "modified": "2026-11-04 02:25:42.581061",
   "name": "AFL Workflow",
   "override_status": 0,
   "send_email_alert": 1,

@@ -312,17 +312,6 @@ workflow_approval_digest_item = [
 	"dinext_timesheets.workflow_approval.digest_item",
 ]
 
-workflow_approval_fingerprint_excluded_fields = [
-	{
-		"User Timesheet Position": [
-			"reject_reason",
-			"custom_username",
-			"all_hours",
-			"custom_data",
-			"table.utilized_hours",
-		],
-	},
-]
 
 # Scheduled Tasks
 # ---------------

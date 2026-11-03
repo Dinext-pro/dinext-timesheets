@@ -12,7 +12,8 @@ function openList(user = fixture.approver) {
 	cy.openDesk(
 		`/app/user-timesheet-position?user_timesheet=${encodeURIComponent(fixture.timesheet)}`
 	);
-	cy.window({ timeout: 20000 }).should((win) => {
+	// Cold Desk metadata can still be loading after the page itself is ready.
+	cy.window({ timeout: 60000 }).should((win) => {
 		expect(win.cur_list?.doctype).to.eq(source);
 		expect(win.cur_list.data.length).to.be.greaterThan(0);
 		expect(win.cur_list.data.every((row) => row.user_timesheet === fixture.timesheet)).to.eq(

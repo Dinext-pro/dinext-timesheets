@@ -16,24 +16,6 @@
 	const requestId = () =>
 		window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-	const getHoursData = async (position) => {
-		const response = await frappe.call({
-			method: TIMESHEET_LIMITS_METHOD,
-			args: { timesheet_name: "", positions: [position] },
-			freeze: false,
-		});
-		const data = response.message?.[0];
-		if (!data) return null;
-		return {
-			totalHours: data.total_hours || 0,
-			editingHours: data.hours_data?.["Editing"] || 0,
-			approvalHours: data.hours_data?.["Pending Approval"] || 0,
-			approvedHours: data.hours_data?.["Approved"] || 0,
-			rejectedHours: data.hours_data?.["Rejected"] || 0,
-			plannedHours: data.planned_hours || 0,
-		};
-	};
-
 	const initializePeriodFilter = (listview) => {
 		if (listview.periodFilterInitialized) return;
 		const today = () => frappe.datetime.now_date();
@@ -161,39 +143,19 @@
 	};
 
 	const showPlanFact = async (position, button) => {
-		const hours = await getHoursData(position);
-		if (!hours) {
-			frappe.msgprint(__("Plan/fact data is unavailable"));
-			return;
-		}
-		const rows = [
-			[__("Plan"), hours.plannedHours],
-			[__("Total"), hours.totalHours],
-			[__("Approved"), hours.approvedHours],
-			[__("Pending"), hours.approvalHours],
-			[__("Editing"), hours.editingHours],
-			[__("Rejected"), hours.rejectedHours],
-		];
-		const dialog = new frappe.ui.Dialog({
-			title: __("Plan/fact analysis"),
-			size: "large",
-			primary_action_label: __("Close"),
-			primary_action: () => dialog.hide(),
+		const response = await frappe.call({
+			method: TIMESHEET_LIMITS_METHOD,
+			args: { timesheet_name: "", positions: [position] },
+			freeze: false,
 		});
-		dialog.$body.html(
-			`<table class="table table-bordered"><tbody>${rows
-				.filter(([, value]) => value !== undefined)
-				.map(
-					([label, value]) =>
-						`<tr><th>${escape(label)}</th><td>${escape(
-							flt(value).toFixed(1)
-						)}</td></tr>`
-				)
-				.join("")}</tbody></table>`
-		);
-		approvals.setModalWindowStyles(dialog);
-		dialog.show();
+		await frappe.require("/assets/project_workload_assignment/js/limits/plan_fact.js");
+		const dialog = await project_workload_assignment.plan_fact_details.show({
+			results: response.message || [],
+			title: position.document_subject || position.document_name,
+			ownerName: position.custom_username,
+		});
 		button?.blur();
+		return dialog;
 	};
 
 	const commentFor = (transition) =>

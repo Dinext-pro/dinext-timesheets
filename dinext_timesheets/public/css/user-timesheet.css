@@ -693,23 +693,3 @@ body.ut-hide-desk-sidebar
 	color: var(--text-color, inherit);
 	background: var(--control-bg, var(--bg-color, transparent));
 }
-
-/* Plan/fact dialog — muted fill already used on UT popover/banner */
-.ut-limits-owner {
-	margin: 15px 0;
-	padding: 8px 10px;
-	border-radius: 4px;
-	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
-	border-left: 4px solid var(--text-muted, #6c757d);
-	color: var(--text-color, inherit);
-}
-
-.ut-limits-owner__hours {
-	font-size: 16px;
-	font-weight: bold;
-	color: var(--heading-color, var(--text-color, inherit));
-}
-
-.ut-limits-muted {
-	color: var(--text-muted, #6c757d);
-}

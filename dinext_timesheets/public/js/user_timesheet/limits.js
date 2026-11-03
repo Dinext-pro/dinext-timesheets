@@ -3,8 +3,7 @@
  * Single path: PWA whitelist only. No SS / bare-method fallback.
  */
 import { isTaskPickerOpen } from "./editors/task-picker-modal.js";
-const LIMITS_METHOD =
-	"project_workload_assignment.api.calculate_user_timesheet_limits";
+const LIMITS_METHOD = "project_workload_assignment.api.calculate_user_timesheet_limits";
 
 const LIMIT_COLORS = {
 	block: "#f44336",
@@ -40,8 +39,7 @@ export function getLimitsPayload(frm) {
 				...pos,
 				status: positionLimitStatus(pos) || positionLimitStatus(row),
 				all_hours: allHours,
-				custom_username:
-					pos.custom_username || frm.doc.timesheet_from_name || "",
+				custom_username: pos.custom_username || frm.doc.timesheet_from_name || "",
 			};
 		});
 	return {
@@ -69,9 +67,7 @@ export async function checkLimits(frm) {
 		return [];
 	}
 	const message = await callLimits(getLimitsPayload(frm));
-	return (message || []).filter(
-		(r) => r.status === "block" || r.status === "warning"
-	);
+	return (message || []).filter((r) => r.status === "block" || r.status === "warning");
 }
 
 /** Hard errors on submit Start (demodev checkPlannedHoursAndLimits). */
@@ -91,8 +87,7 @@ export async function checkPlannedHoursAndLimits(frm) {
 				project_role: p.project_role,
 				project: p.project,
 				status: positionLimitStatus(p),
-				custom_username:
-					p.custom_username || frm.doc.timesheet_from_name || "",
+				custom_username: p.custom_username || frm.doc.timesheet_from_name || "",
 				details: (p.details || [])
 					.filter((d) => d && d.date)
 					.map((d) => ({ date: d.date, hours: flt(d.hours) })),
@@ -123,13 +118,8 @@ export async function checkPlannedHoursAndLimits(frm) {
 	} catch (error) {
 		console.error("[UserTimesheet] checkPlannedHoursAndLimits", error);
 		const detail =
-			error?.message ||
-			error?.exc ||
-			error?.responseJSON?.exception ||
-			String(error);
-		errors.push(
-			`${__("Error checking planned work efforts and limits")}: ${detail}`
-		);
+			error?.message || error?.exc || error?.responseJSON?.exception || String(error);
+		errors.push(`${__("Error checking planned work efforts and limits")}: ${detail}`);
 	}
 	return { errors, warnings };
 }
@@ -178,8 +168,13 @@ export function applyLimitStyles(frm, results) {
 		columns: ["limit_icon"],
 		force: true,
 	});
-	/* redrawRows remounts the anchor row — skip while picker is open. */
-	if (!isTaskPickerOpen() && changedNodes.length && api.redrawRows) {
+	/* Whole-row redraw remounts active cell editors and picker anchors. */
+	if (
+		!isTaskPickerOpen() &&
+		!api.getEditingCells?.().length &&
+		changedNodes.length &&
+		api.redrawRows
+	) {
 		api.redrawRows({ rowNodes: changedNodes });
 	}
 }
@@ -189,6 +184,9 @@ export async function refreshLimits(frm) {
 	if (!frm.ts_positions?.length || !frm.doc.name || !frm.ut?.table) {
 		return;
 	}
+	const state = frm.ut;
+	const generation = (state._limitsGeneration || 0) + 1;
+	state._limitsGeneration = generation;
 	let finishInflight = () => {};
 	const done = new Promise((resolve) => {
 		finishInflight = resolve;
@@ -196,7 +194,9 @@ export async function refreshLimits(frm) {
 	frm.ut._limitsInflight = done;
 	try {
 		const message = await callLimits(getLimitsPayload(frm));
-		applyLimitStyles(frm, message);
+		if (frm.ut === state && state._limitsGeneration === generation) {
+			applyLimitStyles(frm, message);
+		}
 	} finally {
 		finishInflight();
 		if (frm.ut?._limitsInflight === done) {
@@ -225,190 +225,6 @@ export function scheduleRefreshLimits(frm, delayMs = 400) {
 	}, delayMs);
 }
 
-function getNoPlanWarningHtml() {
-	return `
-		<div class="alert alert-danger" style="margin-bottom: 15px;">
-			<i class="fa fa-exclamation-triangle"></i>
-			<strong> ${__("Attention!")}</strong> ${__(
-				"Planned work efforts are required for this task!"
-			)}
-		</div>`;
-}
-
-function showForecastColumn() {
-	return Boolean(frappe.boot?.dinext_timesheet_show_forecast);
-}
-
-function getCompletionTableHtml(result) {
-	const calculatePercentage = (value) =>
-		result.planned_hours > 0
-			? Math.round((value / result.planned_hours) * 100)
-			: 0;
-	const showForecast = showForecastColumn();
-	const forecastHours = Number.parseFloat(result.forecast_hours);
-	const forecastLabel = Number.isFinite(forecastHours)
-		? forecastHours.toFixed(1)
-		: "0.0";
-	const rows = [];
-	for (const key in result.hours_data || {}) {
-		if (key === "users" || key === "user_hours") {
-			continue;
-		}
-		const raw = result.hours_data[key];
-		if (raw != null && typeof raw === "object") {
-			continue;
-		}
-		const hours = Number.parseFloat(raw);
-		if (!Number.isFinite(hours)) {
-			continue;
-		}
-		rows.push({
-			status: key === "total" ? __("All") : __(key),
-			isTotal: key === "total",
-			plan: Number.parseFloat(result.planned_hours).toFixed(1),
-			forecast: forecastLabel,
-			fact: `${hours.toFixed(1)} ${__("h.")}`,
-			percent: calculatePercentage(hours),
-		});
-	}
-	const forecastTh = showForecast
-		? `<th style="width: 15%; text-align: right;">${__("Forecast")}</th>`
-		: "";
-	const statusWidth = showForecast ? "25%" : "30%";
-	const planWidth = showForecast ? "15%" : "20%";
-	const factWidth = showForecast ? "15%" : "20%";
-	return `
-		<div class="frappe-table-container" style="margin-bottom: 15px;">
-			<table class="table table-bordered" style="width: 100%; margin-bottom: 10px;">
-				<thead>
-					<tr>
-						<th style="width: ${statusWidth};">${__("Status")}</th>
-						<th style="width: ${planWidth}; text-align: right;">${__("Plan")}</th>
-						${forecastTh}
-						<th style="width: ${factWidth}; text-align: right;">${__("Fact")}</th>
-						<th style="width: 30%;">${__("% Complete")}</th>
-					</tr>
-				</thead>
-				<tbody>
-					${rows
-						.map(
-							(row) => `
-						<tr ${row.isTotal ? 'style="font-weight: bold;"' : ""}>
-							<td>${frappe.utils.escape_html(row.status)}</td>
-							<td style="text-align: right;">${row.plan}</td>
-							${
-								showForecast
-									? `<td style="text-align: right;">${row.forecast}</td>`
-									: ""
-							}
-							<td style="text-align: right;">${row.fact}</td>
-							<td>
-								<div class="progress" style="height: 20px; margin-bottom: 0;">
-									<div class="progress-bar ${
-										row.percent > 100
-											? "progress-bar-danger"
-											: "progress-bar-success"
-									}"
-										role="progressbar"
-										style="width: ${Math.min(row.percent, 100)}%;">
-										${row.percent <= 100 ? `${row.percent}%` : `${row.percent}%`}
-									</div>
-								</div>
-							</td>
-						</tr>`
-						)
-						.join("")}
-				</tbody>
-			</table>
-		</div>`;
-}
-
-function getHoursUsers(result, frm) {
-	let users = [...(result.hours_data?.users || [])];
-	users.push(frm.doc.timesheet_from_name);
-	users = [...new Set(users)].filter((user) => user);
-	if (!users.length) {
-		return "";
-	}
-	return `<br>${__("Hours included from:")} ${frappe.utils.comma_and(users)}`;
-}
-
-function getHoursNoteHtml(result) {
-	if (result.used_children_for_actual) {
-		return __("Fact data: including other child tasks ({0})", [
-			result.child_tasks_count,
-		]);
-	}
-	return __("Fact data: current task only");
-}
-
-function getCurrentUserHoursHtml(result, frm) {
-	const ownerFullName = frm.doc.timesheet_from_name;
-	if (!ownerFullName) {
-		return "";
-	}
-	const ownerHoursByStatus = result.hours_data?.user_hours?.[ownerFullName] || {};
-	let totalOwnerHours = 0;
-	for (const status in ownerHoursByStatus) {
-		if (typeof ownerHoursByStatus[status] !== "number") {
-			continue;
-		}
-		totalOwnerHours += ownerHoursByStatus[status];
-	}
-	if (totalOwnerHours === 0) {
-		return "";
-	}
-	const percentage =
-		result.planned_hours > 0
-			? Math.round((totalOwnerHours / result.planned_hours) * 100)
-			: 0;
-	const statuses = Object.keys(ownerHoursByStatus);
-	let statusBreakdown = "";
-	if (statuses.length > 1) {
-		statusBreakdown = `<br><small class="ut-limits-muted">${statuses
-			.map(
-				(status) =>
-					`${frappe.utils.escape_html(__(status))}: ${ownerHoursByStatus[status].toFixed(2)} ${__("h.")}`
-			)
-			.join(" | ")}</small>`;
-	} else if (statuses.length === 1) {
-		statusBreakdown = `<br><small class="ut-limits-muted">${__("Status")}: ${frappe.utils.escape_html(
-			__(statuses[0])
-		)}</small>`;
-	}
-	return `
-		<div class="ut-limits-owner">
-			<strong>${frappe.utils.escape_html(ownerFullName)}:</strong>
-			<span class="ut-limits-owner__hours">${totalOwnerHours.toFixed(2)} ${__("h.")}</span>
-			${
-				result.planned_hours > 0
-					? `<span class="ut-limits-muted"> (${percentage}% ${__("of plan")})</span>`
-					: ""
-			}
-			${statusBreakdown}
-		</div>`;
-}
-
-function getParentTaskInfoHtml(result) {
-	if (result.planned_hours <= 0) {
-		return "";
-	}
-	let html = `<div class="hours-note">${__(
-		"Planned data is defined at:"
-	)} ${frappe.utils.escape_html(result.plan_task_subject || "")}</div>`;
-	const sources = result.plan_sources || [];
-	if (sources.length) {
-		html += `<div class="hours-note">${__("Plan sources:")}<ul>`;
-		for (const source of sources) {
-			html += `<li>${frappe.utils.escape_html(source.subject || "")} (${frappe.utils.escape_html(
-				source.task_name || ""
-			)}): ${source.planned_hours} ${__("h.")}</li>`;
-		}
-		html += `</ul></div>`;
-	}
-	return html;
-}
-
 function limitResultFor(frm, position) {
 	const key = String(position?.name || position?.id || "");
 	if (!key) {
@@ -417,17 +233,19 @@ function limitResultFor(frm, position) {
 	return frm.ut?.limitResults?.[key] || null;
 }
 
-/** Plan/fact modal for a position row (demodev showTaskPlanFact). */
+/** Open common details using the current timesheet overlay. */
 export async function showTaskPlanFact(frm, position) {
 	if (!position?.document_name) {
 		frappe.msgprint(__("No task selected to display information"));
 		return;
 	}
-	let result = limitResultFor(frm, position);
-	if (!result && frm.ut?._limitsInflight) {
-		await frm.ut._limitsInflight;
-		result = limitResultFor(frm, position);
+	if (frm.ut?._limitsTimer) {
+		clearTimeout(frm.ut._limitsTimer);
+		frm.ut._limitsTimer = null;
+		await refreshLimits(frm);
 	}
+	if (frm.ut?._limitsInflight) await frm.ut._limitsInflight;
+	let result = limitResultFor(frm, position);
 	if (!result) {
 		if (!frm.ut._limitDialogInflight) {
 			frm.ut._limitDialogInflight = callLimits(getLimitsPayload(frm))
@@ -436,9 +254,7 @@ export async function showTaskPlanFact(frm, position) {
 					return message;
 				})
 				.finally(() => {
-					if (frm.ut) {
-						frm.ut._limitDialogInflight = null;
-					}
+					if (frm.ut) frm.ut._limitDialogInflight = null;
 				});
 		}
 		await frm.ut._limitDialogInflight;
@@ -448,32 +264,12 @@ export async function showTaskPlanFact(frm, position) {
 		frappe.msgprint(__("No plan/fact data for the position"));
 		return;
 	}
-
-	const d = new frappe.ui.Dialog({
+	await frappe.require("/assets/project_workload_assignment/js/limits/plan_fact.js");
+	return project_workload_assignment.plan_fact_details.show({
+		results: [result],
 		title: result.task_subject || position.document_name,
-		size: "large",
-		fields: [
-			{
-				fieldtype: "HTML",
-				fieldname: "body",
-			},
-		],
-		primary_action_label: __("Close"),
-		primary_action() {
-			d.hide();
-		},
+		ownerName: frm.doc.timesheet_from_name,
 	});
-	const html =
-		(result.planned_hours <= 0 && result.plan_required
-			? getNoPlanWarningHtml()
-			: "") +
-		getCompletionTableHtml(result) +
-		getHoursNoteHtml(result) +
-		getCurrentUserHoursHtml(result, frm) +
-		getHoursUsers(result, frm) +
-		getParentTaskInfoHtml(result);
-	d.fields_dict.body.$wrapper.html(html);
-	d.show();
 }
 
 export function limitIconColor(status) {
@@ -501,12 +297,12 @@ export async function alertLimitWarnings(frm) {
 			(w) =>
 				`• <b>${frappe.utils.escape_html(w.task_subject)}</b> (${__(
 					"Project"
-				)}: ${frappe.utils.escape_html(w.project)}, ${__("Role")}: ${frappe.utils.escape_html(
-					w.role
-				)})<br>` +
-				`&nbsp;&nbsp;${__("Fact work efforts")}: ${
-					w.completion_percentage
-				}% ${__("of plan")}`
+				)}: ${frappe.utils.escape_html(w.project)}, ${__(
+					"Role"
+				)}: ${frappe.utils.escape_html(w.role)})<br>` +
+				`&nbsp;&nbsp;${__("Fact work efforts")}: ${w.completion_percentage}% ${__(
+					"of plan"
+				)}`
 		)
 		.join("<br><br>");
 	frappe.show_alert(

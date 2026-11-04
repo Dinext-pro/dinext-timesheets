@@ -7,3 +7,4 @@
 dinext_timesheets.patches.v1_0.configure_parallel_workflows
 dinext_timesheets.patches.v1_0.configure_parallel_workflows_v2
 dinext_timesheets.patches.v1_0.english_timesheet_statuses
+dinext_timesheets.patches.v1_0.migrate_fingerprint_exclusions

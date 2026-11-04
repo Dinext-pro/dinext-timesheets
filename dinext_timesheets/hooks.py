@@ -312,6 +312,7 @@ workflow_approval_digest_item = [
 	"dinext_timesheets.workflow_approval.digest_item",
 ]
 
+
 # Scheduled Tasks
 # ---------------
 # TSCrW2 weekly UT create (ISS-2026-00926 phase 2 F). Demodev cron: Mon 08:30.

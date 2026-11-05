@@ -73,3 +73,16 @@ Cypress.Commands.add("openDesk", (path) => {
 	cy.window().its("frappe.csrf_token").should("be.a", "string").and("not.eq", "None");
 	cy.window().its("frappe.session.user").should("not.eq", "Guest");
 });
+
+Cypress.Commands.add("clickWorkflowAction", (action) => {
+	return cy.window().then((win) => {
+		const menu = win.cur_frm.page.get_inner_group_button(win.__("Workflow"));
+		const label = Cypress._.escapeRegExp(win.__(action));
+		cy.wrap(menu).find("button").click();
+		return cy
+			.wrap(menu)
+			.find(".dropdown-menu")
+			.contains("a", new RegExp(`^\\s*${label}\\s*$`, "u"))
+			.click();
+	});
+});

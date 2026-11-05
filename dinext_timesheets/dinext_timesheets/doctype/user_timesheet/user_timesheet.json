@@ -146,7 +146,6 @@
    "fieldname": "is_overdue",
    "fieldtype": "Check",
    "hidden": 1,
-   "in_filter": 1,
    "label": "Is Overdue",
    "print_width": "1",
    "width": "1"

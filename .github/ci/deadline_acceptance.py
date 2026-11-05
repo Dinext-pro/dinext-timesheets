@@ -17,6 +17,7 @@ artifacts.mkdir()
 env = os.environ.copy()
 env.update({
 	"PYTHONUNBUFFERED": "1",
+	"DEV_SERVER": "1",
 	"CYPRESS_adminPassword": "ci-admin",
 	"CYPRESS_reporter": "junit",
 	"CYPRESS_reporterOptions": json.dumps({"mochaFile": str(artifacts / "browser-[hash].xml")}),

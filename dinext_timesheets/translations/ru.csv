@@ -194,3 +194,15 @@ Worker Level,Уровень Исполнителя,
 "Some workflow items failed","Часть решений согласования не применена",""
 "Timesheet details","Детали таймшита",""
 "Plan/fact analysis","Анализ план/факт",""
+Working Days must be a non-negative integer,Количество рабочих дней должно быть неотрицательным целым числом
+Timesheet author and period end are required to calculate the deadline,Для расчёта срока заполните автора и конец периода таймшита
+Holiday List {0} does not cover {1}; extend the worker calendar,Календарь {0} не покрывает дату {1}; продлите календарь сотрудника
+"Working days after the timesheet period, using the Worker's Holiday List. Recalculated on every save in Draft or Rework.",Рабочие дни после окончания периода по календарю Worker. Пересчитывается при каждом сохранении черновика и ТШ на доработке.
+Timesheet is overdue. Submission deadline: {0},Таймшит просрочен. Срок отправки: {0}
+Overdue Timesheets,Просроченные таймшиты
+You have {0} overdue timesheets. Complete and submit them for approval.,У вас просроченных таймшитов: {0}. Заполните и отправьте их на согласование.
+Go to Timesheets,Перейти к таймшитам
+Remind Me Later,Напомнить позже
+Timesheet owner has no Worker record,Для автора таймшита не найдена запись Worker
+Worker has no Timesheet Template,У сотрудника Worker не указан шаблон таймшита
+Worker has no Holiday List,У сотрудника Worker не указан календарь Holiday List

@@ -63,9 +63,6 @@ def create_weekly_timesheets(dry_run: bool = False):
 		if not filtered_workers:
 			continue
 
-		template_ref = frappe.get_doc("Timesheet Template", template.name)
-		working_days = template_ref.working_days
-
 		for worker in filtered_workers:
 			worker_doc = frappe.get_doc("Worker", worker.name)
 			valid_from = week_start
@@ -124,6 +121,9 @@ def create_weekly_timesheets(dry_run: bool = False):
 				vt = end_of_month
 			periods.append((vf, vt))
 
+			worker_created = []
+			if not dry_run:
+				frappe.db.savepoint("timesheet_worker_creation")
 			for p_from, p_to in periods:
 				if p_from > p_to:
 					continue
@@ -155,10 +155,15 @@ def create_weekly_timesheets(dry_run: bool = False):
 				timesheet.ts_from_template = template.name
 				timesheet.ts_valid_from = p_from
 				timesheet.ts_valid_for = p_to
-				timesheet.ts_date_of_dispatch = add_days(p_to, working_days)
-				timesheet.insert()
-				result["created"].append({**payload, "name": timesheet.name})
+				try:
+					timesheet.insert()
+				except (frappe.ValidationError, frappe.DoesNotExistError) as exc:
+					frappe.db.rollback(save_point="timesheet_worker_creation")
+					result["skipped"].append({**payload, "reason": "validation_error", "error": str(exc)})
+					logger.warning("Cannot create timesheet for %s: %s", worker.name, exc)
+					break
+				worker_created.append({**payload, "name": timesheet.name})
+			else:
+				result["created"].extend(worker_created)
 
-	if not dry_run:
-		frappe.db.commit()
 	return result

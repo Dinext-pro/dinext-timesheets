@@ -107,14 +107,8 @@ export async function validateNewTimesheet(frm) {
 		return false;
 	}
 
-	const dispatchDays = flt(templateDoc.working_days) || 0;
-	frm.doc.ts_date_of_dispatch = frappe.datetime.add_days(
-		frm.doc.ts_valid_for,
-		dispatchDays
-	);
 
 	frm.refresh_field?.("ts_valid_for");
-	frm.refresh_field?.("ts_date_of_dispatch");
 	frm.refresh_field?.("ts_from_template");
 	frm.refresh_field?.("reporting_period");
 	return true;

@@ -33,12 +33,15 @@ export async function showTimesheetDashboard(frm) {
 		}
 	}
 
-	if (
-		frm.doc.is_overdue &&
-		(frm.doc.ut_status === "Черновик" || frm.doc.ut_status === "На доработке")
-	) {
+	const deadlineState = await frappe.xcall("dinext_timesheets.deadlines.get_deadline_state", {
+		name: frm.doc.name,
+	});
+	if (gen !== frm._ut_dash_gen) return;
+	if (deadlineState.overdue) {
 		comments.push({
-			text: __("Timesheet is overdue! Submit positions for approval immediately!"),
+			text: __("Timesheet is overdue. Submission deadline: {0}", [
+				frappe.datetime.str_to_user(deadlineState.deadline),
+			]),
 			color: "orange",
 		});
 	}

@@ -36,12 +36,14 @@ fixtures = [
         "doctype": "Client Script",
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],
+            ["enabled", "=", 1],
         ]
     },
     {
         "doctype": "Server Script",
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],
+            ["disabled", "=", 0],
         ]
     },
     {
@@ -153,6 +155,8 @@ required_apps = ["dinext_common", "dinext_projects", "dinext_projects_pl", "doct
 # include js in doctype views
 # User Timesheet UI → public/js/user_timesheet (ISS-2026-00926 try3)
 doctype_js = {
+	"Task": "public/js/timesheet_deadline_reminder.js",
+	"Issue": "public/js/timesheet_deadline_reminder.js",
 	"User Timesheet": "public/js/user_timesheet/entry.js",
 	"User Timesheet Position": "public/js/user_timesheet_position/form/route.js",
 }
@@ -210,6 +214,7 @@ doctype_list_js = {
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
 after_migrate = "dinext_timesheets.install.after_migrate"
+after_sync = "dinext_timesheets.setup.deadlines.configure_deadline_metadata"
 extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 
 # Uninstallation

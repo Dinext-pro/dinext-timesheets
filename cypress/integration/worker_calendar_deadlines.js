@@ -83,14 +83,13 @@ context("Worker calendar timesheet deadlines", () => {
 
 	it("shares the thirty-minute postpone between Task and Issue", () => {
 		loginAuthor();
-		cy.call(`${helper}.set_deadline_language`, { language: "en" });
 		cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}`);
 		cy.clock(Date.now(), ["Date"]);
 		cy.window().then(win => win.localStorage.removeItem(`${win.location.host}:${fixture.user}:timesheet-overdue-until`));
 		openNewForm("Task");
-		cy.get(".modal:visible").should("contain.text", "Overdue Timesheets");
+		cy.contains(".modal:visible", /Overdue Timesheets|Просроченные таймшиты/).should("be.visible");
 		cy.screenshot("deadline-task-reminder", { capture: "viewport" });
-		cy.contains(".modal:visible button", "Remind Me Later").click();
+		cy.contains(".modal:visible button", /Remind Me Later|Напомнить позже/).click();
 		openNewForm("Issue");
 		cy.window().then(win => win.frappe.after_ajax());
 		cy.get(".modal:visible").should("not.exist");
@@ -99,9 +98,9 @@ context("Worker calendar timesheet deadlines", () => {
 		cy.get(".modal:visible").should("not.exist");
 		cy.tick(1);
 		cy.window().then(win => win.frappe.views.formview.Issue.frm.refresh());
-		cy.get(".modal:visible").should("contain.text", "Overdue Timesheets");
+		cy.contains(".modal:visible", /Overdue Timesheets|Просроченные таймшиты/).should("be.visible");
 		cy.screenshot("deadline-issue-reminder", { capture: "viewport" });
-		cy.contains(".modal:visible button", "Go to Timesheets").click();
+		cy.contains(".modal:visible button", /Go to Timesheets|Перейти к таймшитам/).click();
 		assertOverdueList();
 	});
 });

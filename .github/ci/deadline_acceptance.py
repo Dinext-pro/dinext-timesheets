@@ -20,6 +20,10 @@ env.update({
 	"CYPRESS_reporter": "junit",
 	"CYPRESS_reporterOptions": json.dumps({"mochaFile": str(artifacts / "browser-[hash].xml")}),
 })
+# bench run-ui-tests derives CYPRESS_baseUrl from the site's host_name.
+subprocess.run([
+	"bench", "--site", "ci.test", "set-config", "host_name", "http://localhost:8000",
+], cwd=bench, check=True)
 with (artifacts / "web.log").open("w") as log:
 	server = subprocess.Popen(
 		["bench", "--site", "ci.test", "serve", "--port", "8000", "--noreload"],

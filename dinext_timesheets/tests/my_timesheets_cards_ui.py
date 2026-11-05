@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import frappe
@@ -27,7 +26,7 @@ READ_TYPES = (
 	"Timesheet Settings",
 	"Support Settings",
 )
-VERSION = 5
+VERSION = 6
 
 
 def identity(namespace):
@@ -94,6 +93,8 @@ def cleanup(namespace="cypress"):
 		if parents:
 			frappe.db.delete(dt, {"parent": ["in", parents]})
 	frappe.db.delete("Workflow Task", {"source_title": ["like", prefix + "%"]})
+	frappe.db.delete("Workflow Document State", {"parent": ["like", prefix + "%"]})
+	frappe.db.delete("Workflow", {"name": ["like", prefix + "%"]})
 	for dt in (*SOURCES, "Expense Claim Detail", "Issue", "Project", "Project Role", "Worker", "Employee"):
 		frappe.db.delete(dt, {"name": ["like", prefix + "%"]})
 	role = prefix + "Reader"
@@ -128,6 +129,7 @@ def seed(namespace="cypress"):
 	users = {who: f"ncqa.{namespace}.{who}@example.invalid" for who in ("main", "other", "empty")}
 	for who, email in users.items():
 		_ensure_user(email, p + who, [role, "Desk User", "Dinext_Worker", "Dinext_UTP_Appoval"])
+		frappe.db.set_value("User", email, "language", "en" if who == "other" else "ru")
 	grant_read_permissions(role)
 	# Scope the fixture role to owned sources in additional permission rules.
 	for rule in frappe.get_all("DocType Permission", fields=["name", "ref_doctype"]):
@@ -281,12 +283,26 @@ def seed(namespace="cypress"):
 			)
 		)
 
-	def task(dt, name, completed=False, user=None, round_status=None, state=None):
-		wf = {
-			"User Timesheet Position": "UTP Workflow",
-			"Application For Leave": "AFL Workflow",
-			"Expense Claim": "Expense_Claim_Workflow",
-		}[dt]
+	mandatory = p + "Mandatory"
+	optional = p + "Optional"
+	workflows = {}
+	for doctype in SOURCES:
+		workflow = p + doctype
+		insert("Workflow", workflow, workflow_name=workflow, document_type=doctype, is_active=0)
+		workflows[doctype] = workflow
+		for state, is_optional in ((mandatory, 0), (optional, 1)):
+			insert(
+				"Workflow Document State",
+				frappe.generate_hash(length=20),
+				parent=workflow,
+				parenttype="Workflow",
+				parentfield="states",
+				state=state,
+				is_optional_state=is_optional,
+			)
+
+	def task(dt, name, completed=False, user=None, round_status=None, state=None, targets=None):
+		wf = workflows[dt]
 		pending = "Pending Approval" if dt == "User Timesheet Position" else "На согласовании"
 		approved = "Approved" if dt == "User Timesheet Position" else "Согласовано"
 		t = _manual_task(
@@ -308,18 +324,30 @@ def seed(namespace="cypress"):
 				"next_state": approved if completed else None,
 			},
 		)
+		if not completed:
+			for target in targets or (mandatory,):
+				insert(
+					"Available Workflow Transitions",
+					frappe.generate_hash(length=20),
+					parent=t,
+					parenttype="Workflow Task",
+					parentfield="available_workflow_transitions",
+					next_state=target,
+				)
 		return t
 
-	for name in [*positions[:22], positions[24]]:
+	for name in positions[:21]:
 		task("User Timesheet Position", name)
+	task("User Timesheet Position", positions[21], targets=(optional,))
+	task("User Timesheet Position", positions[24], targets=(optional, mandatory))
 	task("User Timesheet Position", positions[22], True)
 	task("User Timesheet Position", positions[22], True)
 	task("User Timesheet Position", positions[23], True)
-	task("Application For Leave", leaves["На согласовании"])
+	task("Application For Leave", leaves["На согласовании"], targets=(optional,))
 	task("Application For Leave", other_leave)
 	task("Application For Leave", leaves["Согласовано"], True)
 	task("Application For Leave", leaves["Редактирование"], True)
-	task("Expense Claim", expenses["На согласовании"])
+	task("Expense Claim", expenses["На согласовании"], targets=(optional,))
 	task("Expense Claim", other_expense)
 	task("Expense Claim", other_expense, user=users["other"])
 	task("Expense Claim", expenses["Согласовано"], True)
@@ -341,14 +369,14 @@ def seed(namespace="cypress"):
 		"Заявок EC на согласовании": [expenses["На согласовании"]],
 		"Заявок EC Согласовано": [expenses["Согласовано"]],
 		"Заявок EC Отклонено": [expenses["Отклонено"]],
-		"ТШ у меня на согласовании-2": positions[:22],
+		"ТШ у меня на согласовании-2": [*positions[:21], positions[24]],
 		"ТШ согласованные мной-1": [positions[22]],
 		"Заявки на отсутствие у меня на согласовании-2": [other_leave],
 		"Заявки на отсутствие согласованные мной-1": [leaves["Согласовано"]],
 		"Заявок EC у меня на согласовании": [other_expense],
 		"Заявок EC Согласованных мной": [expenses["Согласовано"]],
 	}
-	workspace = frappe.get_doc("Workspace", "Мои Таймшиты")
+	workspace = frappe.get_doc("Workspace", "My Timesheets")
 	result = {
 		"version": VERSION,
 		"workspace_content": frappe.parse_json(workspace.content),

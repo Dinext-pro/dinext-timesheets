@@ -1,8 +1,4 @@
-const { defineConfig } = require(
-	process.env.DINEXT_CYPRESS_MODULE || "../frappe/node_modules/cypress"
-);
-
-module.exports = defineConfig({
+module.exports = {
 	includeShadowDom: true,
 	defaultCommandTimeout: 120000,
 	pageLoadTimeout: 120000,
@@ -47,4 +43,4 @@ module.exports = defineConfig({
 		supportFile: "cypress/support/e2e.js",
 		testIsolation: true,
 	},
-});
+};

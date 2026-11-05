@@ -8,7 +8,8 @@ Cypress.on("uncaught:exception", (error) => {
 	}
 });
 const helper = "dinext_timesheets.tests.my_timesheets_cards_ui";
-const workspace = `/app/${encodeURIComponent("мои-таймшиты")}`;
+const workspace = "/app/my-timesheets";
+const legacyWorkspace = `/app/${encodeURIComponent("мои-таймшиты")}`;
 const cases = [
 	["Моих Таймшитов всего", "таймшитов всего", "My Timesheets"],
 	["Моих таймшитов на редактировании", "тш на редактировании", "My Timesheets"],
@@ -45,9 +46,9 @@ const cases = [
 ];
 let fixture;
 
-function open(user) {
+function open(user, route = workspace) {
 	cy.login(user || fixture.user, fixture.password);
-	cy.openDesk(workspace);
+	cy.openDesk(route);
 	cy.get(".number-widget-box", { timeout: 60000 }).should("have.length", cases.length);
 }
 
@@ -67,17 +68,24 @@ function sectionFor(name) {
 	let section = "";
 	let column = 0;
 	const approvalHeaders = [];
+	const sections = {
+		"My Timesheets": "My Timesheets",
+		"My Expense Claims": "Мои Заявки на расходы",
+		"My Leave Applications": "Мои Заявки на отсутствие",
+	};
+	const approvalSections = {
+		"Timesheet Approvals": "По Таймшитам",
+		"Leave Approvals": "По Заявкам на отсутствие",
+		"Expense Approvals": "По Заявкам на расходы",
+	};
 	for (const block of fixture.workspace_content) {
 		if (block.type === "header") {
 			const text = block.data.text.replace(/<[^>]*>/g, "").trim();
-			if (
-				["My Timesheets", "Мои Заявки на расходы", "Мои Заявки на отсутствие"].includes(
-					text
-				)
-			)
-				section = text;
-			if (text.startsWith("Мои согласования")) section = "approvals";
-			if (section === "approvals" && text.startsWith("По ")) approvalHeaders.push(text);
+			if (sections[text]) section = sections[text];
+			if (text === "My Approvals") section = "approvals";
+			if (section === "approvals" && approvalSections[text]) {
+				approvalHeaders.push(approvalSections[text]);
+			}
 		}
 		if (block.type === "number_card") {
 			const current = section === "approvals" ? approvalHeaders[column++ % 3] : section;
@@ -120,7 +128,7 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 				cy.writeFile("cypress/results/number-cards-failure.json", {
 					title: this.currentTest.title,
 					message: this.currentTest.err.message,
-					routeOptions: win.frappe.route_options,
+					routeOptions: win.frappe?.route_options,
 					filters: win.cur_list?.filter_area?.get(),
 					lastArgs: win.cur_list?.last_args,
 					route: win.location.href,
@@ -139,7 +147,7 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 		it(`${section}: ${label} matches its API and full drill-down`, () => {
 			open();
 			expect(sectionFor(name)).to.eq(section);
-			cy.get(".layout-main-section").should("contain", section);
+			cy.get(".layout-main-section").should("contain", section === "My Timesheets" ? "Мои Таймшиты" : section);
 			cardWidget(label)
 				.find(".number")
 				.should("have.text", String(fixture.expected[name].length));
@@ -202,6 +210,14 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 		});
 	}
 
+	it("renders English captions and resolves the legacy route", () => {
+		open(fixture.other, legacyWorkspace);
+		cy.location("pathname").should("eq", workspace);
+		cy.contains(".ce-header", "My Timesheets").should("be.visible");
+		cy.contains(".ce-header", "My Expense Claims").should("be.visible");
+		cardWidget("Total Expense Claims").should("be.visible");
+	});
+
 	(Cypress.env("numberCardIndex") === undefined ? it : it.skip)(
 		"keeps every section and number readable in both themes and during a runtime switch",
 		() => {
@@ -243,15 +259,21 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 					"Мои списания по ТШ",
 					"Календарь отсутствий",
 				]);
-				expect(settings.map((link) => link.getAttribute("aria-label"))).to.include.members(
-					["Worker", "Timesheet Template", "Timesheet Settings"]
-				);
+				const labels = settings.map((link) => link.getAttribute("aria-label"));
+				const translate = blocks[0].ownerDocument.defaultView.__;
+				for (const source of ["Worker", "Timesheet Template", "Timesheet Settings"]) {
+					const caption = translate(source);
+					expect(caption, source).to.match(/[А-Яа-яЁё]/);
+					expect(labels).to.include(caption);
+				}
 				expect(settings[0].getBoundingClientRect().left).to.be.closeTo(
 					reports[0].getBoundingClientRect().left,
 					1
 				);
 			});
-			cy.get('.shortcut-widget-box[aria-label="Timesheet Settings"]').click();
+			cy.window().then((win) => {
+				cy.contains(".shortcut-widget-box", win.__("Timesheet Settings")).click();
+			});
 			cy.window().should((win) => expect(win.cur_frm?.doctype).to.eq("Timesheet Settings"));
 		}
 	);

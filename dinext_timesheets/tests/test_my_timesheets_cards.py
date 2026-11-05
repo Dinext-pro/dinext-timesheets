@@ -57,17 +57,17 @@ class TestMyTimesheetsCards(FrappeTestCase):
 			)
 
 	def test_workspace_has_exactly_the_20_covered_cards(self):
-		workspace = frappe.get_doc("Workspace", "Мои Таймшиты")
+		workspace = frappe.get_doc("Workspace", "My Timesheets")
 		self.assertCountEqual([c.number_card_name for c in workspace.number_cards], self.fixture["expected"])
 
 	def test_expense_section_starts_with_the_total(self):
-		workspace = frappe.get_doc("Workspace", "Мои Таймшиты")
+		workspace = frappe.get_doc("Workspace", "My Timesheets")
 		blocks = frappe.parse_json(workspace.content)
 		start = next(
-			i for i, block in enumerate(blocks) if "Мои Заявки на расходы" in block["data"].get("text", "")
+			i for i, block in enumerate(blocks) if "My Expense Claims" in block["data"].get("text", "")
 		)
 		cards = blocks[start + 1 : start + 5]
-		self.assertEqual(cards[0]["data"]["number_card_name"], "Всего заявок на расходы")
+		self.assertEqual(cards[0]["data"]["number_card_name"], "Total Expense Claims")
 		self.assertEqual([(c["type"], c["data"]["col"]) for c in cards], [("number_card", 3)] * 4)
 
 	def test_reopened_source_leaves_approved_population(self):
@@ -148,7 +148,7 @@ class TestMyTimesheetsCards(FrappeTestCase):
 			0,
 		)
 
-	def test_pending_approvals_use_source_subject_instead_of_creator(self):
+	def test_pending_approvals_require_a_mandatory_target_regardless_of_ownership(self):
 		from dinext_common.workflow_approval.api import get_legacy_number_card_result
 
 		frappe.set_user(self.fixture["user"])

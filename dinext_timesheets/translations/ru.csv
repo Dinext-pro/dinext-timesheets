@@ -35,7 +35,6 @@ Working Hours On Date,Справочник дат исключений,
 Worker,Исполнитель,
 Worker Level,Уровень Исполнителя,
 "My Work","Моя работа",""
-"My Timesheets","Мои Таймшиты",""
 "Personal time-tracking hub: your timesheets, leave and expense requests, pending approvals, utilization reports, and related settings.","Персональный хаб учёта времени: ваши таймшиты, заявки на отпуск и расходы, ожидающие согласования, отчёты по загрузке и связанные настройки.",""
 "Timesheet Author","Автор ТШ",""
 "Author","Автор",""
@@ -199,7 +198,6 @@ Timesheet author and period end are required to calculate the deadline,Для р
 Holiday List {0} does not cover {1}; extend the worker calendar,Календарь {0} не покрывает дату {1}; продлите календарь сотрудника
 "Working days after the timesheet period, using the Worker's Holiday List. Recalculated on every save in Draft or Rework.",Рабочие дни после окончания периода по календарю Worker. Пересчитывается при каждом сохранении черновика и ТШ на доработке.
 Timesheet is overdue. Submission deadline: {0},Таймшит просрочен. Срок отправки: {0}
-Overdue Timesheets,Просроченные таймшиты
 You have {0} overdue timesheets. Complete and submit them for approval.,У вас просроченных таймшитов: {0}. Заполните и отправьте их на согласование.
 Go to Timesheets,Перейти к таймшитам
 Remind Me Later,Напомнить позже
@@ -218,3 +216,37 @@ Change the position status through its Workflow,Измените статус ч
 Use the position Workflow to change the timesheet status,"Чтобы изменить статус ТШ, используйте Workflow позиций"
 Timesheet Management Action,Действие по ведению ТШ
 Run this timesheet position transition directly as an authorized submitter action.,"Выполнять этот переход позиции от имени пользователя, которому разрешено вести ТШ."
+My Expense Claims,Мои Заявки на расходы,
+My Leave Applications,Мои Заявки на отсутствие,
+My Approvals,Мои согласования,
+Timesheet Approvals,По Таймшитам,
+Leave Approvals,По Заявкам на отсутствие,
+Expense Approvals,По Заявкам на расходы,
+Timesheet Reports,Отчетность,
+Timesheet Configuration,Настройки,
+Expenses Awaiting My Approval,Расходы у меня на согласовании,
+Leave Applications Pending Approval,заявок на согласовании,
+Timesheets Approved by Me,ТШ согласованные мной,
+Leave Applications Approved by Me,Заявки согласованные мной,
+Timesheets Awaiting My Approval,ТШ у меня на согласовании,
+Leave Applications Awaiting My Approval,Заявки у меня на согласовании,
+Total Timesheets,таймшитов всего,
+Total Leave Applications,заявок всего,
+Timesheets in Editing,тш на редактировании,
+Timesheets Pending Approval,тш на согласовании,
+Expense Claims Pending Approval,из них на согласовании,
+Expenses Approved by Me,Расходы согласованные мной,
+Approved Leave Applications,заявок согласовано,
+Rejected Timesheets,тш отклонено,
+Approved Expense Claims,из них согласовано,
+Rejected Leave Applications,заявок отклонено,
+Overdue Timesheets,тш просрочено,
+Approved Timesheets,тш согласовано,
+Rejected Expense Claims,из них отклонено,
+Total Expense Claims,Всего заявок на расходы,
+My Logged Timesheet Hours,Мои списания по ТШ,
+Utilization Report,Отчет по утилизации,
+Leave Calendar,Календарь отсутствий,
+Timesheet Report,Отчетность по ТШ,
+My Timesheets,Мои Таймшиты,
+Holiday List,Список выходных,

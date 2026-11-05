@@ -118,7 +118,7 @@ class TestTimesheetSettingsValidation(FrappeTestCase):
 
 	def test_missing_singleton_uses_defaults_and_saved_empty_does_not(self):
 		with patch("dinext_timesheets.timesheet_settings.frappe.db.exists", return_value=False):
-			self.assertEqual(len(position_rules()), 3)
+			self.assertEqual(len(position_rules()), 4)
 			self.assertEqual(parent_position_target("Pending Approval"), "Pending Approval")
 			self.assertEqual(hidden_list_statuses(), ["Editing", "Not Set"])
 		empty = SimpleNamespace(

@@ -28,7 +28,7 @@ class TestUserTimesheet(FrappeTestCase):
 			submit_source,
 		)
 		self.assertIn(
-			"dinext_timesheets.workflow_approval.vote_timesheet_positions",
+			"dinext_timesheets.workflow_approval.apply_timesheet_position_action",
 			workflow_source,
 		)
 		self.assertIn("row.transitioned", workflow_source)
@@ -36,9 +36,8 @@ class TestUserTimesheet(FrappeTestCase):
 		self.assertNotIn("add_custom_button(__(BTN_STOP)", submit_source)
 		self.assertIn("frm._ut_wf_button_labels", submit_source)
 		chrome_source = (ut / "form_chrome.js").read_text()
-		workflow_at = chrome_source.index("await processUTWorkflow(frm)")
-		submit_at = chrome_source.index("setupSubmitButtons(frm)")
-		self.assertLess(workflow_at, submit_at)
+		self.assertIn("await processUTWorkflow(frm)", chrome_source)
+		self.assertNotIn("setupSubmitButtons(frm)", chrome_source)
 		self.assertIn(
 			"dinext_common.workflow_approval.api.get_pending_approvers",
 			dashboard_source,
@@ -140,67 +139,6 @@ class TestUserTimesheet(FrappeTestCase):
 			),
 		):
 			workflow_approval._validate_positions(parent, [])
-
-	def test_start_takes_the_position_status_from_settings(self):
-		with patch("dinext_timesheets.timesheet_settings._settings_doc", return_value=None):
-			self.assertEqual(
-				workflow_approval._operation_states("Start", has_positions=True),
-				(workflow_approval.PENDING, workflow_approval.PENDING),
-			)
-			self.assertEqual(
-				workflow_approval._operation_states("Edit", has_positions=True),
-				(workflow_approval.REWORK, workflow_approval.EDITING),
-			)
-
-	def test_zero_position_operations_use_exact_parent_states(self):
-		self.assertEqual(
-			workflow_approval._operation_states("Start", has_positions=False),
-			(workflow_approval.PARENT_APPROVED, None),
-		)
-		self.assertEqual(
-			workflow_approval._operation_states("Stop", has_positions=False),
-			(workflow_approval.PARENT_APPROVED, None),
-		)
-		self.assertEqual(
-			workflow_approval._operation_states("Edit", has_positions=False),
-			(workflow_approval.REWORK, None),
-		)
-
-	def test_stop_is_owner_only_even_for_system_manager(self):
-		parent = SimpleNamespace(
-			timesheet_from="owner@example.com",
-			ut_status=workflow_approval.PENDING,
-			user_group="Team",
-			ts_valid_from="2026-09-01",
-		)
-		with patch.object(frappe, "get_roles", return_value=["System Manager"]):
-			with self.assertRaises(frappe.PermissionError):
-				workflow_approval._authorize_operation(
-					parent,
-					"Stop",
-					actor="manager@example.com",
-				)
-
-	def test_latest_dated_team_lead_can_start(self):
-		parent = SimpleNamespace(
-			timesheet_from="owner@example.com",
-			ut_status=workflow_approval.REWORK,
-			user_group="Team",
-			ts_valid_from="2026-09-01",
-		)
-		with (
-			patch.object(frappe, "get_roles", return_value=["Dinext_Team_Lead"]),
-			patch.object(
-				workflow_approval,
-				"_current_team_lead",
-				return_value="lead@example.com",
-			),
-		):
-			workflow_approval._authorize_operation(
-				parent,
-				"Start",
-				actor="lead@example.com",
-			)
 
 	def test_position_shape_validation_rejects_integration_v10_errors(self):
 		parent = SimpleNamespace(
@@ -400,7 +338,7 @@ class TestUserTimesheet(FrappeTestCase):
 			workflow_approval.on_utp_update(doc)
 		get_doc.assert_not_called()
 
-	def test_applied_transition_sets_parent_without_moving_siblings(self):
+	def test_all_pending_positions_set_parent(self):
 		parent = SimpleNamespace(
 			name="UT-1",
 			ut_status=workflow_approval.REWORK,
@@ -422,6 +360,8 @@ class TestUserTimesheet(FrappeTestCase):
 				"dinext_timesheets.timesheet_settings.position_workflow_states",
 				return_value=["Editing", "Pending Approval", "Approved", "Rejected"],
 			),
+			patch.object(frappe, "get_all", return_value=[]),
+			patch.object(workflow_approval, "_validate_positions") as validate,
 			patch(
 				"dinext_common.workflow_approval.engine.apply_domain_transition"
 			) as transition,
@@ -431,8 +371,9 @@ class TestUserTimesheet(FrappeTestCase):
 				changed,
 				workflow_approval.EDITING,
 			)
-		self.assertEqual(parent.ut_status, workflow_approval.REWORK)
-		parent.save.assert_not_called()
+		self.assertEqual(parent.ut_status, workflow_approval.PENDING)
+		validate.assert_called_once()
+		parent.save.assert_called_once()
 		transition.assert_not_called()
 
 	def test_pending_parent_waits_while_a_position_is_still_editing(self):
@@ -469,6 +410,41 @@ class TestUserTimesheet(FrappeTestCase):
 		self.assertEqual(parent.ut_status, workflow_approval.REWORK)
 		parent.save.assert_not_called()
 		transition.assert_not_called()
+
+	def test_position_submission_validates_before_any_transition(self):
+		parent = SimpleNamespace(name="UT-1", check_permission=Mock())
+		action = {
+			"action": "Submit", "runs_timesheet_checks": True,
+			"positions": [{"name": "UTP-1", "mode": "domain", "next_state": "Pending Approval"}],
+		}
+		with (
+			patch.object(frappe, "get_doc", return_value=parent),
+			patch.object(workflow_approval, "get_timesheet_position_actions", return_value={"actions": [action]}),
+			patch.object(workflow_approval, "_enabled", return_value=True),
+			patch.object(frappe, "get_all", return_value=["UTP-1"]),
+			patch.object(workflow_approval, "_validate_positions", side_effect=frappe.ValidationError),
+			patch("dinext_common.workflow_approval.engine.apply_domain_transition") as apply,
+			self.assertRaises(frappe.ValidationError),
+		):
+			workflow_approval.apply_timesheet_position_action("UT-1", "Submit")
+		apply.assert_not_called()
+
+	def test_self_approval_does_not_replace_a_personal_workflow_task(self):
+		transitions = [
+			{"action": "Approve", "next_state": "Approved", "allow_self_approval": 1},
+			{"action": "Withdraw", "next_state": "Editing", "custom_timesheet_management_action": 1},
+		]
+		doc = SimpleNamespace(name="UTP-1")
+		with (
+			patch.object(frappe, "get_all", return_value=[]),
+			patch.object(frappe, "has_permission", return_value=True),
+			patch.object(workflow_approval, "_enabled", return_value=True),
+			patch("frappe.model.workflow.get_transitions", return_value=transitions),
+		):
+			self.assertEqual(
+				[row["action"] for row in workflow_approval._position_action_items(doc)],
+				["Withdraw"],
+			)
 
 	def test_later_vote_conflict_keeps_the_applied_transition(self):
 		from dinext_common.workflow_approval.engine import WorkflowApprovalConflictError
@@ -599,120 +575,20 @@ class TestUserTimesheet(FrappeTestCase):
 		vote.assert_not_called()
 		self.assertEqual(result["results"], [])
 
-	def test_orchestrator_validates_before_persistent_side_effects(self):
-		parent = SimpleNamespace(
-			name="UT-1",
-			ut_status=workflow_approval.DRAFT,
-			ut_approval_date=None,
-			reload=Mock(),
-			save=Mock(),
-		)
-		position = SimpleNamespace(name="UTP-1", save=Mock(), insert=Mock())
-		deleted = SimpleNamespace(name="UTP-2", delete=Mock())
+	def test_legacy_grid_endpoint_cannot_change_parent_status(self):
+		parent = SimpleNamespace(name="UT-1", ut_status=workflow_approval.DRAFT, reload=Mock(), save=Mock())
 		with (
 			patch.object(frappe, "get_doc", return_value=parent),
-			patch.object(workflow_approval, "_authorize_operation"),
-			patch.object(workflow_approval, "_parse_positions", return_value=[]),
-			patch.object(workflow_approval, "_parse_names", return_value=[]),
-			patch.object(
-				workflow_approval,
-				"_prepare_positions",
-				return_value=([position], [deleted]),
-			),
-			patch.object(
-				workflow_approval,
-				"_validate_positions",
-				side_effect=frappe.ValidationError("invalid middle row"),
-			),
-			self.assertRaises(frappe.ValidationError),
+			patch("dinext_timesheets.dinext_timesheets.user_timesheet.permissions.assert_can_edit_timesheet"),
+			patch.object(workflow_approval, "_prepare_positions", return_value=([], [])) as prepare,
 		):
-			workflow_approval.orchestrate_timesheet("UT-1", "Start")
-		position.save.assert_not_called()
-		position.insert.assert_not_called()
-		deleted.delete.assert_not_called()
-		parent.save.assert_not_called()
-
-	def test_zero_position_orchestration_has_exact_parent_states(self):
-		expected_states = {
-			"Start": workflow_approval.PARENT_APPROVED,
-			"Stop": workflow_approval.PARENT_APPROVED,
-			"Edit": workflow_approval.REWORK,
-		}
-		for operation, expected_state in expected_states.items():
-			with self.subTest(operation=operation):
-				parent = SimpleNamespace(
-					name="UT-1",
-					ut_status=workflow_approval.DRAFT,
-					ut_approval_date=None,
-					reload=Mock(),
-					save=Mock(),
-				)
-				with (
-					patch.object(frappe, "get_doc", return_value=parent),
-					patch.object(workflow_approval, "_authorize_operation"),
-					patch.object(workflow_approval, "_parse_positions", return_value=[]),
-					patch.object(workflow_approval, "_parse_names", return_value=[]),
-					patch.object(
-						workflow_approval,
-						"_prepare_positions",
-						return_value=([], []),
-					),
-					patch.object(workflow_approval, "_validate_positions"),
-					patch(
-						"dinext_common.workflow_approval.engine.apply_domain_transition"
-					) as transition,
-				):
-					result = workflow_approval.orchestrate_timesheet(
-						"UT-1",
-						operation,
-					)
-				transition.assert_not_called()
-				self.assertEqual(parent.ut_status, expected_state)
-				self.assertEqual(result["processed"], 0)
-
-	def test_system_manager_uses_workflow_selected_domain_actor(self):
-		with patch.object(
-			frappe,
-			"get_roles",
-			return_value=["System Manager"],
-		):
-			self.assertIsNone(
-				workflow_approval._domain_transition_actor("manager@example.com")
-			)
-
-	def test_automatic_child_approvals_preserve_approved_parent(self):
-		parent = SimpleNamespace(
-			name="UT-1",
-			ut_status=workflow_approval.DRAFT,
-			ut_approval_date=None,
-			reload=Mock(),
-			save=Mock(),
-		)
-		position = SimpleNamespace(
-			name="UTP-1",
-			is_new=lambda: False,
-			save=Mock(),
-		)
-		with (
-			patch.object(frappe, "get_doc", return_value=parent),
-			patch.object(workflow_approval, "_authorize_operation"),
-			patch.object(workflow_approval, "_parse_positions", return_value=[]),
-			patch.object(workflow_approval, "_parse_names", return_value=[]),
-			patch.object(
-				workflow_approval,
-				"_prepare_positions",
-				return_value=([position], []),
-			),
-			patch.object(workflow_approval, "_validate_positions"),
-			patch.object(workflow_approval, "_domain_transition_actor", return_value=None),
-			patch.object(frappe.db, "count", return_value=0),
-			patch(
-				"dinext_common.workflow_approval.engine.apply_domain_transition"
-			),
-		):
+			for operation in ("Stop", "Edit"):
+				with self.assertRaises(frappe.PermissionError):
+					workflow_approval.orchestrate_timesheet("UT-1", operation)
+			prepare.assert_not_called()
 			result = workflow_approval.orchestrate_timesheet("UT-1", "Start")
-		self.assertEqual(parent.ut_status, workflow_approval.PARENT_APPROVED)
-		self.assertEqual(result["status"], workflow_approval.PARENT_APPROVED)
+		parent.save.assert_not_called()
+		self.assertEqual(result["status"], workflow_approval.DRAFT)
 
 	def test_issue_hours_count_toward_blocking_plan_limit(self):
 		parent = SimpleNamespace(name="UT-1")

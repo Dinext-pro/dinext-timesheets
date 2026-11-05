@@ -1,4 +1,4 @@
-"""Exercise real Desk pages on the disposable bench built by shared CI."""
+"""Exercise timesheet workflows and real Desk pages on the disposable CI bench."""
 
 import json
 import os
@@ -26,6 +26,16 @@ env.update({
 subprocess.run([
 	"bench", "--site", "ci.test", "set-config", "host_name", "http://localhost:8000",
 ], cwd=bench, check=True)
+subprocess.run(["bench", "set-config", "-g", "server_script_enabled", "1"], cwd=bench, check=True)
+subprocess.run([
+	"bench", "--site", "ci.test", "set-config", "enable_parallel_workflow_approval", "1",
+], cwd=bench, check=True)
+subprocess.run([
+	"bench", "--site", "ci.test", "run-tests", "--skip-before-tests", "--skip-test-records",
+	"--module", "dinext_timesheets.tests.test_timesheet_team_lead_access",
+	f"--junit-xml-output={artifacts / 'team-lead-server.xml'}",
+], cwd=bench, env=env, check=True, timeout=600)
+
 with (artifacts / "web.log").open("w") as log:
 	server = subprocess.Popen(
 		["bench", "--site", "ci.test", "serve", "--port", "8000", "--noreload"],
@@ -41,12 +51,16 @@ with (artifacts / "web.log").open("w") as log:
 				time.sleep(2)
 		else:
 			raise RuntimeError("Disposable Desk server did not start")
-		subprocess.run([
-			"bench", "--site", "ci.test", "run-ui-tests", "dinext_timesheets",
-			"--headless", "--browser", "electron", "--config-file", "cypress.deadline.config.js",
-			"--spec", "cypress/integration/worker_calendar_deadlines.js", "--config",
-			f"baseUrl=http://localhost:8000,screenshotsFolder={artifacts / 'screenshots'}",
-		], cwd=bench, env=env, check=True, timeout=1200)
+		for config, spec in (
+			("cypress.deadline.config.js", "worker_calendar_deadlines.js"),
+			("cypress.config.js", "timesheet_team_lead.js"),
+		):
+			subprocess.run([
+				"bench", "--site", "ci.test", "run-ui-tests", "dinext_timesheets",
+				"--headless", "--browser", "electron", "--config-file", config,
+				"--spec", f"cypress/integration/{spec}", "--config",
+				f"baseUrl=http://localhost:8000,screenshotsFolder={artifacts / 'screenshots'}",
+			], cwd=bench, env=env, check=True, timeout=1200)
 	finally:
 		os.killpg(server.pid, signal.SIGTERM)
 		server.wait(timeout=30)
@@ -54,5 +68,5 @@ with (artifacts / "web.log").open("w") as log:
 reports = list(artifacts.glob("browser-*.xml"))
 assert reports, "Cypress did not produce JUnit evidence"
 suites = [suite for path in reports for suite in ET.parse(path).iter("testsuite")]
-assert sum(int(suite.get("tests", 0)) for suite in suites) == 6, "Expected all six browser scenarios"
+assert sum(int(suite.get("tests", 0)) for suite in suites) == 7, "Expected all seven browser scenarios"
 assert not sum(int(suite.get("failures", 0)) + int(suite.get("errors", 0)) for suite in suites)

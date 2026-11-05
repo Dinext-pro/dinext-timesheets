@@ -8,6 +8,7 @@ from frappe import _
 from dinext_timesheets.timesheet_status import (
 	DEFAULT_HIDDEN_LIST_STATUSES,
 	DEFAULT_PARENT_RULES,
+	PARENT_PENDING,
 	DEFAULT_POSITION_RULES,
 	POSITION_STATUS_UNSET,
 	first_matching_rule,
@@ -53,19 +54,35 @@ def _settings_doc():
 
 
 def position_rules() -> list[dict]:
-	"""Saved position-to-timesheet rules. Missing singleton uses the defaults."""
+	"""Saved position-to-timesheet rules, including the legacy pending mapping."""
 	doc = _settings_doc()
-	if doc is None:
-		return [dict(row) for row in DEFAULT_POSITION_RULES]
-	return [
+	rows = DEFAULT_POSITION_RULES if doc is None else (doc.position_rules or [])
+	rules = [
 		{
-			"position_status": row.position_status,
-			"timesheet_status": row.timesheet_status,
-			"threshold": row.threshold,
+			"position_status": row.get("position_status"),
+			"timesheet_status": row.get("timesheet_status"),
+			"threshold": row.get("threshold"),
+			"check_timesheet": row.get("check_timesheet"),
+			"move_all_positions": row.get("move_all_positions"),
 		}
-		for row in (doc.position_rules or [])
-		if row.position_status and row.timesheet_status and row.threshold
+		for row in rows
+		if row.get("position_status") and row.get("timesheet_status") and row.get("threshold")
 	]
+	if not any(row["timesheet_status"] == PARENT_PENDING for row in rules):
+		pending = parent_position_target(PARENT_PENDING)
+		if pending:
+			rules.append({
+				"position_status": pending, "timesheet_status": PARENT_PENDING,
+				"threshold": "Any", "check_timesheet": 1, "move_all_positions": 1,
+			})
+	return rules
+
+
+def timesheet_check_status() -> str | None:
+	for rule in position_rules():
+		if rule["check_timesheet"]:
+			return rule["timesheet_status"]
+	return None
 
 
 def parent_position_target(timesheet_status: str) -> str | None:

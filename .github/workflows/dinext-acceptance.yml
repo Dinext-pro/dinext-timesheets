@@ -89,7 +89,7 @@ jobs:
           ../env/bin/python -m unittest dinext_timesheets.tests.test_deadlines
       - name: Run reminder contract tests
         run: node tests/js/deadline_reminder.test.cjs
-      - name: Run six browser scenarios on this PR revision
+      - name: Run team lead integration and browser acceptance
         run: python .github/ci/deadline_acceptance.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

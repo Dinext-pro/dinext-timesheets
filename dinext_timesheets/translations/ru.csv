@@ -206,3 +206,15 @@ Remind Me Later,Напомнить позже
 Timesheet owner has no Worker record,Для автора таймшита не найдена запись Worker
 Worker has no Timesheet Template,У сотрудника Worker не указан шаблон таймшита
 Worker has no Holiday List,У сотрудника Worker не указан календарь Holiday List
+A worker and timesheet period are required,Укажите работника и период ТШ
+Not permitted to create a timesheet for this worker and period,Нет права создать ТШ за этого работника на указанный период
+Not permitted to edit this timesheet,Нет права редактировать этот ТШ
+"Timesheet ownership, period and status are managed by the system","Работник, период и статус ТШ определяются системой"
+The timesheet end date does not match its reporting period,Дата окончания ТШ не соответствует отчётному периоду
+A new timesheet must be a draft,Новый ТШ должен быть черновиком
+The position must belong to the timesheet worker,Позиция должна относиться к работнику из ТШ
+A new position must be in editing,Новая позиция должна иметь статус «Редактирование»
+Change the position status through its Workflow,Измените статус через Workflow позиции
+Use the position Workflow to change the timesheet status,"Чтобы изменить статус ТШ, используйте Workflow позиций"
+Timesheet Management Action,Действие по ведению ТШ
+Run this timesheet position transition directly as an authorized submitter action.,"Выполнять этот переход позиции от имени пользователя, которому разрешено вести ТШ."

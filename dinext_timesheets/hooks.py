@@ -280,6 +280,7 @@ permission_query_conditions = {
 
 doc_events = {
 	"User Timesheet": {
+		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_insert",
 		"before_save": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_save",
 		# Server Script "After Save" ≡ Document.on_update (JE create/cancel)
 		"on_update": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.on_update",

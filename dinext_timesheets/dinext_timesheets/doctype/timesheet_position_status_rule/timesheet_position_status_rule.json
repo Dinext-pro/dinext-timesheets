@@ -7,7 +7,9 @@
  "field_order": [
   "position_status",
   "timesheet_status",
-  "threshold"
+  "threshold",
+  "move_all_positions",
+  "check_timesheet"
  ],
  "fields": [
   {
@@ -33,6 +35,21 @@
    "label": "Threshold",
    "options": "Any\nAll",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "move_all_positions",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Move All Positions"
+  },
+  {
+   "default": "0",
+   "description": "Run the timesheet filling checks before the timesheet enters this row's status.",
+   "fieldname": "check_timesheet",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Timesheet Check"
   }
  ],
  "index_web_pages_for_search": 1,

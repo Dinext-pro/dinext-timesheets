@@ -4,38 +4,12 @@ import {
 	FIELD_TASK,
 } from "./editors/cascade-commit.js";
 
-/**
- * Editable when draft/rework and caller is owner, System Manager, or team lead
- * (frm.ut.isTeamLead set in form_chrome via team_lead.js).
- */
-/** V10 disableReprocessJournalEntries. Prod: Z_Dinord_*; local/dinext: Dinext_*. */
-const REPROCESS_ROLES = [
-	"Dinext_Projects_Director",
-	"Dinext_Projects_Admin",
-	"Z_Dinord_Projects_Director",
-	"Z_Dinord_Projects_Admin",
-];
-
-export function canReprocessJournalEntries() {
-	return REPROCESS_ROLES.some((role) => !!frappe.user?.has_role?.(role));
+export function canReprocessJournalEntries(frm) {
+	return Boolean(frm?.perm?.[0]?.import);
 }
 
 export function canEdit(frm) {
-	const status = frm.doc?.ut_status;
-	if (status !== "Draft" && status !== "Rework") {
-		return false;
-	}
-	const user = frappe.session.user;
-	if (user === frm.doc?.timesheet_from) {
-		return true;
-	}
-	if (frappe.user?.has_role?.("System Manager")) {
-		return true;
-	}
-	if (frm.ut?.isTeamLead) {
-		return true;
-	}
-	return false;
+	return frm.ut?.canEdit === true;
 }
 
 export function dayField(date) {

@@ -7,47 +7,7 @@ import {
 	taskLabelFromCatalog,
 } from "./catalog.js";
 
-async function loadTemplate(frm) {
-	const r = await frappe.db.get_value(
-		"Worker",
-		{ wuser: frm.doc.timesheet_from },
-		"wtimesheet_template"
-	);
-	const templateName = r?.message?.wtimesheet_template;
-	if (!templateName) {
-		frm.template_doc = null;
-		return;
-	}
-	frm.template_doc = await frappe.db.get_doc("Timesheet Template", templateName);
-}
-
-async function loadWorkHours(frm) {
-	const name = frm.template_doc?.tt_working_hours_on_date;
-	if (!name) {
-		return [];
-	}
-	const doc = await frappe.db.get_doc("Working Hours On Date", name);
-	return doc.hod_working_hours_table || [];
-}
-
-async function loadHolidays(frm) {
-	const r = await frappe.db.get_value(
-		"Worker",
-		{ wuser: frm.doc.timesheet_from },
-		"wholiday_list"
-	);
-	const listName = r?.message?.wholiday_list;
-	if (!listName) {
-		return [];
-	}
-	const doc = await frappe.db.get_doc("Holiday List", listName);
-	const from = frm.doc.ts_valid_from;
-	const to = frm.doc.ts_valid_for;
-	return (doc.holidays || []).filter((h) => {
-		const d = h.holiday_date;
-		return d >= from && d <= to;
-	});
-}
+const CONTEXT = "dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context";
 
 async function loadLeaves(frm) {
 	return frappe.db.get_list("Application For Leave", {
@@ -189,43 +149,12 @@ async function loadPositions(frm) {
 	return positions;
 }
 
-export async function loadTitles(positions, frm) {
-	const projectIds = [...new Set(positions.map((p) => p.project).filter(Boolean))];
-	const projectNames = {};
-	await Promise.all(
-		projectIds.map(async (name) => {
-			const catalog = frm ? projectLabelFromCatalog(frm, name) : "";
-			const r = await frappe.db.get_value("Project", name, "project_name");
-			projectNames[name] = r?.message?.project_name || catalog || name;
-		})
-	);
-
-	await Promise.all(
-		positions.map(async (p) => {
-			p.project_label =
-				projectNames[p.project] ||
-				(frm ? projectLabelFromCatalog(frm, p.project) : "") ||
-				p.project ||
-				"";
-			if (!p.document_type || !p.document_name) {
-				p.document_label = "";
-				return;
-			}
-			const catalog = frm ? taskLabelFromCatalog(frm, p.document_name) : "";
-			let subject = "";
-			try {
-				const r = await frappe.db.get_value(
-					p.document_type,
-					p.document_name,
-					"subject"
-				);
-				subject = r?.message?.subject || "";
-			} catch (_err) {
-				subject = "";
-			}
-			p.document_label = subject || catalog || p.document_name;
-		})
-	);
+export function loadTitles(positions, frm) {
+	for (const position of positions) {
+		position.project_label = projectLabelFromCatalog(frm, position.project) || position.project || "";
+		position.document_label =
+			taskLabelFromCatalog(frm, position.document_name) || position.document_name || "";
+	}
 }
 
 async function loadTasksData(frm) {
@@ -247,16 +176,17 @@ async function loadTasksData(frm) {
 /** Load UT grid domain into frm.ut / frm.ts_positions. */
 export async function loadGridData(frm) {
 	const state = initState(frm);
-	await loadTemplate(frm);
+	const context = await frappe.xcall(CONTEXT, { timesheet: frm.doc.name });
+	frm.template_doc = context.template;
+	state.canEdit = context.can_edit;
+	const { work_hours: workHours, holidays } = context;
 
 	const dates = getDatesBetween(frm.doc.ts_valid_from, frm.doc.ts_valid_for);
 	if (!dates.length) {
 		frappe.throw(__("Could not determine timesheet dates"));
 	}
 
-	const [workHours, holidays, leaves, positions, tasksData] = await Promise.all([
-		loadWorkHours(frm),
-		loadHolidays(frm),
+	const [leaves, positions, tasksData] = await Promise.all([
 		loadLeaves(frm),
 		loadPositions(frm),
 		loadTasksData(frm),
@@ -264,7 +194,7 @@ export async function loadGridData(frm) {
 
 	state.tasksData = tasksData;
 	frm.tasks_data = tasksData;
-	await loadTitles(positions, frm);
+	loadTitles(positions, frm);
 
 	state.dates = dates;
 	state.workHours = workHours;

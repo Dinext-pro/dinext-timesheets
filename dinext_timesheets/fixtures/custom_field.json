@@ -397,5 +397,17 @@
   "translatable": 0,
   "unique": 0,
   "width": null
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Workflow Transition",
+  "name": "Workflow Transition-custom_timesheet_management_action",
+  "fieldname": "custom_timesheet_management_action",
+  "fieldtype": "Check",
+  "default": "0",
+  "label": "Timesheet Management Action",
+  "module": "Dinext Timesheets",
+  "insert_after": "allow_self_approval",
+  "description": "Run this timesheet position transition directly as an authorized submitter action."
  }
 ]

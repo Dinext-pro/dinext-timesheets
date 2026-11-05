@@ -3,49 +3,7 @@
  * Fills period from Worker template, overlap check, dispatch date.
  */
 
-async function timesheetOverlaps(user, start, end) {
-	const [atStart, atEnd] = await Promise.all([
-		frappe.db.get_list("User Timesheet", {
-			filters: [
-				["timesheet_from", "=", user],
-				["ts_valid_from", "<=", start],
-				["ts_valid_for", ">=", start],
-			],
-			fields: ["name"],
-			limit: 1,
-		}),
-		frappe.db.get_list("User Timesheet", {
-			filters: [
-				["timesheet_from", "=", user],
-				["ts_valid_from", "<=", end],
-				["ts_valid_for", ">=", end],
-			],
-			fields: ["name"],
-			limit: 1,
-		}),
-	]);
-	return !!(atStart?.length || atEnd?.length);
-}
-
-function applyTemplatePeriod(frm, templateDoc) {
-	const start = frm.doc.ts_valid_from;
-	const period = templateDoc.ttreporting_period;
-
-	if (period === "Месячный") {
-		frm.doc.ts_valid_for = moment(start).endOf("month").format("YYYY-MM-DD");
-		return;
-	}
-	if (period === "Полумесячный") {
-		frm.doc.ts_valid_for = frappe.datetime.add_days(start, 15);
-		return;
-	}
-	if (period === "Недельный") {
-		const eom = moment(start).endOf("month").format("YYYY-MM-DD");
-		const eow = moment(start).endOf("isoWeek").format("YYYY-MM-DD");
-		frm.doc.ts_valid_for =
-			frappe.datetime.get_day_diff(eom, eow) < 0 ? eom : eow;
-	}
-}
+const CONTEXT = "dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context";
 
 /** Prefill owner on new form so validate does not fail on empty timesheet_from. */
 export function applyNewTimesheetDefaults(frm) {
@@ -68,45 +26,13 @@ export async function validateNewTimesheet(frm) {
 		return false;
 	}
 
-	const workerTpl = await frappe.db.get_value(
-		"Worker",
-		{ wuser: frm.doc.timesheet_from },
-		"wtimesheet_template"
-	);
-	const templ = workerTpl?.message?.wtimesheet_template;
-	if (!templ) {
-		frappe.msgprint(__("The employee has no timesheet template"));
-		frappe.validated = false;
-		return false;
-	}
-
-	const templateDoc = await frappe.db.get_doc("Timesheet Template", templ);
-	if (!frm.doc.ts_from_template) {
-		frm.doc.ts_from_template = templ;
-	}
-	if (templateDoc.ttreporting_period && !frm.doc.reporting_period) {
-		frm.doc.reporting_period = templateDoc.ttreporting_period;
-	}
-
-	applyTemplatePeriod(frm, templateDoc);
-
-	if (!frm.doc.ts_valid_for) {
-		frappe.msgprint(__("Could not determine the timesheet period from the template"));
-		frappe.validated = false;
-		return false;
-	}
-
-	const exists = await timesheetOverlaps(
-		frm.doc.timesheet_from,
-		frm.doc.ts_valid_from,
-		frm.doc.ts_valid_for
-	);
-	if (exists) {
-		frappe.msgprint(__("A timesheet already exists that overlaps these dates"));
-		frappe.validated = false;
-		return false;
-	}
-
+	const { template, end } = await frappe.xcall(CONTEXT, {
+		worker: frm.doc.timesheet_from,
+		start: frm.doc.ts_valid_from,
+	});
+	frm.doc.ts_from_template = template.name;
+	frm.doc.reporting_period = template.ttreporting_period;
+	frm.doc.ts_valid_for = end;
 
 	frm.refresh_field?.("ts_valid_for");
 	frm.refresh_field?.("ts_from_template");

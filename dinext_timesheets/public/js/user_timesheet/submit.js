@@ -354,7 +354,7 @@ async function sendTimesheet(workflow, frm) {
 	}
 }
 
-function reportTimesheetError(frm, error) {
+export function reportTimesheetError(frm, error) {
 	const excType = error?.responseJSON?.exc_type;
 	if (frappe.boot?.error_report_email && excType !== "ValidationError") {
 		const body = [
@@ -438,14 +438,14 @@ export function setupSubmitButtons(frm) {
 	}
 }
 
-export async function guardEditableTimesheet(frm) {
-	if (!canEdit(frm)) {
-		return true;
-	}
+export async function guardEditableTimesheet(frm, action) {
 	syncAllRows(frm);
 	if (needsSaveBeforeSubmit(frm)) {
 		frappe.msgprint(__("Save the timesheet first"));
 		return false;
+	}
+	if (!action?.runs_timesheet_checks) {
+		return true;
 	}
 	const validation = await timesheetValidation("Start", frm);
 	const errors = validation.errors_passed || [];

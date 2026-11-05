@@ -406,3 +406,6 @@ scheduler_events = {
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+
+# Allow read-only filtering of historical timesheet status values.
+doctype_list_js["User Timesheet"].append("public/js/card_route_filters.js")

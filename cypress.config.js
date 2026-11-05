@@ -18,6 +18,22 @@ module.exports = defineConfig({
 		adminPassword: "admin",
 	},
 	e2e: {
+		setupNodeEvents(on) {
+			const { execFileSync } = require("node:child_process");
+			const path = require("node:path");
+			function run(method) {
+				const output = execFileSync("bench", ["--site", "localhost", "execute",
+					`dinext_timesheets.tests.my_timesheets_cards_ui.${method}`], {
+					cwd: path.resolve(__dirname, "../.."), encoding: "utf8", timeout: 180000,
+				});
+				return JSON.parse(output.trim().split("\n").at(-1));
+			}
+			on("task", {
+				numberCardsSeed: () => run("cli_seed"),
+				numberCardsCleanup: () => run("cli_cleanup"),
+				numberCardsReopen: () => run("cli_reopen"),
+			});
+		},
 		baseUrl: "http://localhost:8000",
 		specPattern: "cypress/integration/**/*.js",
 		supportFile: "cypress/support/e2e.js",

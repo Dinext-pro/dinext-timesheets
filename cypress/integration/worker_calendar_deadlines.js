@@ -58,6 +58,8 @@ context("Worker calendar timesheet deadlines", () => {
 	for (const language of ["en", "ru"]) for (const theme of ["light", "dark"]) {
 		it(`shows matching form/card/list in ${language}, ${theme} theme`, () => {
 			loginAuthor();
+			cy.window().should(win => expect(win.cur_frm?.doc.name).to.eq(fixture.timesheet));
+			cy.window().then(win => win.frappe.after_ajax());
 			cy.call(`${helper}.set_deadline_language`, { language });
 			const locale = `?_lang=${language}`;
 			cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}${locale}`);

@@ -84,10 +84,11 @@ def seed_deadline_ui():
 @whitelist_for_tests
 def set_deadline_language(language: str):
 	_require_test_request()
-	if language not in ("en", "ru") or not _fixture_info(frappe.session.user):
+	user = frappe.session.user
+	if language not in ("en", "ru") or not _fixture_info(user):
 		frappe.throw("Only synthetic deadline users can change acceptance language")
-	frappe.db.set_value("User", frappe.session.user, "language", language)
-	frappe.clear_cache(user=frappe.session.user)
+	frappe.db.set_value("User", user, "language", language)
+	frappe.db.after_commit.add(lambda: frappe.clear_cache(user=user))
 
 
 @whitelist_for_tests

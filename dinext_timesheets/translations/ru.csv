@@ -173,3 +173,6 @@ Overdue Timesheets,Просроченные таймшиты
 You have {0} overdue timesheets. Complete and submit them for approval.,У вас просроченных таймшитов: {0}. Заполните и отправьте их на согласование.
 Go to Timesheets,Перейти к таймшитам
 Remind Me Later,Напомнить позже
+Timesheet owner has no Worker record,Для автора таймшита не найдена запись Worker
+Worker has no Timesheet Template,У сотрудника Worker не указан шаблон таймшита
+Worker has no Holiday List,У сотрудника Worker не указан календарь Holiday List

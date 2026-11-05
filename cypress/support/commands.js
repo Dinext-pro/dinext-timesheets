@@ -1,40 +1,45 @@
-Cypress.Commands.add("login", (email, password) => {
-	const sid = Cypress.env("sid");
-	if (sid) {
-		return cy.session(
-			["ut-sid", sid],
-			() => {
-				cy.setCookie("sid", sid, { httpOnly: true });
-			},
-			{
-				cacheAcrossSpecs: false,
-				validate() {
-					cy.request("/api/method/frappe.auth.get_logged_user")
-						.its("body.message")
-						.should("eq", "Administrator");
-				},
-			}
+Cypress.Commands.add("login", (email = "Administrator", password) => {
+	const isAdministrator = email === "Administrator";
+	const sid = isAdministrator && !password ? Cypress.env("sid") : null;
+	const credential = password || (isAdministrator ? Cypress.env("adminPassword") : null);
+	if (!sid && !credential) {
+		throw new Error(
+			isAdministrator
+				? "Cypress requires Administrator credentials for the test site. Set CYPRESS_adminPassword or provide a test session."
+				: `Cypress requires a password for test user ${email}.`
 		);
 	}
-	if (!email) {
-		email = "Administrator";
-	}
-	if (!password) {
-		password = Cypress.env("adminPassword");
-	}
 	return cy.session(
-		[email, password],
+		[email, sid ? "session" : "password"],
 		() => {
-			cy.request({
-				url: "/api/method/login",
-				method: "POST",
-				body: { usr: email, pwd: password },
-			});
+			if (sid) {
+				return cy.setCookie("sid", sid, { httpOnly: true, log: false });
+			}
+			return cy
+				.request({
+					url: "/api/method/login",
+					method: "POST",
+					body: { usr: email, pwd: credential },
+					failOnStatusCode: false,
+					log: false,
+				})
+				.then(({ status }) => {
+					expect(status, `Test site login for ${email}`).to.eq(200);
+				});
 		},
 		{
 			cacheAcrossSpecs: false,
 			validate() {
-				cy.request("/api/method/frappe.auth.get_logged_user").its("body.message").should("eq", email);
+				return cy
+					.request({
+						url: "/api/method/frappe.auth.get_logged_user",
+						failOnStatusCode: false,
+						log: false,
+					})
+					.then(({ status, body }) => {
+						expect(status, `Test site session for ${email}`).to.eq(200);
+						expect(body.message).to.eq(email);
+					});
 			},
 		}
 	);

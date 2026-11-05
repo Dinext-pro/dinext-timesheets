@@ -14,21 +14,29 @@ module.exports = defineConfig({
 		runMode: 0,
 		openMode: 0,
 	},
-	env: {
-		adminPassword: "admin",
-	},
 	e2e: {
-		setupNodeEvents(on) {
+		setupNodeEvents(on, config) {
 			const { execFileSync } = require("node:child_process");
 			const path = require("node:path");
-			function run(method) {
-				const output = execFileSync("bench", ["--site", "localhost", "execute",
-					`dinext_timesheets.tests.my_timesheets_cards_ui.${method}`], {
+			const site = process.env.FRAPPE_SITE || "localhost";
+			function execute(method, args = []) {
+				const output = execFileSync("bench", ["--site", site, "execute", method, ...args], {
 					cwd: path.resolve(__dirname, "../.."), encoding: "utf8", timeout: 180000,
 				});
 				return JSON.parse(output.trim().split("\n").at(-1));
 			}
+			function run(method) {
+				const siteUrl = execute("frappe.utils.get_site_url", ["--args", JSON.stringify([site])]);
+				if (new URL(siteUrl).origin !== new URL(config.baseUrl).origin) {
+					throw new Error("The Cypress base URL must match the bench site selected by FRAPPE_SITE.");
+				}
+				return execute(`dinext_timesheets.tests.my_timesheets_cards_ui.${method}`);
+			}
 			on("task", {
+				deadlineCheckpoint(message) {
+					process.stdout.write(`DEADLINE: ${message}\n`);
+					return null;
+				},
 				numberCardsSeed: () => run("cli_seed"),
 				numberCardsCleanup: () => run("cli_cleanup"),
 				numberCardsReopen: () => run("cli_reopen"),

@@ -56,7 +56,7 @@ jobs:
           npm install --global yarn@1.22.22
           sudo install -d -o "$(id -un)" -g "$(id -gn)" /home/frappe
           ln -s "$RUNNER_TEMP/dinext-test-bench" /home/frappe/frappe-bench
-      - name: Build disposable bench and run server regressions
+      - name: Build disposable bench and run deadline integration tests
         run: |
           # This branch uses the approval engine from dinext-common's workflow branch.
           python - <<'PY'
@@ -74,9 +74,19 @@ jobs:
           code = runner.read_text()
           write_config = 'common.write_text(json.dumps(settings))'
           assert code.count(write_config) == 1
-          runner.write_text(code.replace(write_config, "settings['developer_mode'] = 1\n" + write_config))
+          code = code.replace(write_config, "settings['developer_mode'] = 1\n" + write_config)
+
+          # Run deadline acceptance independently of the older workflow unit suite.
+          app_selector = "'--app', app, '--junit-xml-output='"
+          module_selector = "'--module', 'dinext_timesheets.tests.test_deadline_integration', '--junit-xml-output='"
+          assert code.count(app_selector) == 1
+          runner.write_text(code.replace(app_selector, module_selector))
           PY
           python ci-support/.github/ci/bench_tests.py "$GITHUB_WORKSPACE"
+      - name: Run calendar tests
+        run: |
+          cd "$RUNNER_TEMP/dinext-test-bench/sites"
+          ../env/bin/python -m unittest dinext_timesheets.tests.test_deadlines
       - name: Run reminder contract tests
         run: node tests/js/deadline_reminder.test.cjs
       - name: Run six browser scenarios on this PR revision

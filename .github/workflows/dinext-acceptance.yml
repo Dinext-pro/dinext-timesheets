@@ -67,6 +67,14 @@ jobs:
           catalog = json.loads(path.read_text())
           catalog['dinext_common']['ci_sha'] = '948355ac2124081c74c873ea6620521a2e206abb'
           path.write_text(json.dumps(catalog))
+
+          # The workflow branch exports Standard Dashboard Charts as fixtures.
+          # Import those fixtures in developer mode on the disposable bench.
+          runner = Path('ci-support/.github/ci/bench_tests.py')
+          code = runner.read_text()
+          write_config = 'common.write_text(json.dumps(settings))'
+          assert code.count(write_config) == 1
+          runner.write_text(code.replace(write_config, "settings['developer_mode'] = 1\n" + write_config))
           PY
           python ci-support/.github/ci/bench_tests.py "$GITHUB_WORKSPACE"
       - name: Run reminder contract tests

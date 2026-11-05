@@ -55,7 +55,9 @@ export function limitTooltipForResult(r) {
 	if (r?.planned_hours > 0) {
 		return __("{0}% of {1} h.", [r.completion_percentage, r.planned_hours]);
 	}
-	return __("Planned work efforts are not defined");
+	return limitsHoursKey(r) === "expected"
+		? __("Forecast work efforts are not defined")
+		: __("Planned work efforts are not defined");
 }
 
 async function callLimits(args) {
@@ -225,13 +227,15 @@ export function scheduleRefreshLimits(frm, delayMs = 400) {
 	}, delayMs);
 }
 
-function getNoPlanWarningHtml() {
+function getNoPlanWarningHtml(result) {
+	const required =
+		limitsHoursKey(result) === "expected"
+			? __("Forecast work efforts are required for this task!")
+			: __("Planned work efforts are required for this task!");
 	return `
 		<div class="alert alert-danger" style="margin-bottom: 15px;">
 			<i class="fa fa-exclamation-triangle"></i>
-			<strong> ${__("Attention!")}</strong> ${__(
-				"Planned work efforts are required for this task!"
-			)}
+			<strong> ${__("Attention!")}</strong> ${required}
 		</div>`;
 }
 
@@ -239,12 +243,24 @@ function showForecastColumn() {
 	return Boolean(frappe.boot?.dinext_timesheet_show_forecast);
 }
 
+function limitsHoursKey(result) {
+	return result?.hours_key === "expected" ? "expected" : "plan";
+}
+
+function limitsBaseLabel(result) {
+	return limitsHoursKey(result) === "expected" ? __("Forecast") : __("Plan");
+}
+
+function ofBaseLabel(result) {
+	return limitsHoursKey(result) === "expected" ? __("of forecast") : __("of plan");
+}
+
 function getCompletionTableHtml(result) {
 	const calculatePercentage = (value) =>
 		result.planned_hours > 0
 			? Math.round((value / result.planned_hours) * 100)
 			: 0;
-	const showForecast = showForecastColumn();
+	const showForecast = showForecastColumn() && limitsHoursKey(result) !== "expected";
 	const forecastHours = Number.parseFloat(result.forecast_hours);
 	const forecastLabel = Number.isFinite(forecastHours)
 		? forecastHours.toFixed(1)
@@ -283,7 +299,7 @@ function getCompletionTableHtml(result) {
 				<thead>
 					<tr>
 						<th style="width: ${statusWidth};">${__("Status")}</th>
-						<th style="width: ${planWidth}; text-align: right;">${__("Plan")}</th>
+						<th style="width: ${planWidth}; text-align: right;">${limitsBaseLabel(result)}</th>
 						${forecastTh}
 						<th style="width: ${factWidth}; text-align: right;">${__("Fact")}</th>
 						<th style="width: 30%;">${__("% Complete")}</th>
@@ -382,7 +398,7 @@ function getCurrentUserHoursHtml(result, frm) {
 			<span class="ut-limits-owner__hours">${totalOwnerHours.toFixed(2)} ${__("h.")}</span>
 			${
 				result.planned_hours > 0
-					? `<span class="ut-limits-muted"> (${percentage}% ${__("of plan")})</span>`
+					? `<span class="ut-limits-muted"> (${percentage}% ${ofBaseLabel(result)})</span>`
 					: ""
 			}
 			${statusBreakdown}
@@ -393,12 +409,16 @@ function getParentTaskInfoHtml(result) {
 	if (result.planned_hours <= 0) {
 		return "";
 	}
-	let html = `<div class="hours-note">${__(
-		"Planned data is defined at:"
-	)} ${frappe.utils.escape_html(result.plan_task_subject || "")}</div>`;
+	const definedAt =
+		limitsHoursKey(result) === "expected"
+			? __("Forecast data is defined at:")
+			: __("Planned data is defined at:");
+	const sourcesLabel =
+		limitsHoursKey(result) === "expected" ? __("Forecast sources:") : __("Plan sources:");
+	let html = `<div class="hours-note">${definedAt} ${frappe.utils.escape_html(result.plan_task_subject || "")}</div>`;
 	const sources = result.plan_sources || [];
 	if (sources.length) {
-		html += `<div class="hours-note">${__("Plan sources:")}<ul>`;
+		html += `<div class="hours-note">${sourcesLabel}<ul>`;
 		for (const source of sources) {
 			html += `<li>${frappe.utils.escape_html(source.subject || "")} (${frappe.utils.escape_html(
 				source.task_name || ""
@@ -465,7 +485,7 @@ export async function showTaskPlanFact(frm, position) {
 	});
 	const html =
 		(result.planned_hours <= 0 && result.plan_required
-			? getNoPlanWarningHtml()
+			? getNoPlanWarningHtml(result)
 			: "") +
 		getCompletionTableHtml(result) +
 		getHoursNoteHtml(result) +
@@ -506,7 +526,7 @@ export async function alertLimitWarnings(frm) {
 				)})<br>` +
 				`&nbsp;&nbsp;${__("Fact work efforts")}: ${
 					w.completion_percentage
-				}% ${__("of plan")}`
+				}% ${ofBaseLabel(w)}`
 		)
 		.join("<br><br>");
 	frappe.show_alert(

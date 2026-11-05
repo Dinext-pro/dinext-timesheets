@@ -25,9 +25,12 @@ function apply_list_limit_styles(results) {
             setListButtonStyle(button, hoursData.status);
             
             // Формируем подсказку
+            const missingLabel = hoursData.hours_key === "expected"
+                ? __("Forecast work efforts are not defined")
+                : __("Planned work efforts are not defined");
             let tooltip = hoursData.planned_hours > 0 
-                ? `${hoursData.completion_percentage.toFixed( 1 )}% из ${hoursData.planned_hours.toFixed( 1 )} ч.`
-                : __("Не определены плановые трудозатраты");
+                ? __("{0}% of {1} h.", [hoursData.completion_percentage.toFixed(1), hoursData.planned_hours.toFixed(1)])
+                : missingLabel;
             
             button.attr('title', tooltip);
         });
@@ -93,6 +96,7 @@ async function getHoursData(position) {
                 status: data.status || 'no-plan',
                 limit: data.limit,
                 forecastHours: data.forecast_hours || 0,
+                hoursKey: data.hours_key === "expected" ? "expected" : "plan",
                 // Добавляем недостающие поля:
                 plan_required: data.plan_required || false,
                 plan_task_subject: data.plan_task_subject || ''
@@ -125,6 +129,7 @@ function getDefaultHoursData(position) {
         hasOwnHours: false,
         status: 'no-plan',
         forecastHours: 0,
+        hoursKey: "plan",
         // Добавляем недостающие поля:
         plan_required: false,
         plan_task_subject: ''

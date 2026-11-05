@@ -69,7 +69,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                 const planFactButton = $(`
                     <button class="btn btn-default btn-xs plan-fact-button" 
                             data-docname="${docname}" 
-                            title="Показать информацию о плановых и фактических часах"
+                            title="${__("Show plan and actual hours")}"
                             style="width: 24px; height: 24px; padding: 0; border-radius: 50%;">
                         <i class="fa fa-info-circle" style="margin: 0;"></i>
                     </button>
@@ -114,12 +114,14 @@ frappe.listview_settings["User Timesheet Position"] = {
                     //console.log('limitsMap при клике:', limitsMap);
                     
                     getHoursData(doc).then(hoursData => {
-                        const showForecast = Boolean(frappe.boot && frappe.boot.dinext_timesheet_show_forecast);
+                        const hoursKey = hoursData.hoursKey === "expected" ? "expected" : "plan";
+                        const baseLabel = hoursKey === "expected" ? __("Forecast") : __("Plan");
+                        const showForecast = Boolean(frappe.boot && frappe.boot.dinext_timesheet_show_forecast) && hoursKey !== "expected";
                         const forecastValue = Number.isFinite(Number.parseFloat(hoursData.forecastHours))
                             ? Number.parseFloat(hoursData.forecastHours).toFixed(1)
                             : "0.0";
                         let d = new frappe.ui.Dialog({
-                            title: "План-Факт анализ",
+                            title: hoursKey === "expected" ? __("Forecast vs actual analysis") : __("Plan vs actual analysis"),
                             fields: [],
                             size: 'large',
                             primary_action_label: 'Закрыть',
@@ -210,7 +212,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                                 <thead>
                                     <tr>
                                         <th>Статус</th>
-                                        <th>План</th>
+                                        <th>${baseLabel}</th>
                                         ${showForecast ? `<th>${__("Forecast")}</th>` : ""}
                                         <th>Факт</th>
                                         <th>%</th>
@@ -237,7 +239,7 @@ frappe.listview_settings["User Timesheet Position"] = {
                             const warningDiv = $(`
                                 <div class="alert alert-danger" style="margin: 15px 0;">
                                     <i class="fa fa-exclamation-triangle"></i>
-                                    <strong>Внимание!</strong> Для этой задачи обязательно указание плановых трудозатрат!
+                                    <strong>${__("Attention!")}</strong> ${hoursKey === "expected" ? __("Forecast work efforts are required for this task!") : __("Planned work efforts are required for this task!")}
                                 </div>
                             `);
                             d.$wrapper.find('.modal-body').prepend(warningDiv);

@@ -23,10 +23,10 @@ class TestMyTimesheetsCards(FrappeTestCase):
 		frappe.db.rollback(save_point="number_card_case")
 		super().tearDown()
 
-	def test_all_19_card_counts_and_sources(self):
+	def test_all_20_card_counts_and_sources(self):
 		frappe.set_user(self.fixture["user"])
 		rows = fixture.evaluate(self.fixture)
-		self.assertEqual(len(rows), 19)
+		self.assertEqual(len(rows), 20)
 		for row in rows:
 			with self.subTest(card=row["card"]):
 				self.assertEqual(row["value"], len(row["expected"]))
@@ -56,9 +56,19 @@ class TestMyTimesheetsCards(FrappeTestCase):
 				self.fixture[who],
 			)
 
-	def test_workspace_has_exactly_the_19_covered_cards(self):
+	def test_workspace_has_exactly_the_20_covered_cards(self):
 		workspace = frappe.get_doc("Workspace", "Мои Таймшиты")
 		self.assertCountEqual([c.number_card_name for c in workspace.number_cards], self.fixture["expected"])
+
+	def test_expense_section_starts_with_the_total(self):
+		workspace = frappe.get_doc("Workspace", "Мои Таймшиты")
+		blocks = frappe.parse_json(workspace.content)
+		start = next(
+			i for i, block in enumerate(blocks) if "Мои Заявки на расходы" in block["data"].get("text", "")
+		)
+		cards = blocks[start + 1 : start + 5]
+		self.assertEqual(cards[0]["data"]["number_card_name"], "Всего заявок на расходы")
+		self.assertEqual([(c["type"], c["data"]["col"]) for c in cards], [("number_card", 3)] * 4)
 
 	def test_reopened_source_leaves_approved_population(self):
 		name = self.fixture["expected"]["Заявки на отсутствие согласованные мной-1"][0]
@@ -123,7 +133,7 @@ class TestMyTimesheetsCards(FrappeTestCase):
 		self.assertEqual(get_result(card, filters), 2)
 		self.assertEqual(get_percentage_difference(card.as_dict(), filters, 2), 100)
 
-	def test_own_source_without_task_does_not_grant_self_approval(self):
+	def test_other_source_without_task_is_excluded(self):
 		name = self.fixture["expected"]["Заявки на отсутствие у меня на согласовании-2"][0]
 		frappe.db.delete(
 			"Workflow Task", {"reference_doctype": "Application For Leave", "reference_name": name}
@@ -138,10 +148,26 @@ class TestMyTimesheetsCards(FrappeTestCase):
 			0,
 		)
 
+	def test_pending_approvals_use_source_subject_instead_of_creator(self):
+		from dinext_common.workflow_approval.api import get_legacy_number_card_result
+
+		frappe.set_user(self.fixture["user"])
+		for name in (
+			"ТШ у меня на согласовании-2",
+			"Заявки на отсутствие у меня на согласовании-2",
+			"Заявок EC у меня на согласовании",
+		):
+			with self.subTest(card=name):
+				filters = frappe.db.get_value("Number Card", name, "filters_json")
+				result = get_legacy_number_card_result(filters)
+				expected = self.fixture["expected"][name]
+				self.assertEqual(result["value"], len(expected))
+				self.assertCountEqual(result["route_options"]["name"][1], expected)
+
 	def test_workflow_self_approval_rule_controls_eligible_actors(self):
 		from dinext_common.workflow_approval.engine import _eligible_approvers
 
-		name = self.fixture["expected"]["Заявки на отсутствие у меня на согласовании-2"][0]
+		name = self.fixture["expected"]["Моих Заявок на согласовании"][0]
 		source = frappe.get_doc("Application For Leave", name)
 		self.assertEqual(source.owner, self.fixture["user"])
 		transition = frappe._dict(allowed="NCQA-test-Reader", allow_self_approval=0, condition="")
@@ -154,6 +180,9 @@ class TestMyTimesheetsCards(FrappeTestCase):
 		frappe.db.set_value("Expense Claim", name, "docstatus", 2)
 		frappe.set_user(self.fixture["user"])
 		rows = {r["card"]: r for r in fixture.evaluate(self.fixture)}
+		total = rows["Всего заявок на расходы"]
+		self.assertEqual(total["value"], 3)
+		self.assertCountEqual(total["names"], set(total["expected"]) - {name})
 		for card in ("Заявок EC Согласовано", "Заявок EC Согласованных мной"):
 			self.assertEqual(rows[card]["value"], 0)
 			self.assertEqual(rows[card]["names"], [])

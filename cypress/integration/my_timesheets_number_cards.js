@@ -16,6 +16,7 @@ const cases = [
 	["Мои отклоненные таймшиты", "тш отклонено", "My Timesheets"],
 	["Мои просроченные таймшиты", "тш просрочено", "My Timesheets"],
 	["Мои согласованные таймшиты", "тш согласовано", "My Timesheets"],
+	["Всего заявок на расходы", "Всего заявок на расходы", "Мои Заявки на расходы"],
 	["Заявок EC на согласовании", "из них на согласовании", "Мои Заявки на расходы"],
 	["Заявок EC Согласовано", "из них согласовано", "Мои Заявки на расходы"],
 	["Заявок EC Отклонено", "из них отклонено", "Мои Заявки на расходы"],
@@ -47,7 +48,7 @@ let fixture;
 function open(user) {
 	cy.login(user || fixture.user, fixture.password);
 	cy.openDesk(workspace);
-	cy.get(".number-widget-box", { timeout: 60000 }).should("have.length", 19);
+	cy.get(".number-widget-box", { timeout: 60000 }).should("have.length", cases.length);
 }
 
 function cardWidget(label) {
@@ -106,11 +107,11 @@ function readPages(doctype, filters, expected, start = 0, gathered = []) {
 	});
 }
 
-describe("My Timesheets: 19 section-aware Number Cards", () => {
+describe("My Timesheets: 20 section-aware Number Cards", () => {
 	before(() => {
 		cy.task("numberCardsSeed", null, { timeout: 180000 }).then((data) => {
 			fixture = data;
-			expect(Object.keys(fixture.expected)).to.have.length(19);
+			expect(Object.keys(fixture.expected)).to.have.length(cases.length);
 		});
 	});
 	afterEach(function () {
@@ -220,16 +221,52 @@ describe("My Timesheets: 19 section-aware Number Cards", () => {
 	);
 
 	(Cypress.env("numberCardIndex") === undefined ? it : it.skip)(
+		"aligns the two shortcut sections and opens Timesheet Settings",
+		() => {
+			open();
+			cy.get(".layout-main-section .ce-block").then(($blocks) => {
+				const blocks = [...$blocks];
+				const heading = (text) =>
+					blocks.findIndex(
+						(block) => block.querySelector(".ce-header")?.textContent.trim() === text
+					);
+				const reportIndex = heading("Отчетность");
+				const settingsIndex = heading("Настройки");
+				expect(reportIndex).to.be.greaterThan(-1);
+				expect(settingsIndex).to.be.greaterThan(reportIndex);
+
+				const shortcuts = (rows) =>
+					rows.flatMap((row) => [...row.querySelectorAll(".shortcut-widget-box")]);
+				const reports = shortcuts(blocks.slice(reportIndex + 1, settingsIndex));
+				const settings = shortcuts(blocks.slice(settingsIndex + 1));
+				expect(reports.map((link) => link.getAttribute("aria-label"))).to.include.members([
+					"Мои списания по ТШ",
+					"Календарь отсутствий",
+				]);
+				expect(settings.map((link) => link.getAttribute("aria-label"))).to.include.members(
+					["Worker", "Timesheet Template", "Timesheet Settings"]
+				);
+				expect(settings[0].getBoundingClientRect().left).to.be.closeTo(
+					reports[0].getBoundingClientRect().left,
+					1
+				);
+			});
+			cy.get('.shortcut-widget-box[aria-label="Timesheet Settings"]').click();
+			cy.window().should((win) => expect(win.cur_frm?.doctype).to.eq("Timesheet Settings"));
+		}
+	);
+
+	(Cypress.env("numberCardIndex") === undefined ? it : it.skip)(
 		"does not retain another user's data for a user without an Employee",
 		() => {
 			open(fixture.empty);
 			cy.window().its("frappe.boot.dinext_expense_claim_employees").should("deep.eq", []);
 			cy.get(".number-widget-box .number")
-				.should("have.length", 19)
+				.should("have.length", cases.length)
 				.each(($number) => {
 					expect($number.text()).to.eq("0");
 				});
-			cardWidget("из них на согласовании").find(".widget-body").click();
+			cardWidget("Всего заявок на расходы").find(".widget-body").click();
 			cy.window().should((win) => {
 				expect(win.cur_list?.doctype).to.eq("Expense Claim");
 				expect(win.cur_list.data).to.have.length(0);

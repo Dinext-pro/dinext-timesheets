@@ -27,7 +27,7 @@ READ_TYPES = (
 	"Timesheet Settings",
 	"Support Settings",
 )
-VERSION = 4
+VERSION = 5
 
 
 def identity(namespace):
@@ -189,12 +189,12 @@ def seed(namespace="cypress"):
 		)
 		for i, status in enumerate((None, "", "Черновик", "На доработке"))
 	]
-	source(
+	other_timesheet = source(
 		"User Timesheet",
 		"UT-other",
 		timesheet_from=users["other"],
 		ts_valid_from="2026-03-01",
-		ut_status="Approved",
+		ut_status="Pending Approval",
 	)
 	leaves = {}
 	for status in ("Редактирование", "На согласовании", "Согласовано", "Отклонено"):
@@ -257,8 +257,9 @@ def seed(namespace="cypress"):
 		posting_date="2026-05-01",
 	)
 	positions = []
-	for i in range(24):
-		status = "Pending Approval" if i < 22 else ("Approved" if i == 22 else "Editing")
+	for i in range(25):
+		status = {22: "Approved", 23: "Editing"}.get(i, "Pending Approval")
+		who = "other" if i < 22 else "main"
 		issue = source(
 			"Issue", f"Issue-{i}", subject=p + f"Document {i}", status="Open", project=p + "Project"
 		)
@@ -266,11 +267,11 @@ def seed(namespace="cypress"):
 			source(
 				"User Timesheet Position",
 				f"UTP-{i:02}",
-				user_timesheet=ut["Draft"],
-				user=users["main"],
+				user_timesheet=other_timesheet if who == "other" else ut["Draft"],
+				user=users[who],
 				status=status,
 				workflow_state=status,
-				custom_username=p + "main",
+				custom_username=p + who,
 				period="2026-01-01",
 				project=p + "Project",
 				project_role=p + "Role",
@@ -309,16 +310,17 @@ def seed(namespace="cypress"):
 		)
 		return t
 
-	for name in positions[:22]:
+	for name in [*positions[:22], positions[24]]:
 		task("User Timesheet Position", name)
 	task("User Timesheet Position", positions[22], True)
 	task("User Timesheet Position", positions[22], True)
 	task("User Timesheet Position", positions[23], True)
 	task("Application For Leave", leaves["На согласовании"])
-	task("Application For Leave", other_leave, round_status="Stalled")
+	task("Application For Leave", other_leave)
 	task("Application For Leave", leaves["Согласовано"], True)
 	task("Application For Leave", leaves["Редактирование"], True)
 	task("Expense Claim", expenses["На согласовании"])
+	task("Expense Claim", other_expense)
 	task("Expense Claim", other_expense, user=users["other"])
 	task("Expense Claim", expenses["Согласовано"], True)
 	# A pre-existing population permits deterministic daily-percentage checks.
@@ -335,14 +337,15 @@ def seed(namespace="cypress"):
 		"Моих Заявок на согласовании": [leaves["На согласовании"]],
 		"Моих Заявок Согласовано": [leaves["Согласовано"]],
 		"Моих Заявок Отклонено": [leaves["Отклонено"]],
+		"Всего заявок на расходы": list(expenses.values()),
 		"Заявок EC на согласовании": [expenses["На согласовании"]],
 		"Заявок EC Согласовано": [expenses["Согласовано"]],
 		"Заявок EC Отклонено": [expenses["Отклонено"]],
 		"ТШ у меня на согласовании-2": positions[:22],
 		"ТШ согласованные мной-1": [positions[22]],
-		"Заявки на отсутствие у меня на согласовании-2": [leaves["На согласовании"]],
+		"Заявки на отсутствие у меня на согласовании-2": [other_leave],
 		"Заявки на отсутствие согласованные мной-1": [leaves["Согласовано"]],
-		"Заявок EC у меня на согласовании": [expenses["На согласовании"]],
+		"Заявок EC у меня на согласовании": [other_expense],
 		"Заявок EC Согласованных мной": [expenses["Согласовано"]],
 	}
 	workspace = frappe.get_doc("Workspace", "Мои Таймшиты")

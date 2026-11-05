@@ -59,11 +59,14 @@ context("Worker calendar timesheet deadlines", () => {
 		it(`shows matching form/card/list in ${language}, ${theme} theme`, () => {
 			loginAuthor();
 			cy.call(`${helper}.set_deadline_language`, { language });
-			cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}`);
+			const locale = `?_lang=${language}`;
+			cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}${locale}`);
+			cy.window().its("frappe.boot.lang").should("eq", language);
 			cy.window().then(win => win.frappe.ui.set_theme(theme));
 			cy.get(".form-message:visible").should("contain.text", language === "ru" ? "Срок отправки" : "Submission deadline");
 			cy.screenshot(`deadline-form-${language}-${theme}`, { capture: "viewport" });
-			cy.openDesk("/app/" + encodeURIComponent("мои-таймшиты"));
+			cy.openDesk(`/app/${encodeURIComponent("мои-таймшиты")}${locale}`);
+			cy.window().its("frappe.boot.lang").should("eq", language);
 			cy.window().then(win => win.frappe.ui.set_theme(theme));
 			cy.contains(".number-widget-box", /просроч|overdue/i).as("overdueCard");
 			cy.get("@overdueCard").find(".number").should("have.text", "1");

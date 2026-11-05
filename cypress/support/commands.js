@@ -64,7 +64,7 @@ Cypress.Commands.add("call", (method, args, { failOnStatusCode = true, timeout }
 			if (timeout) request.timeout = timeout;
 			return cy.request(request).then((res) => {
 				if (failOnStatusCode) {
-					expect(res.status).to.eq(200);
+					expect(res.status, res.body?.exception || method).to.eq(200);
 				}
 				return res;
 			});

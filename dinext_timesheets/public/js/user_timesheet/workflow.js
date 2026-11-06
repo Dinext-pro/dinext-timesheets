@@ -44,24 +44,46 @@ function bindUnsavedWorkflowHide(frm) {
 }
 
 function applyTimesheetAction(frm, transition) {
-	const submit = async (comment = "") => {
-		if (!(await guardEditableTimesheet(frm, transition))) {
-			return;
-		}
+	const {
+		reloadWorkflowForm,
+		runWorkflowOperation,
+		withWorkflowComment,
+		workflowRequest,
+	} = frappe.dinext;
+	const submit = async (comment) => {
 		let result;
+		let validationMessage;
 		try {
-			result = await frappe.xcall(APPLY, {
-				timesheet_name: frm.doc.name,
-				action: transition.action,
-				comment,
-				request_id: requestId(),
+			result = await runWorkflowOperation(frm.page, async () => {
+				if (!(await guardEditableTimesheet(frm, transition, (message) => {
+					validationMessage = message;
+				}))) {
+					return;
+				}
+				const outcome = await workflowRequest(APPLY, {
+					timesheet_name: frm.doc.name,
+					action: transition.action,
+					comment,
+					request_id: requestId(),
+				});
+				if (!outcome) {
+					throw new Error(__("The workflow result could not be confirmed"));
+				}
+				await reloadWorkflowForm(frm);
+				await frm._ut_load_promise;
+				return outcome;
 			});
 		} catch (error) {
 			reportTimesheetError(frm, error);
 			return;
 		}
-		const results = result?.results || [];
-		const messages = result?.messages || [];
+		if (validationMessage) {
+			frappe.msgprint(validationMessage);
+		}
+		if (!result) return;
+
+		const results = result.results || [];
+		const messages = result.messages || [];
 		const transitioned = results.some((row) => row.transitioned);
 		const failed = results.some(
 			(row) =>
@@ -77,56 +99,25 @@ function applyTimesheetAction(frm, transition) {
 				indicator: "red",
 				message: messageHtml || __("Workflow action was not applied"),
 			});
-			await frm.reload_doc();
-			return;
-		}
-		if (messages.length) {
+		} else if (messages.length) {
 			frappe.msgprint({
 				indicator: "orange",
 				message: messageHtml,
 			});
-			await frm.reload_doc();
-			return;
 		}
-		frappe.show_alert({
-			message: __("Workflow action recorded"),
-			indicator: transitioned ? "green" : "blue",
-		});
-		await frm.reload_doc();
 	};
-	const ask = () => {
-		if (!transition.comment_is_required) {
-			return submit();
-		}
-		return promptForComment();
-	};
+	const ask = () => withWorkflowComment(transition, submit);
 	if (transition.confirm_return_to_editing) {
 		frappe.warn(
 			__("Are you sure you want to return the timesheet to editing?"),
 			__("The entire timesheet will need to be re-approved!"),
-			() => ask(),
+			ask,
 			__("Continue"),
 			true
 		);
 		return;
 	}
 	return ask();
-
-	function promptForComment() {
-		frappe.prompt(
-			[
-				{
-					fieldname: "comment",
-					fieldtype: "Small Text",
-					label: __("Comment"),
-					reqd: 1,
-				},
-			],
-			(values) => submit(values.comment),
-			__("Comment required for {0}", [__(transition.action)]),
-			__("Apply")
-		);
-	}
 }
 
 /** Position workflow actions the current user can apply. */
@@ -141,8 +132,8 @@ export async function processUTWorkflow(frm) {
 		return;
 	}
 
-	const response = await frappe
-		.xcall(POSITION_ACTIONS, { timesheet_name: frm.doc.name })
+	const response = await frappe.dinext
+		.workflowRequest(POSITION_ACTIONS, { timesheet_name: frm.doc.name })
 		.catch(() => null);
 	if (gen !== frm._ut_wf_gen || timesheetNeedsSave(frm)) {
 		return;

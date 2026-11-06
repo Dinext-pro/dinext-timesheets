@@ -4,6 +4,11 @@ const source = "User Timesheet Position";
 const helper = "dinext_timesheets.tests.utp_list_ui";
 const queueApi = "dinext_common.workflow_approval.api.get_my_queue";
 const root = ".dinext-utp-list:visible";
+const actionMenu = ".page-container:visible .actions-btn-group";
+const availabilityApi = "dinext_common.workflow_approval.api.get_common_list_transitions";
+const bulkApi = "frappe.model.workflow.bulk_workflow_approval";
+const voteApi = "dinext_common.workflow_approval.api.bulk_vote";
+const approve = "_Cypress UTP List Approve";
 const fields = ["user", "period", "project", "project_role", "document_name", "all_hours"];
 let fixture;
 
@@ -21,6 +26,29 @@ function openList(user = fixture.approver) {
 		);
 	});
 	cy.get(`${root} .list-row .dinext-utp-actions`).should("have.length", 20);
+}
+
+function requestArgs(body) {
+	return typeof body === "string" ? Object.fromEntries(new URLSearchParams(body)) : body;
+}
+
+function requestNames(value) {
+	return typeof value === "string" ? JSON.parse(value) : value;
+}
+
+function spyOnNotifications() {
+	cy.window().then((win) => {
+		cy.spy(win.frappe, "show_alert").as("alert");
+		cy.spy(win.frappe, "show_progress").as("progress");
+	});
+}
+
+function assertUnlocked() {
+	cy.window().should((win) => {
+		const wrapper = win.cur_list.page.wrapper[0];
+		expect(wrapper.inert).to.eq(false);
+		expect(wrapper.hasAttribute("aria-busy")).to.eq(false);
+	});
 }
 
 function assertHeaders() {
@@ -245,4 +273,123 @@ context("Productive timesheet position List View", () => {
 		cy.get(".dinext-utp-list:visible").should("not.exist");
 		cy.get(".dinext-utp-actions:visible").should("not.exist");
 	});
+
+	it("loads workflow actions for exactly the checked rows and shows batch progress after clicking", () => {
+		let selected;
+		let releaseLookup;
+		let releaseVote;
+		const lookupGate = new Promise((resolve) => {
+			releaseLookup = resolve;
+		});
+		const voteGate = new Promise((resolve) => {
+			releaseVote = resolve;
+		});
+		cy.intercept("POST", `**/api/method/${availabilityApi}`, (req) => {
+			req.continue(() => lookupGate);
+		}).as("available");
+		cy.intercept("POST", `**/api/method/${bulkApi}`, async (req) => {
+			const names = requestNames(requestArgs(req.body).docnames);
+			await voteGate;
+			req.reply({
+				body: { message: { succeeded: names.map((name) => ({ name })), failed: [] } },
+			});
+		}).as("bulk");
+		openList();
+		spyOnNotifications();
+		cy.get(`${root} .list-row-checkbox`).then(($boxes) => {
+			const checked = $boxes.toArray().slice(0, 2);
+			selected = checked.map((box) => decodeURIComponent(box.dataset.name));
+			checked.forEach((box) => cy.wrap(box).check({ force: true }));
+		});
+		cy.get(`${actionMenu} > button`).click();
+		cy.get(`${actionMenu} .dinext-workflow-menu-status`).should("be.visible");
+		cy.get(`${actionMenu} .dinext-list-workflow-item`).should("not.exist");
+		cy.then(releaseLookup);
+		cy.wait("@available").then(({ request }) => {
+			expect(requestNames(requestArgs(request.body).names)).to.have.members(selected);
+		});
+		cy.get(`${actionMenu} .dinext-list-workflow-item`)
+			.should("have.length", 1)
+			.find(".dinext-workflow-transition")
+			.should("have.attr", "data-workflow-style");
+		cy.contains(`${actionMenu} .dinext-list-workflow-item a`, approve).click();
+		cy.get(".modal:visible [data-fieldname='comment']").should("not.exist");
+		cy.get(".modal:visible .progress-bar").should("be.visible");
+		cy.window().should((win) => {
+			expect(win.cur_list.page.wrapper[0].inert).to.eq(true);
+		});
+		cy.get("@progress").should("have.been.calledWith", Cypress.sinon.match.string, 0, 2);
+		cy.then(releaseVote);
+		cy.wait("@bulk").then(({ request }) => {
+			const args = requestArgs(request.body);
+			expect(requestNames(args.docnames)).to.have.members(selected);
+			expect(args.doctype).to.eq(source);
+			expect(args.action).to.eq(approve);
+			expect(args.comment).to.eq("");
+			expect(args.request_id).to.be.a("string").and.not.be.empty;
+		});
+		cy.get("@progress").should("have.been.calledWith", Cypress.sinon.match.string, 2, 2);
+		cy.get(".modal:visible .progress-bar").should("not.exist");
+		cy.window().then((win) => {
+			cy.contains(".modal:visible .modal-title", win.__("Workflow result"));
+		});
+		assertUnlocked();
+	});
+
+	it("runs a single row approval without a comment dialog or success notification", () => {
+		let name;
+		cy.intercept("POST", `**/api/method/${voteApi}`, (req) => {
+			const names = requestNames(requestArgs(req.body).names);
+			req.reply({ body: { message: { succeeded: names.map((name) => ({ name })), failed: [] } } });
+		}).as("vote");
+		openList();
+		spyOnNotifications();
+		cy.get(`${root} .dinext-utp-action-select`).first().then(($select) => {
+			name = decodeURIComponent($select.closest(".list-row").find(".list-row-checkbox")[0].dataset.name);
+			cy.wrap($select).select(approve);
+		});
+		cy.wait("@vote").then(({ request }) => {
+			const args = requestArgs(request.body);
+			expect(requestNames(args.names)).to.deep.eq([name]);
+			expect(args.action).to.eq(approve);
+			expect(args.comment).to.eq("");
+		});
+		assertUnlocked();
+		cy.get(".modal:visible").should("not.exist");
+		cy.get("@alert").should("not.have.been.called");
+		cy.get("@progress").should("not.have.been.called");
+	});
+
+	it("cancels a required comment safely and unlocks the row after a failed vote", () => {
+		const error = "The selected workflow item is no longer available";
+		cy.intercept("POST", `**/api/method/${queueApi}`, (req) => {
+			req.continue((res) => {
+				for (const task of res.body.message) {
+					if (fixture.positions.some((position) => position.name === task.reference_name)) {
+						task.available_transitions[0].comment_is_required = true;
+					}
+				}
+			});
+		});
+		cy.intercept("POST", `**/api/method/${voteApi}`, (req) => {
+			const [name] = requestNames(requestArgs(req.body).names);
+			req.reply({ body: { message: { succeeded: [], failed: [{ name, error }] } } });
+		}).as("failedVote");
+		openList();
+		const selects = `${root} .dinext-utp-action-select`;
+		cy.get(selects).first().select(approve);
+		cy.get(".modal:visible .modal-header button.btn-modal-close").click();
+		cy.get("@failedVote.all").should("have.length", 0);
+		assertUnlocked();
+		cy.get(selects).first().should("have.value", "").select(approve);
+		cy.get(".modal:visible textarea[data-fieldname='comment']").type("Please review the hours");
+		cy.get(".modal:visible .modal-footer .btn-primary").click();
+		cy.wait("@failedVote").then(({ request }) => {
+			expect(requestArgs(request.body).comment).to.eq("Please review the hours");
+		});
+		cy.contains(".modal:visible", error).should("be.visible");
+		assertUnlocked();
+		cy.get(selects).first().should("have.value", "").and("be.enabled");
+	});
+
 });

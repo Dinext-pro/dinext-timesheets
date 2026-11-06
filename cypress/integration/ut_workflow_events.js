@@ -42,6 +42,7 @@ context("User Timesheet workflow event refresh", () => {
 		cy.intercept("POST", `**/api/method/${applyMethod}`).as("applyAction");
 		cy.window().then((win) => {
 			win.__workflowPageMarker = "same-page";
+			cy.spy(win.frappe, "show_alert").as("alert");
 			const original = win.UserTimesheet.showTimesheetDashboard;
 			win.UserTimesheet.showTimesheetDashboard = async (frm) => {
 				await original(frm);
@@ -61,6 +62,7 @@ context("User Timesheet workflow event refresh", () => {
 			expect(dashboardPending, "refresh reached dashboard").to.eq(true)
 		);
 		cy.window().then((win) => {
+			expect(win.cur_frm.page.wrapper[0].inert, "form locked through refresh").to.eq(true);
 			// Repeat Frappe's control-clear and refresh dispatch while the first pass is pending.
 			win.cur_frm.clear_custom_buttons();
 			const next = win.cur_frm.script_manager.trigger("refresh");
@@ -74,10 +76,12 @@ context("User Timesheet workflow event refresh", () => {
 		});
 		cy.window().should((win) => {
 			expect(win.__workflowPageMarker).to.eq("same-page");
+			expect(win.cur_frm.page.wrapper[0].inert, "form unlocked after refresh").to.eq(false);
 			const group = workflowGroup(win);
 			expect(group.length, "Workflow menu restored").to.eq(1);
 			for (const action of fixture.editing_actions) expect(group.text()).to.contain(win.__(action));
 		});
+		cy.get("@alert").should("not.have.been.called");
 	});
 
 	it("shows one parent activity entry for each new position workflow event", () => {

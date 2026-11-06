@@ -158,45 +158,45 @@
 		return dialog;
 	};
 
-	const commentFor = (transition) =>
-		new Promise((resolve) => {
-			if (!transition.comment_is_required) {
-				resolve("");
-				return;
-			}
-			frappe.prompt(
-				{
-					fieldname: "comment",
-					fieldtype: "Small Text",
-					label: __("Comment"),
-					reqd: 1,
-				},
-				(values) => resolve(values.comment),
-				__("Comment required for {0}", [__(transition.action)]),
-				__("Apply")
-			);
-		});
-
-	const bulkVote = async (names, transition) => {
-		const comment = await commentFor(transition);
-		const result = await frappe.xcall("dinext_common.workflow_approval.api.bulk_vote", {
-			doctype: SOURCE_DOCTYPE,
-			names,
-			action: transition.action,
-			transition_uuid: transition.transition_uuid,
-			comment,
-			request_id: requestId(),
-		});
-		const failures = result.failed || [];
-		if (failures.length) {
+	const votePosition = async (listview, position, transition, comment) => {
+		const { runWorkflowOperation, workflowRequest, reportWorkflowError } = frappe.dinext;
+		let result;
+		try {
+			result = await runWorkflowOperation(listview.page, async () => {
+				const wasDisabled = listview.disable_list_update;
+				listview.disable_list_update = true;
+				try {
+					const outcome = await workflowRequest("dinext_common.workflow_approval.api.bulk_vote", {
+						doctype: SOURCE_DOCTYPE,
+						names: [position.name],
+						action: transition.action,
+						transition_uuid: transition.transition_uuid,
+						comment,
+						request_id: requestId(),
+					});
+					if (!outcome) {
+						throw new Error(__("The workflow result could not be confirmed"));
+					}
+					listview.last_args = null;
+					await listview.refresh();
+					await listview._dinext_workflow_render_promise;
+					return outcome;
+				} finally {
+					listview.disable_list_update = wasDisabled;
+				}
+			});
+		} catch (error) {
+			reportWorkflowError(error);
+			return;
+		}
+		if (result?.failed?.length) {
 			frappe.msgprint({
 				title: __("Some workflow items failed"),
 				indicator: "orange",
 				as_list: true,
-				message: failures.map((row) => `${escape(row.name)}: ${escape(row.error)}`),
+				message: result.failed.map((row) => `${escape(row.name)}: ${escape(row.error)}`),
 			});
 		}
-		return result;
 	};
 
 	const loadDocumentSubjects = async (listview) => {
@@ -243,8 +243,8 @@
 		await new Promise((resolve) => frappe.require(helperAssets, resolve));
 		approvals.hideColumnsAndSidebar(listview);
 		initializePeriodFilter(listview);
-		const queue = await frappe
-			.xcall("dinext_common.workflow_approval.api.get_my_queue", { limit: 1000 })
+		const queue = await frappe.dinext
+			.workflowRequest("dinext_common.workflow_approval.api.get_my_queue", { limit: 1000 })
 			.catch(() => []);
 		const tasksBySource = new Map(
 			queue
@@ -308,13 +308,16 @@
 					select.append(option);
 				});
 				select.on("click", (event) => event.stopPropagation());
-				select.on("change", async (event) => {
+				select.on("change", (event) => {
 					event.stopPropagation();
-					const transition = task.available_transitions[Number(select.val())];
+					const value = select.val();
 					select.val("");
+					if (!value) return;
+					const transition = task.available_transitions[Number(value)];
 					if (!transition) return;
-					await bulkVote([position.name], transition);
-					listview.refresh();
+					frappe.dinext.withWorkflowComment(transition, (comment) =>
+						votePosition(listview, position, transition, comment)
+					);
 				});
 				actions.prepend(select);
 			} else {
@@ -350,6 +353,10 @@
 			user: (value, _df, doc) => doc.custom_username || value,
 		},
 		get_form_link: (doc) => frappe.utils.get_form_link("User Timesheet", doc.user_timesheet),
-		refresh: renderRows,
+		refresh(listview) {
+			listview._dinext_workflow_render_promise = renderRows(listview).catch((error) => {
+				console.error("[User Timesheet Position] refresh", error);
+			});
+		},
 	};
 })();

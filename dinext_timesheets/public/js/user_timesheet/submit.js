@@ -437,10 +437,10 @@ export function setupSubmitButtons(frm) {
 	}
 }
 
-export async function guardEditableTimesheet(frm, action) {
+export async function guardEditableTimesheet(frm, action, showError) {
 	syncAllRows(frm);
 	if (needsSaveBeforeSubmit(frm)) {
-		frappe.msgprint(__("Save the timesheet first"));
+		showError(__("Save the timesheet first"));
 		return false;
 	}
 	if (!action?.runs_timesheet_checks) {
@@ -450,7 +450,7 @@ export async function guardEditableTimesheet(frm, action) {
 	const errors = validation.errors_passed || [];
 	if (errors.length) {
 		setInvalidCells(frm, validation.invalidCells || []);
-		frappe.msgprint({
+		showError({
 			title: __("Timesheet Validation Errors"),
 			indicator: "red",
 			as_list: true,

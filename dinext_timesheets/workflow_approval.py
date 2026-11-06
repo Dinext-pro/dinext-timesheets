@@ -47,6 +47,15 @@ class TimesheetOrchestrationResponse(TypedDict):
 	positions: list[str]
 
 
+class TimesheetRebuildRoundResponse(TypedDict):
+	round_id: str
+	round_status: Literal["Conflicted", "Stalled"]
+	reference_name: str
+	label: str
+	configuration_change: dict[str, object] | None
+	can_reset: bool
+
+
 def _enabled() -> bool:
 	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
 
@@ -768,6 +777,39 @@ def lock_dependencies(doctype: str, name: str) -> list[tuple[str, str]]:
 	return [("User Timesheet", parent)] if parent else []
 
 
+@frappe.whitelist()
+def get_timesheet_rebuild_rounds(timesheet_name: str) -> list[TimesheetRebuildRoundResponse]:
+	"""Stalled position rounds for a timesheet card, labeled by project and role."""
+	parent = frappe.get_doc("User Timesheet", timesheet_name)
+	parent.check_permission("read")
+	positions = frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": parent.name},
+		fields=["name", "project", "project_role"],
+	)
+	if not positions:
+		return []
+	from dinext_common.workflow_approval.api import describe_rebuild_rounds
+
+	positions_by_name = {row.name: row for row in positions}
+	rounds = describe_rebuild_rounds("User Timesheet Position", list(positions_by_name))
+	labeled: list[TimesheetRebuildRoundResponse] = []
+	for item in rounds:
+		position = positions_by_name[item["reference_name"]]
+		label = " · ".join(filter(None, (position.project, position.project_role))) or position.name
+		labeled.append(
+			{
+				"round_id": item["round_id"],
+				"round_status": item["round_status"],
+				"reference_name": item["reference_name"],
+				"label": label,
+				"configuration_change": item["configuration_change"],
+				"can_reset": item["can_reset"],
+			}
+		)
+	return labeled
+
+
 def pending_approvers(doctype: str, name: str):
 	"""Aggregate active child-position approvers for a parent timesheet."""
 	if doctype != "User Timesheet":
@@ -779,17 +821,9 @@ def pending_approvers(doctype: str, name: str):
 	)
 	if not position_names:
 		return []
-	return frappe.get_all(
-		"Workflow Task",
-		filters={
-			"reference_doctype": "User Timesheet Position",
-			"reference_name": ("in", position_names),
-			"status": "Working",
-			"round_status": "Open",
-		},
-		fields=["approver", "approval_round_id", "workflow_state", "reference_name"],
-		order_by="approver asc, reference_name asc",
-	)
+	from dinext_common.workflow_approval.pending import get_required_state_pending_tasks
+
+	return get_required_state_pending_tasks("User Timesheet Position", position_names)
 
 
 def digest_item(task):
@@ -1387,29 +1421,6 @@ def _save_system_task(task) -> None:
 	finally:
 		if frappe.session.user != previous:
 			frappe.set_user(previous)
-
-
-def mirror_utp_comment(doc, method=None) -> None:
-	if not _enabled() or doc.reference_doctype != "User Timesheet Position":
-		return
-	parent = frappe.db.get_value(
-		"User Timesheet Position",
-		doc.reference_name,
-		"user_timesheet",
-	)
-	if not parent:
-		return
-	comment = frappe.new_doc("Comment")
-	comment.reference_doctype = "User Timesheet"
-	comment.reference_name = parent
-	comment.subject = doc.subject
-	comment.comment_type = doc.comment_type
-	comment.comment_email = doc.comment_email
-	comment.comment_by = doc.comment_by
-	comment.published = doc.published
-	comment.seen = doc.seen
-	comment.content = f"{doc.reference_name}: {doc.content}"
-	comment.insert(ignore_permissions=True)
 
 
 def notify_task_limit_if_pending(position_name: str) -> None:

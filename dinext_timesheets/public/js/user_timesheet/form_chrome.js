@@ -1,5 +1,5 @@
 /**
- * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly, dashboard).
+ * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly).
  */
 import { canEdit, canReprocessJournalEntries } from "./model.js";
 import { setupCopyButtons, disableCopyButtons } from "./copy.js";

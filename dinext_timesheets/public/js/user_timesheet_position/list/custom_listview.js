@@ -107,160 +107,13 @@ frappe.listview_settings["User Timesheet Position"] = {
                 holder.prepend(statusButton);
                 
                 // Обработчик кнопки "План-Факт"
-                planFactButton.on('click', function(e) {
+                planFactButton.on('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    
-                    //console.log('limitsMap при клике:', limitsMap);
-                    
-                    getHoursData(doc).then(hoursData => {
-                        const showForecast = Boolean(frappe.boot && frappe.boot.dinext_timesheet_show_forecast);
-                        const forecastValue = Number.isFinite(Number.parseFloat(hoursData.forecastHours))
-                            ? Number.parseFloat(hoursData.forecastHours).toFixed(1)
-                            : "0.0";
-                        let d = new frappe.ui.Dialog({
-                            title: "План-Факт анализ",
-                            fields: [],
-                            size: 'large',
-                            primary_action_label: 'Закрыть',
-                            primary_action: function() {
-                                d.hide();
-                            }
-                        });
-                        
-                        // Формируем примечания
-                        let hoursNote = '';
-                        if (hoursData.usedChildrenForActual && hoursData.hasOwnHours) {
-                            hoursNote = `(сумма текущей задачи и ${hoursData.childTasksCount} дочерних)`;
-                        } else if (hoursData.usedChildrenForActual) {
-                            hoursNote = `(подсчет по ${hoursData.childTasksCount} дочерним задачам)`;
-                        } else if (hoursData.hasOwnHours) {
-                            hoursNote = `(только текущая задача)`;
-                        }
-                        
-                        // Формируем общее значение плана
-                        const planValue = hoursData.plannedHours > 0 ? 
-                            `${hoursData.plannedHours.toFixed(1)} ч.` + 
-                            (hoursData.usedParentForPlan ? 
-                                ` <small>(из <a href="task/${hoursData.parentTaskName}">${hoursData.parentTaskSubject || hoursData.parentTaskName}</a>)</small>` : '') : "-";
-                        
-                        // Формируем строки таблицы
-                        const tableRows = [];
-                        
-                        // Всего
-                        tableRows.push({
-                            status: "Всего",
-                            plan: planValue,
-                            forecast: forecastValue,
-                            fact: `${hoursData.totalHours.toFixed(1)} ч. ${hoursNote ? `<small>${hoursNote}</small>` : ''}`,
-                            percent: hoursData.plannedHours > 0 ? 
-                                Math.round((hoursData.totalHours / hoursData.plannedHours) * 100) : "-"
-                        });
-                        
-                        // Согласовано (если есть часы)
-                        if (hoursData.approvedHours > 0) {
-                            tableRows.push({
-                                status: "Approved",
-                                plan: planValue,
-                                forecast: forecastValue,
-                                fact: hoursData.approvedHours.toFixed(1) + " ч.",
-                                percent: hoursData.plannedHours > 0 ? 
-                                    Math.round((hoursData.approvedHours / hoursData.plannedHours) * 100) : "-"
-                            });
-                        }
-                        
-                        // На согласовании (если есть часы)
-                        if (hoursData.approvalHours > 0) {
-                            tableRows.push({
-                                status: "Pending Approval",
-                                plan: planValue,
-                                forecast: forecastValue,
-                                fact: hoursData.approvalHours.toFixed(1) + " ч.",
-                                percent: hoursData.plannedHours > 0 ? 
-                                    Math.round((hoursData.approvalHours / hoursData.plannedHours) * 100) : "-"
-                            });
-                        }
-                        
-                        // Редактирование (если есть часы)
-                        if (hoursData.editingHours > 0) {
-                            tableRows.push({
-                                status: "Editing",
-                                plan: planValue,
-                                forecast: forecastValue,
-                                fact: hoursData.editingHours.toFixed(1) + " ч.",
-                                percent: hoursData.plannedHours > 0 ? 
-                                    Math.round((hoursData.editingHours / hoursData.plannedHours) * 100) : "-"
-                            });
-                        }
-                        
-                        // Отклонено (если есть часы)
-                        if (hoursData.rejectedHours > 0) {
-                            tableRows.push({
-                                status: "Rejected",
-                                plan: planValue,
-                                forecast: forecastValue,
-                                fact: hoursData.rejectedHours.toFixed(1) + " ч.",
-                                percent: hoursData.plannedHours > 0 ? 
-                                    Math.round((hoursData.rejectedHours / hoursData.plannedHours) * 100) : "-"
-                            });
-                        }
-                        
-                        const $table = $(`
-                            <table class="table table-bordered" style="width: 100%; margin: 15px 0;">
-                                <thead>
-                                    <tr>
-                                        <th>Статус</th>
-                                        <th>План</th>
-                                        ${showForecast ? `<th>${__("Forecast")}</th>` : ""}
-                                        <th>Факт</th>
-                                        <th>%</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${tableRows.map(row => `
-                                        <tr>
-                                            <td>${row.status}</td>
-                                            <td>${row.plan}</td>
-                                            ${showForecast ? `<td>${row.forecast}</td>` : ""}
-                                            <td>${row.fact}</td>
-                                            <td>${row.percent !== "-" ? row.percent + "%" : "-"}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        `);
-                        
-                        d.$wrapper.find('.modal-body').append($table);
-                        
-                        // 1. Сначала проверяем обязательность плана и его отсутствие
-                        if (hoursData.plan_required && hoursData.plannedHours <= 0) {
-                            const warningDiv = $(`
-                                <div class="alert alert-danger" style="margin: 15px 0;">
-                                    <i class="fa fa-exclamation-triangle"></i>
-                                    <strong>Внимание!</strong> Для этой задачи обязательно указание плановых трудозатрат!
-                                </div>
-                            `);
-                            d.$wrapper.find('.modal-body').prepend(warningDiv);
-                        }
-                        // 2. Затем проверяем превышение лимитов (только если план есть)
-                        else if (hoursData.plannedHours > 0 && (hoursData.status == "warning" || hoursData.status == "block")) {
-                            const warningDiv = $(`
-                                <div class="alert alert-${hoursData.status == "warning" ? "warning" : "danger"}" style="margin: 15px 0;">
-                                    <i class="fa fa-exclamation-triangle"></i>
-                                    <strong>Превышен лимит часов!</strong>
-                                    <br>Текущий объем: ${hoursData.totalHours.toFixed(1)} ч. (${hoursData.completionPercentage.toFixed(1)}%)
-                                    <br>Лимит: ${(hoursData.plannedHours * hoursData.limit / 100).toFixed(1)} ч. (${hoursData.limit.toFixed(1)}%)
-                                </div>
-                            `);
-                            d.$wrapper.find('.modal-body').prepend(warningDiv);
-                        }
-                    
-                            
-                        d.show();
-                        setModalWindowStyles(d);
-                    });
+                    await showPositionPlanFact(doc);
+                    e.currentTarget.blur();
                 });
-                
+
                 // Обработчик кнопки "Details"
                 detailsButton.on('click', function(e) {
                     e.preventDefault();
@@ -364,6 +217,9 @@ frappe.listview_settings["User Timesheet Position"] = {
                             statusButton.replaceWith(actionHtml);
                             
                             const dropdown = holder.find(`select.action-dropdown[data-docname="${docname}"]`);
+                            dropdown.find('option').slice(1).each((index, option) => {
+                                frappe.dinext?.decorateWorkflowTransition?.(option, transitions[index]);
+                            });
                                 
                                 // Обработчик изменения статуса (из старого кода)
                                 dropdown.on('change', userTask, async function(event) {
@@ -782,8 +638,9 @@ function hideColumnsAndSidebar(listview) {
         }
     });
     
-    $('.layout-side-section').hide();
-    $('.layout-main-section').css('margin-left', '0');
+    const $page = $(listview.page.wrapper);
+    $page.find('.layout-side-section:not(.dinext-ws-rail-section)').hide();
+    $page.find('.layout-main-section').css('margin-left', '0');
     
     if ( $(document.body).hasClass( "full-width" ) ) {
         frappe.ui.toolbar.toggle_full_width();

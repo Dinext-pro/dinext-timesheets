@@ -25,7 +25,7 @@
   "docstatus": 0,
   "doctype": "Client Script",
   "dt": "Application For Leave",
-  "enabled": 1,
+  "enabled": 0,
   "modified": "2026-07-30 00:27:21.256050",
   "module": "Dinext Timesheets",
   "name": "ApFL_Status_Color",

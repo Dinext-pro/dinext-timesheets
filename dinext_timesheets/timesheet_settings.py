@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import frappe
-from frappe import _
-
 from dinext_timesheets.timesheet_status import (
-	DEFAULT_HIDDEN_LIST_STATUSES,
 	DEFAULT_PARENT_RULES,
-	PARENT_PENDING,
 	DEFAULT_POSITION_RULES,
+	DEFAULT_VISIBLE_LIST_STATUSES,
 	POSITION_STATUS_UNSET,
 	first_matching_rule,
 )
+from frappe import _
+from frappe.query_builder.functions import IfNull
+from frappe.utils import cint
+from pypika.terms import Criterion, ExistsCriterion
 
 LIST_COMMANDS = {
 	"frappe.desk.reportview.get",
@@ -53,35 +54,37 @@ def _settings_doc():
 	return frappe.get_single("Timesheet Settings")
 
 
+def _position_rule_row(row) -> dict:
+	source = row if isinstance(row, dict) else row
+	value = (
+		source.get if isinstance(source, dict) else lambda key, default=None: getattr(source, key, default)
+	)
+	return {
+		"position_status": value("position_status"),
+		"timesheet_status": value("timesheet_status"),
+		"threshold": value("threshold"),
+		"check_timesheet": int(value("check_timesheet", 0) or 0),
+		"move_all_positions": int(value("move_all_positions", 0) or 0),
+	}
+
+
 def position_rules() -> list[dict]:
-	"""Saved position-to-timesheet rules, including the legacy pending mapping."""
+	"""Saved position-to-timesheet rules. Missing singleton uses the defaults."""
 	doc = _settings_doc()
 	rows = DEFAULT_POSITION_RULES if doc is None else (doc.position_rules or [])
-	rules = [
-		{
-			"position_status": row.get("position_status"),
-			"timesheet_status": row.get("timesheet_status"),
-			"threshold": row.get("threshold"),
-			"check_timesheet": row.get("check_timesheet"),
-			"move_all_positions": row.get("move_all_positions"),
-		}
-		for row in rows
-		if row.get("position_status") and row.get("timesheet_status") and row.get("threshold")
-	]
-	if not any(row["timesheet_status"] == PARENT_PENDING for row in rules):
-		pending = parent_position_target(PARENT_PENDING)
-		if pending:
-			rules.append({
-				"position_status": pending, "timesheet_status": PARENT_PENDING,
-				"threshold": "Any", "check_timesheet": 1, "move_all_positions": 1,
-			})
-	return rules
+	result = []
+	for row in rows:
+		item = _position_rule_row(row)
+		if item["position_status"] and item["timesheet_status"] and item["threshold"]:
+			result.append(item)
+	return result
 
 
 def timesheet_check_status() -> str | None:
-	for rule in position_rules():
-		if rule["check_timesheet"]:
-			return rule["timesheet_status"]
+	"""Timesheet status before which filling checks run. None skips the checks."""
+	for row in position_rules():
+		if row["check_timesheet"]:
+			return row["timesheet_status"]
 	return None
 
 
@@ -96,7 +99,7 @@ def parent_position_target(timesheet_status: str) -> str | None:
 				"timesheet_status": row.timesheet_status,
 				"position_status": row.position_status,
 			}
-			for row in (doc.parent_rules or [])
+			for row in (doc.get("parent_rules") or [])
 		]
 	)
 	for row in rows:
@@ -121,105 +124,112 @@ def matching_position_rule(counts: dict[str, int]) -> dict | None:
 def validate_timesheet_settings(doc) -> None:
 	known = set(position_workflow_states())
 	seen_positions: set[str] = set()
+	checked_rows = 0
 	for row in doc.position_rules or []:
 		status = row.position_status or ""
 		if not status:
 			continue
 		if status in seen_positions:
-			frappe.throw(
-				_("A timesheet rule for position status {0} is already set").format(status)
-			)
+			frappe.throw(_("A timesheet rule for position status {0} is already set").format(status))
 		seen_positions.add(status)
 		if status == POSITION_STATUS_UNSET or (known and status not in known):
-			frappe.throw(
-				_("{0} is not a state of the User Timesheet Position workflow").format(status)
-			)
+			frappe.throw(_("{0} is not a state of the User Timesheet Position workflow").format(status))
 		if row.threshold not in {"Any", "All"}:
 			frappe.throw(_("Threshold must be Any or All"))
-	seen_hidden: set[str] = set()
-	for row in getattr(doc, "hidden_list_statuses", None) or []:
+		if getattr(row, "check_timesheet", 0):
+			checked_rows += 1
+	if checked_rows > 1:
+		frappe.throw(_("Timesheet Check can be set on only one row"))
+	seen_visible: set[str] = set()
+	for row in getattr(doc, "visible_list_statuses", None) or []:
 		status = row.position_status or ""
 		if not status:
 			continue
-		if status in seen_hidden:
-			frappe.throw(
-				_("Position status {0} is already hidden from the list").format(status)
-			)
-		seen_hidden.add(status)
+		if status in seen_visible:
+			frappe.throw(_("Position status {0} is already visible in the list").format(status))
+		seen_visible.add(status)
 		if status != POSITION_STATUS_UNSET and known and status not in known:
-			frappe.throw(
-				_("{0} is not a state of the User Timesheet Position workflow").format(status)
-			)
-	seen_parents: set[str] = set()
-	for row in doc.parent_rules or []:
-		status = row.position_status or ""
-		if status == POSITION_STATUS_UNSET or (status and known and status not in known):
-			frappe.throw(
-				_("{0} is not a state of the User Timesheet Position workflow").format(status)
-			)
-		parent_status = row.timesheet_status or ""
-		if parent_status and parent_status in seen_parents:
-			frappe.throw(
-				_("A position rule for timesheet status {0} is already set").format(parent_status)
-			)
-		if parent_status:
-			seen_parents.add(parent_status)
+			frappe.throw(_("{0} is not a state of the User Timesheet Position workflow").format(status))
+
+	doc.position_list_visibility_migrated = 1
 
 
 def seed_default_rules() -> None:
 	"""Fill an empty singleton. A saved empty table stays empty."""
 	if frappe.db.exists("Timesheet Settings", "Timesheet Settings"):
 		doc = frappe.get_single("Timesheet Settings")
-		if doc.position_rules or doc.parent_rules:
+		if doc.position_rules:
 			return
 	else:
 		doc = frappe.new_doc("Timesheet Settings")
 	for row in DEFAULT_POSITION_RULES:
 		doc.append("position_rules", row)
-	for row in DEFAULT_PARENT_RULES:
-		doc.append("parent_rules", row)
-	for row in DEFAULT_HIDDEN_LIST_STATUSES:
-		doc.append("hidden_list_statuses", row)
+	for row in DEFAULT_VISIBLE_LIST_STATUSES:
+		doc.append("visible_list_statuses", row)
+	doc.position_list_visibility_migrated = 1
 	doc.save(ignore_permissions=True)
 
 
-def hidden_list_statuses() -> list[str]:
-	"""Statuses omitted from the position list. A saved empty table hides nothing."""
+def visible_list_rules() -> list[dict]:
+	"""Explicit display rules. A saved empty table shows no positions."""
 	doc = _settings_doc()
-	if doc is None:
-		return [row["position_status"] for row in DEFAULT_HIDDEN_LIST_STATUSES]
+	rows = (
+		DEFAULT_VISIBLE_LIST_STATUSES if doc is None else (getattr(doc, "visible_list_statuses", None) or [])
+	)
 	return [
-		row.position_status
-		for row in (getattr(doc, "hidden_list_statuses", None) or [])
-		if row.position_status
+		{
+			"position_status": row.get("position_status"),
+			"open_wf_task": cint(row.get("open_wf_task")),
+		}
+		for row in rows
+		if row.get("position_status")
 	]
 
 
-def hidden_status_values(hidden: list[str]) -> list[str]:
-	"""Values compared with ifnull(status, ''). Not Set matches a blank status."""
-	values: list[str] = []
-	for status in hidden:
-		value = "" if status == POSITION_STATUS_UNSET else status
-		if value is not None and value not in values:
-			values.append(value)
-	return values
+def status_values(statuses: list[str]) -> list[str]:
+	"""Not Set explicitly includes both blank and NULL position status."""
+	return list(dict.fromkeys("" if status == POSITION_STATUS_UNSET else status for status in statuses))
 
 
 def utp_list_conditions(user=None) -> str:
-	"""Hide configured statuses from the position list. Other queries stay unchanged."""
-	del user
+	"""Display filter for reportview only; composed with existing document permissions."""
 	if frappe.form_dict.get("cmd") not in LIST_COMMANDS:
 		return ""
-	values = hidden_status_values(hidden_list_statuses())
-	if not values:
-		return ""
-	listed = ", ".join(frappe.db.escape(value) for value in values)
-	return f"ifnull(`tab{POSITION_DOCTYPE}`.`status`, '') not in ({listed})"
+	rules = visible_list_rules()
+	if not rules:
+		return "1=0"
+	position = frappe.qb.DocType(POSITION_DOCTYPE)
+	status = IfNull(position.status, "")
+	plain = status_values([row["position_status"] for row in rules if not row["open_wf_task"]])
+	gated = status_values([row["position_status"] for row in rules if row["open_wf_task"]])
+	conditions = []
+	if plain:
+		conditions.append(status.isin(plain))
+	if gated:
+		task = frappe.qb.DocType("Workflow Task")
+		open_tasks = (
+			frappe.qb.from_(task)
+			.select(task.name)
+			.where(
+				(task.reference_doctype == POSITION_DOCTYPE)
+				& (task.reference_name == position.name)
+				& (task.approver == (user or frappe.session.user))
+				& (task.status == "Working")
+				& (task.round_status == "Open")
+			)
+		)
+		conditions.append(status.isin(gated) & ExistsCriterion(open_tasks))
+	condition = Criterion.any(conditions).get_sql(
+		quote_char=frappe.qb.from_(position).QUOTE_CHAR,
+		with_namespace=True,
+		subquery=True,
+	)
+	return f"({condition})"
 
 
 @frappe.whitelist()
-def hidden_status_options():
-	"""Workflow states, then the blank-status choice, for the hidden-list Select."""
+def visible_status_options():
+	"""Workflow states, then the explicit blank-status choice."""
 	return [*position_workflow_states(), POSITION_STATUS_UNSET]
 
 
@@ -230,9 +240,5 @@ def utp_state_query(doctype, txt, searchfield, start, page_len, filters):
 	text = (txt or "").lower()
 	start = int(start or 0)
 	page_len = int(page_len or 20)
-	names = [
-		name
-		for name in position_workflow_states()
-		if not text or text in name.lower()
-	]
+	names = [name for name in position_workflow_states() if not text or text in name.lower()]
 	return [(name,) for name in names[start : start + page_len]]

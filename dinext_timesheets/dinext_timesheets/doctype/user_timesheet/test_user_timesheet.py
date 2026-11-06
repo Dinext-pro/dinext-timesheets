@@ -33,6 +33,16 @@ class TestUserTimesheet(FrappeTestCase):
 		)
 		self.assertIn("row.transitioned", workflow_source)
 		self.assertIn("guardEditableTimesheet", workflow_source)
+		self.assertIn("runs_timesheet_checks", submit_source)
+		self.assertIn("confirm_return_to_editing", workflow_source)
+		self.assertIn("function timesheetNeedsSave(frm)", workflow_source)
+		self.assertIn("frm?.is_dirty?.()", workflow_source)
+		self.assertIn("dirty.utWorkflow", workflow_source)
+		self.assertIn("if (timesheetNeedsSave(frm))", workflow_source)
+		self.assertIn(
+			"gen !== frm._ut_wf_gen || timesheetNeedsSave(frm)",
+			workflow_source,
+		)
 		self.assertNotIn("add_custom_button(__(BTN_STOP)", submit_source)
 		self.assertIn("frm._ut_wf_button_labels", submit_source)
 		chrome_source = (ut / "form_chrome.js").read_text()
@@ -42,6 +52,12 @@ class TestUserTimesheet(FrappeTestCase):
 			"dinext_common.workflow_approval.api.get_pending_approvers",
 			dashboard_source,
 		)
+		self.assertIn(
+			"dinext_timesheets.workflow_approval.get_timesheet_rebuild_rounds",
+			dashboard_source,
+		)
+		self.assertIn("paintRebuildRounds", dashboard_source)
+		self.assertNotIn("get_form_approval_banner", dashboard_source)
 		self.assertIn("Action expected from: {0}", dashboard_source)
 		self.assertIn("reference_name", dashboard_source)
 		self.assertIn("approver_tooltip", dashboard_source)
@@ -307,6 +323,7 @@ class TestUserTimesheet(FrappeTestCase):
 			),
 			patch.object(frappe, "get_all", return_value=["UTP-2"]),
 			patch.object(frappe, "log_error"),
+			patch.object(workflow_approval, "_validate_positions") as validate,
 			patch(
 				"dinext_common.workflow_approval.engine.apply_domain_transition",
 				side_effect=fail_sibling,
@@ -320,6 +337,7 @@ class TestUserTimesheet(FrappeTestCase):
 
 		self.assertEqual(parent.ut_status, workflow_approval.REWORK)
 		parent.save.assert_called_once()
+		validate.assert_not_called()
 		self.assertEqual(len(frappe.flags.timesheet_transition_messages), 1)
 		self.assertIn("UTP-2", frappe.flags.timesheet_transition_messages[0])
 
@@ -356,9 +374,11 @@ class TestUserTimesheet(FrappeTestCase):
 				"dinext_timesheets.timesheet_settings._settings_doc",
 				return_value=None,
 			),
-			patch(
-				"dinext_timesheets.timesheet_settings.position_workflow_states",
-				return_value=["Editing", "Pending Approval", "Approved", "Rejected"],
+			patch.object(frappe, "get_all", return_value=["UTP-2"]),
+			patch.object(
+				frappe,
+				"get_doc",
+				return_value=SimpleNamespace(name="UTP-2"),
 			),
 			patch.object(frappe, "get_all", return_value=[]),
 			patch.object(workflow_approval, "_validate_positions") as validate,
@@ -375,6 +395,40 @@ class TestUserTimesheet(FrappeTestCase):
 		validate.assert_called_once()
 		parent.save.assert_called_once()
 		transition.assert_not_called()
+		parent.save.assert_called_once()
+
+	def test_filling_check_failure_does_not_save_the_timesheet(self):
+		parent = SimpleNamespace(
+			name="UT-1",
+			ut_status=workflow_approval.DRAFT,
+			ut_approval_date=None,
+			save=Mock(),
+		)
+		changed = SimpleNamespace(name="UTP-1", status=workflow_approval.PENDING)
+		with (
+			patch.object(
+				workflow_approval,
+				"load_position_statuses",
+				return_value=[workflow_approval.PENDING],
+			),
+			patch(
+				"dinext_timesheets.timesheet_settings._settings_doc",
+				return_value=None,
+			),
+			patch.object(
+				workflow_approval,
+				"_validate_positions",
+				side_effect=frappe.ValidationError("missing hours"),
+			),
+			self.assertRaises(frappe.ValidationError),
+		):
+			workflow_approval._recalculate_parent(
+				parent,
+				changed,
+				workflow_approval.EDITING,
+			)
+		self.assertEqual(parent.ut_status, workflow_approval.DRAFT)
+		parent.save.assert_not_called()
 
 	def test_pending_parent_waits_while_a_position_is_still_editing(self):
 		parent = SimpleNamespace(

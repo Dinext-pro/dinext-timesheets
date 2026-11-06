@@ -29,7 +29,7 @@
     "allow_edit": "All",
     "avoid_status_override": 0,
     "doc_status": "0",
-    "is_optional_state": 0,
+    "is_optional_state": 1,
     "message": null,
     "next_action_email_template": null,
     "parent": "UTP Workflow",
@@ -77,7 +77,7 @@
     "allow_edit": "All",
     "avoid_status_override": 0,
     "doc_status": "0",
-    "is_optional_state": 0,
+    "is_optional_state": 1,
     "message": null,
     "next_action_email_template": "Dinext Workflow Correction",
     "parent": "UTP Workflow",
@@ -92,7 +92,7 @@
   ],
   "transitions": [
    {
-    "action": "Передать на согласование",
+    "action": "Submit for Approval",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.user_timesheet and (frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\") == frappe.session.user or frappe.db.get_value(\"Teamleads Table\", {\"parenttype\": \"User Group\", \"parent\": frappe.db.get_value(\"Worker\", {\"wuser\": frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\")}, \"wuser_group\"), \"date\": (\"<=\", frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"ts_valid_for\"))}, \"teamlead\", order_by=\"date desc, idx desc\") == frappe.session.user)",
@@ -113,7 +113,7 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Согласовано",
+    "action": "Approve",
     "allow_self_approval": 0,
     "allowed": "Dinext_UTP_Appoval",
     "condition": "doc.user != frappe.session.user",
@@ -133,7 +133,7 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Не согласовано",
+    "action": "Reject",
     "allow_self_approval": 0,
     "allowed": "Dinext_UTP_Appoval",
     "condition": "doc.user != frappe.session.user",
@@ -153,7 +153,7 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Остановить Воркфлоу",
+    "action": "Stop Workflow",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.user_timesheet and (frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\") == frappe.session.user or frappe.db.get_value(\"Teamleads Table\", {\"parenttype\": \"User Group\", \"parent\": frappe.db.get_value(\"Worker\", {\"wuser\": frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\")}, \"wuser_group\"), \"date\": (\"<=\", frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"ts_valid_for\"))}, \"teamlead\", order_by=\"date desc, idx desc\") == frappe.session.user)",
@@ -174,7 +174,7 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Редактировать",
+    "action": "Edit",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.user_timesheet and (frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\") == frappe.session.user or frappe.db.get_value(\"Teamleads Table\", {\"parenttype\": \"User Group\", \"parent\": frappe.db.get_value(\"Worker\", {\"wuser\": frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\")}, \"wuser_group\"), \"date\": (\"<=\", frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"ts_valid_for\"))}, \"teamlead\", order_by=\"date desc, idx desc\") == frappe.session.user)",
@@ -195,7 +195,7 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Редактировать",
+    "action": "Edit",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.user_timesheet and (frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\") == frappe.session.user or frappe.db.get_value(\"Teamleads Table\", {\"parenttype\": \"User Group\", \"parent\": frappe.db.get_value(\"Worker\", {\"wuser\": frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\")}, \"wuser_group\"), \"date\": (\"<=\", frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"ts_valid_for\"))}, \"teamlead\", order_by=\"date desc, idx desc\") == frappe.session.user)",
@@ -218,7 +218,39 @@
   ],
   "workflow_data": null,
   "workflow_name": "UTP Workflow",
-  "workflow_state_field": "workflow_state"
+  "workflow_state_field": "workflow_state",
+  "custom_fingerprint_excluded_fields": [
+   {
+    "field_path": "reject_reason",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "custom_username",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "all_hours",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "custom_data",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   },
+   {
+    "field_path": "table.utilized_hours",
+    "parent": "UTP Workflow",
+    "parentfield": "custom_fingerprint_excluded_fields",
+    "parenttype": "Workflow"
+   }
+  ]
  },
  {
   "custom_approval_monitor_roles": [
@@ -250,16 +282,16 @@
     "allow_edit": "Dinext_Worker",
     "avoid_status_override": 0,
     "doc_status": "0",
-    "is_optional_state": 0,
+    "is_optional_state": 1,
     "message": null,
     "next_action_email_template": null,
     "parent": "AFL Workflow",
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "Редактирование",
+    "state": "Editing",
     "update_field": "status",
-    "update_value": "Редактирование",
+    "update_value": "Editing",
     "workflow_builder_id": null
    },
    {
@@ -273,9 +305,9 @@
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "update_field": "status",
-    "update_value": "На согласовании",
+    "update_value": "Pending Approval",
     "workflow_builder_id": null
    },
    {
@@ -289,31 +321,31 @@
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "Согласовано",
+    "state": "Approved",
     "update_field": "status",
-    "update_value": "Согласовано",
+    "update_value": "Approved",
     "workflow_builder_id": null
    },
    {
     "allow_edit": "Dinext_Worker",
     "avoid_status_override": 0,
     "doc_status": "0",
-    "is_optional_state": 0,
+    "is_optional_state": 1,
     "message": null,
     "next_action_email_template": "Dinext Workflow Correction",
     "parent": "AFL Workflow",
     "parentfield": "states",
     "parenttype": "Workflow",
     "send_email": 1,
-    "state": "Отклонено",
+    "state": "Rejected",
     "update_field": "status",
-    "update_value": "Отклонено",
+    "update_value": "Rejected",
     "workflow_builder_id": null
    }
   ],
   "transitions": [
    {
-    "action": "Передать на согласование",
+    "action": "Submit for Approval",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.lauser == frappe.session.user",
@@ -324,16 +356,16 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "6f5018043e9485209c7d8f811e194610",
-    "next_state": "На согласовании",
+    "next_state": "Pending Approval",
     "parent": "AFL Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "Редактирование",
+    "state": "Editing",
     "workflow_builder_id": null
    },
    {
-    "action": "Согласовано",
+    "action": "Approve",
     "allow_self_approval": 0,
     "allowed": "Dinext_UTP_Appoval",
     "condition": "doc.lauser != frappe.session.user",
@@ -344,36 +376,36 @@
     "custom_parallel_approval_policy": "All",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "435e481e81a44a9a4b132c7104d745fc",
-    "next_state": "Согласовано",
+    "next_state": "Approved",
     "parent": "AFL Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "workflow_builder_id": null
    },
    {
-    "action": "Не согласовано",
+    "action": "Reject",
     "allow_self_approval": 0,
     "allowed": "Dinext_UTP_Appoval",
     "condition": "doc.lauser != frappe.session.user",
     "custom_all_users_with_role": 0,
     "custom_auto_complete_unchanged": 0,
-    "custom_comment_is_required": 0,
+    "custom_comment_is_required": 1,
     "custom_minimum_approvals": 0,
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "983b573d6f202072c06b23a616495511",
-    "next_state": "Отклонено",
+    "next_state": "Rejected",
     "parent": "AFL Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "workflow_builder_id": null
    },
    {
-    "action": "Остановить Воркфлоу",
+    "action": "Stop Workflow",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.lauser == frappe.session.user",
@@ -384,16 +416,16 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "a294f2d54d9093b1b799e818e38cf9f2",
-    "next_state": "Редактирование",
+    "next_state": "Editing",
     "parent": "AFL Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "На согласовании",
+    "state": "Pending Approval",
     "workflow_builder_id": null
    },
    {
-    "action": "Передать на согласование",
+    "action": "Submit for Approval",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.lauser == frappe.session.user",
@@ -404,17 +436,18 @@
     "custom_parallel_approval_policy": "Any",
     "custom_reset_on_change": 0,
     "custom_transition_uuid": "5166ff5cc1d4087955b25bb0abf795a8",
-    "next_state": "На согласовании",
+    "next_state": "Pending Approval",
     "parent": "AFL Workflow",
     "parentfield": "transitions",
     "parenttype": "Workflow",
     "send_email_to_creator": 0,
-    "state": "Отклонено",
+    "state": "Rejected",
     "workflow_builder_id": null
    }
   ],
   "workflow_data": null,
   "workflow_name": "AFL Workflow",
-  "workflow_state_field": "workflow_state"
+  "workflow_state_field": "workflow_state",
+  "custom_fingerprint_excluded_fields": []
  }
 ]

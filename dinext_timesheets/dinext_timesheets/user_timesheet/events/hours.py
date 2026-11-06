@@ -71,7 +71,7 @@ def calculate_ut_hours(doc) -> None:
 
 	leave_apps = frappe.get_all(
 		"Application For Leave",
-		filters={"lauser": doc.timesheet_from, "status": "Согласовано"},
+		filters={"lauser": doc.timesheet_from, "status": "Approved"},
 		fields=[
 			"alfrom_date",
 			"alto_date",

@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "position_status",
+  "threshold",
   "timesheet_status",
   "threshold",
   "move_all_positions",

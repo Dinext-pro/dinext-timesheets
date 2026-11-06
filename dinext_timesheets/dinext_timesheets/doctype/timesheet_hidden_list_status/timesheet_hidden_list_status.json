@@ -5,7 +5,8 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "position_status"
+  "position_status",
+  "open_wf_task"
  ],
  "fields": [
   {
@@ -14,6 +15,14 @@
    "in_list_view": 1,
    "label": "Position Status",
    "reqd": 1
+  },
+  {
+   "fieldname": "open_wf_task",
+   "fieldtype": "Check",
+   "label": "Open WF Task",
+   "default": "0",
+   "in_list_view": 1,
+   "description": "Show this status only when the current user has a Working workflow task in an Open round."
   }
  ],
  "index_web_pages_for_search": 1,

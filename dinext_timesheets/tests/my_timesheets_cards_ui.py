@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 
 import frappe
+
+from dinext_common.workflow_approval.localization import state_name
 from dinext_common.tests.ui_test_helpers import PASSWORD, _ensure_role, _ensure_user, _manual_task
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 from frappe.utils import add_days, now_datetime
@@ -208,15 +210,15 @@ def seed(namespace="cypress"):
 			alworker=p + "main",
 			alfrom_date="2026-04-01",
 			alto_date="2026-04-01",
-			status=status,
-			workflow_state=status,
+			status=state_name("AFL Workflow", status),
+			workflow_state=state_name("AFL Workflow", status),
 		)
 	other_leave = source(
 		"Application For Leave",
 		"AFL-other",
 		lauser=users["other"],
-		status="На согласовании",
-		workflow_state="На согласовании",
+		status="Pending Approval",
+		workflow_state="Pending Approval",
 	)
 	expenses = {}
 	for state, approval in (
@@ -232,7 +234,7 @@ def seed(namespace="cypress"):
 			employee_name=p + "main",
 			company=company,
 			approval_status=approval,
-			workflow_state=state,
+			workflow_state=state_name("Expense_Claim_Workflow", state),
 			expense_approver=users["other"],
 			posting_date="2026-05-01",
 			docstatus=int(approval == "Approved"),
@@ -245,7 +247,7 @@ def seed(namespace="cypress"):
 		employee_name=p + "other",
 		company=company,
 		approval_status="Draft",
-		workflow_state="На согласовании",
+		workflow_state="Pending Approval",
 		expense_approver=users["other"],
 		posting_date="2026-05-01",
 	)
@@ -255,7 +257,7 @@ def seed(namespace="cypress"):
 		employee=None,
 		company=company,
 		approval_status="Draft",
-		workflow_state="На согласовании",
+		workflow_state="Pending Approval",
 		posting_date="2026-05-01",
 	)
 	positions = []
@@ -519,7 +521,7 @@ def cli_reopen():
 		data = json.loads(path.read_text())
 		name = identity("cypress") + "AFL-Согласовано"
 		frappe.db.set_value(
-			"Application For Leave", name, {"status": "Редактирование", "workflow_state": "Редактирование"}
+			"Application For Leave", name, {"status": "Editing", "workflow_state": "Editing"}
 		)
 		data["expected"]["Моих Заявок Согласовано"] = []
 		data["expected"]["Заявки на отсутствие согласованные мной-1"] = []

@@ -11,9 +11,19 @@ app_license = "GNU General Public License (v3)"
 # ------------------
 
 fixtures = [
+    {
+        "doctype": "List View Settings",
+        "filters": [["name", "=", "User Timesheet Position"]],
+    },
     "Type Of Leave",    
-    "Workflow State",
-    "Workflow Action Master",    
+    {
+        "doctype": "Workflow State",
+        "filters": [["name", "not in", ["Draft", "Editing", "Pending Approval", "Approved", "Rejected"]]],
+    },
+    {
+        "doctype": "Workflow Action Master",
+        "filters": [["name", "not in", ["Submit for Approval", "Approve", "Reject", "Stop Workflow", "Edit"]]],
+    },
     {
         "doctype": "Calendar View",
         "filters": [
@@ -173,12 +183,12 @@ doctype_list_js = {
 		"public/js/user_timesheet/list/status_color.js",
 	],
 	"User Timesheet Position": [
-		"public/js/user_timesheet_position_list.js",
 		"public/js/user_timesheet_position/list/style.js",
 		"public/js/user_timesheet_position/list/period_filter.js",
 		"public/js/user_timesheet_position/list/functions.js",
 		"public/js/user_timesheet_position/list/history.js",
 		"public/js/user_timesheet_position/list/custom_listview.js",
+		"public/js/user_timesheet_position_list.js",
 	],
 }
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -300,7 +310,6 @@ doc_events = {
 		# Server Script "After Insert" ≡ Document.after_insert
 		"after_insert": [
 			"dinext_timesheets.dinext_timesheets.user_timesheet.events.comment.transfer_utp_comment_to_ut",
-			"dinext_timesheets.workflow_approval.mirror_utp_comment",
 		],
 	},
 }

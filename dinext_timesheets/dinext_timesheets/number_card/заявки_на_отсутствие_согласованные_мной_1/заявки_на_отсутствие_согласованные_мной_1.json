@@ -7,7 +7,7 @@
  "document_type": "Workflow Task",
  "dynamic_filters_json": "[]",
  "filters_config": "[{\r\n\tfieldname: \"doc\",\r\n\tlabel: __(\"DocType\"),\r\n\tfieldtype: \"Link\",\r\n\toptions: \"DocType\",\r\n\treqd: 1\r\n},\r\n{\r\n\tfieldname: \"state\",\r\n\tlabel: __(\"State\"),\r\n\tfieldtype: \"Data\",\r\n\tdefault: \"\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e\",\r\n\treqd: 1\r\n},\r\n{\r\n\tfieldname: \"route\",\r\n\tlabel: __(\"Route\"),\r\n\tfieldtype: \"Data\",\r\n\treqd: 1\r\n}]",
- "filters_json": "{\"doc\":\"Application For Leave\",\"state\":\"\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e\",\"route\":\"application-for-leave\"}",
+ "filters_json": "{\"doc\":\"Application For Leave\",\"state\":\"Approved\",\"route\":\"application-for-leave\"}",
  "function": "Count",
  "idx": 27,
  "is_public": 1,

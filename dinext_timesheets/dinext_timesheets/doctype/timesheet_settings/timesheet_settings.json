@@ -6,10 +6,11 @@
  "field_order": [
   "position_section",
   "position_rules",
-  "parent_section",
-  "parent_rules",
-  "hidden_section",
-  "hidden_list_statuses"
+  "visible_section",
+  "visible_list_statuses",
+  "hidden_list_statuses",
+  "position_list_visibility_migrated",
+  "parent_rules"
  ],
  "fields": [
   {
@@ -25,28 +26,41 @@
    "options": "Timesheet Position Status Rule"
   },
   {
-   "fieldname": "parent_section",
+   "fieldname": "visible_section",
    "fieldtype": "Section Break",
-   "label": "Timesheet Sets Positions"
-  },
-  {
-   "description": "When the timesheet enters this status, every position moves to the position status.",
-   "fieldname": "parent_rules",
-   "fieldtype": "Table",
-   "label": "Parent Rules",
-   "options": "Timesheet Parent Status Rule"
-  },
-  {
-   "fieldname": "hidden_section",
-   "fieldtype": "Section Break",
-   "label": "Hidden In Position List"
+   "label": "Visible In Position List"
   },
   {
    "description": "Positions in these statuses stay on the timesheet and are omitted from the position list.",
    "fieldname": "hidden_list_statuses",
    "fieldtype": "Table",
    "label": "Hidden List Statuses",
-   "options": "Timesheet Hidden List Status"
+   "options": "Timesheet Hidden List Status",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "visible_list_statuses",
+   "fieldtype": "Table",
+   "label": "Visible List Statuses",
+   "options": "Timesheet Hidden List Status",
+   "description": "Only listed statuses are shown. Open WF Task requires a Working task for the current user in an Open round."
+  },
+  {
+   "fieldname": "position_list_visibility_migrated",
+   "fieldtype": "Check",
+   "label": "Position List Visibility Migrated",
+   "default": "0",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "description": "When the timesheet enters this status, every position moves to the position status.",
+   "fieldname": "parent_rules",
+   "fieldtype": "Table",
+   "label": "Parent Rules",
+   "options": "Timesheet Parent Status Rule",
+   "hidden": 1
   }
  ],
  "index_web_pages_for_search": 1,

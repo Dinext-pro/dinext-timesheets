@@ -3,7 +3,6 @@
  * Validation from model (frm.ut / ts_positions), not DOM.
  */
 import {
-	canEdit,
 	collectDuplicatePositionErrors,
 	dayField,
 	descField,

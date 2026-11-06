@@ -26,12 +26,15 @@ def rollup_ut_status_and_task_dates(doc) -> None:
 	entered_approved = doc.status == POSITION_APPROVED and old_status != POSITION_APPROVED
 	left_approved = old_status == POSITION_APPROVED and doc.status != POSITION_APPROVED
 
-	if doc.status == POSITION_REJECTED:
-		_set_ut_status(doc.user_timesheet, PARENT_REJECTED)
-	elif doc.status == POSITION_APPROVED:
-		_maybe_approve_ut(doc.user_timesheet)
-	elif doc.status == POSITION_EDITING:
-		_maybe_rework_ut(doc, old_doc)
+	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
+
+	if not is_engine_enabled():
+		if doc.status == POSITION_REJECTED:
+			_set_ut_status(doc.user_timesheet, PARENT_REJECTED)
+		elif doc.status == POSITION_APPROVED:
+			_maybe_approve_ut(doc.user_timesheet)
+		elif doc.status == POSITION_EDITING:
+			_maybe_rework_ut(doc, old_doc)
 
 	if doc.document_type == "Task" and doc.document_name and (
 		entered_approved or left_approved

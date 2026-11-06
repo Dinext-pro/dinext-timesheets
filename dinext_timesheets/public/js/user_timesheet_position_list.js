@@ -1,36 +1,20 @@
 (function () {
+	if (!frappe.boot?.enable_parallel_workflow_approval) return;
 	frappe.provide("dinext_timesheets.approvals");
 	const approvals = dinext_timesheets.approvals;
 	if (approvals.utpListInstalled) return;
 	approvals.utpListInstalled = true;
 
 	const SOURCE_DOCTYPE = "User Timesheet Position";
+	const TIMESHEET_LIMITS_METHOD =
+		"project_workload_assignment.api.calculate_user_timesheet_limits";
 	const helperAssets = [
 		"/assets/dinext_timesheets/js/utp_approval_helpers.js",
 		"/assets/dinext_timesheets/css/timesheet_approvals.css",
 	];
 
 	const requestId = () =>
-		window.crypto?.randomUUID?.() ||
-		`${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-	const getHoursData = async (position) => {
-		const response = await frappe.call({
-			method: "calculate_timesheet_limits",
-			args: { timesheet_name: "", positions: [position] },
-			freeze: false,
-		});
-		const data = response.message?.[0];
-		if (!data) return null;
-		return {
-			totalHours: data.total_hours || 0,
-			editingHours: data.hours_data?.["Editing"] || 0,
-			approvalHours: data.hours_data?.["Pending Approval"] || 0,
-			approvedHours: data.hours_data?.["Approved"] || 0,
-			rejectedHours: data.hours_data?.["Rejected"] || 0,
-			plannedHours: data.planned_hours || 0,
-		};
-	};
+		window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 	const initializePeriodFilter = (listview) => {
 		if (listview.periodFilterInitialized) return;
@@ -44,10 +28,7 @@
 				frappe.datetime.add_days(frappe.datetime.week_start(today()), -7),
 				frappe.datetime.add_days(frappe.datetime.week_end(today()), -7),
 			],
-			"Последние 4 недели": () => [
-				frappe.datetime.add_days(today(), -27),
-				today(),
-			],
+			"Последние 4 недели": () => [frappe.datetime.add_days(today(), -27), today()],
 			"Текущий месяц": () => [
 				frappe.datetime.month_start(today()),
 				frappe.datetime.month_end(today()),
@@ -103,8 +84,9 @@
 	};
 
 	const refreshListLimits = async (positions) => {
+		if (!positions.length) return;
 		const response = await frappe.call({
-			method: "calculate_timesheet_limits",
+			method: TIMESHEET_LIMITS_METHOD,
 			args: { timesheet_name: "", positions },
 		});
 		const styles = {
@@ -116,17 +98,15 @@
 		};
 		(response.message || []).forEach((row) => {
 			const button = $(
-				`button.plan-fact-button[data-docname="${CSS.escape(
-					String(row.position)
-				)}"]`
+				`button.plan-fact-button[data-docname="${CSS.escape(String(row.position))}"]`
 			);
 			button.css("color", styles[row.status] || styles["no-plan"]);
 			button.attr(
 				"title",
 				row.planned_hours > 0
-					? `${flt(row.completion_percentage).toFixed(1)}% ${__(
-							"of"
-					  )} ${flt(row.planned_hours).toFixed(1)} ${__("hours")}`
+					? `${flt(row.completion_percentage).toFixed(1)}% ${__("of")} ${flt(
+							row.planned_hours
+					  ).toFixed(1)} ${__("hours")}`
 					: __("Planned work efforts are not defined")
 			);
 		});
@@ -163,37 +143,19 @@
 	};
 
 	const showPlanFact = async (position, button) => {
-		const hours = await getHoursData(position);
-		if (!hours) {
-			frappe.msgprint(__("Plan/fact data is unavailable"));
-			return;
-		}
-		const rows = [
-			[__("Plan"), hours.plannedHours],
-			[__("Total"), hours.totalHours],
-			[__("Approved"), hours.approvedHours],
-			[__("Pending"), hours.approvalHours],
-			[__("Editing"), hours.editingHours],
-			[__("Rejected"), hours.rejectedHours],
-		];
-		const dialog = new frappe.ui.Dialog({
-			title: __("Plan/fact analysis"),
-			size: "large",
-			primary_action_label: __("Close"),
-			primary_action: () => dialog.hide(),
+		const response = await frappe.call({
+			method: TIMESHEET_LIMITS_METHOD,
+			args: { timesheet_name: "", positions: [position] },
+			freeze: false,
 		});
-		dialog.$body.html(
-			`<table class="table table-bordered"><tbody>${rows
-				.filter(([, value]) => value !== undefined)
-				.map(
-					([label, value]) =>
-						`<tr><th>${escape(label)}</th><td>${escape(flt(value).toFixed(1))}</td></tr>`
-				)
-				.join("")}</tbody></table>`
-		);
-		approvals.setModalWindowStyles(dialog);
-		dialog.show();
+		await frappe.require("/assets/project_workload_assignment/js/limits/plan_fact.js");
+		const dialog = await project_workload_assignment.plan_fact_details.show({
+			results: response.message || [],
+			title: position.document_subject || position.document_name,
+			ownerName: position.custom_username,
+		});
 		button?.blur();
+		return dialog;
 	};
 
 	const commentFor = (transition) =>
@@ -217,17 +179,14 @@
 
 	const bulkVote = async (names, transition) => {
 		const comment = await commentFor(transition);
-		const result = await frappe.xcall(
-			"dinext_common.workflow_approval.api.bulk_vote",
-			{
-				doctype: SOURCE_DOCTYPE,
-				names,
-				action: transition.action,
-				transition_uuid: transition.transition_uuid,
-				comment,
-				request_id: requestId(),
-			}
-		);
+		const result = await frappe.xcall("dinext_common.workflow_approval.api.bulk_vote", {
+			doctype: SOURCE_DOCTYPE,
+			names,
+			action: transition.action,
+			transition_uuid: transition.transition_uuid,
+			comment,
+			request_id: requestId(),
+		});
 		const failures = result.failed || [];
 		if (failures.length) {
 			frappe.msgprint({
@@ -240,67 +199,47 @@
 		return result;
 	};
 
-	const installBulkActions = (listview, tasksBySource) => {
-		listview.page.remove_inner_button(__("Apply workflow action"));
-		listview.page.add_inner_button(__("Apply workflow action"), () => {
-			const selected = listview.get_checked_items().map((row) => row.name);
-			const tasks = selected.map((name) => tasksBySource.get(name)).filter(Boolean);
-			if (!selected.length || tasks.length !== selected.length) {
-				frappe.msgprint(__("Select rows that require your decision"));
-				return;
-			}
-			const common = tasks
-				.map((task) => new Set(task.available_transitions.map((row) => row.transition_uuid)))
-				.reduce((left, right) => new Set([...left].filter((uuid) => right.has(uuid))));
-			const catalog = new Map();
-			tasks.forEach((task) => {
-				task.available_transitions.forEach((row) => catalog.set(row.transition_uuid, row));
-			});
-			const choices = [...common].sort().map((uuid) => {
-				const row = catalog.get(uuid);
-				const sameAction = [...catalog.values()].filter((item) => item.action === row.action);
-				const suffix =
-					sameAction.length > 1
-						? [row.allowed, row.next_state].filter(Boolean).join(" → ")
-						: "";
-				return {
-					uuid,
-					label: suffix ? `${__(row.action)} (${suffix})` : __(row.action),
-				};
-			});
-			if (!choices.length) {
-				frappe.msgprint(__("The selected rows have no common workflow action"));
-				return;
-			}
-			frappe.prompt(
-				{
-					fieldname: "action",
-					fieldtype: "Select",
-					label: __("Action"),
-					options: choices.map((row) => row.label).join("\n"),
-					reqd: 1,
-				},
-				async ({ action }) => {
-					const chosen = choices.find((row) => row.label === action);
-					const transition = catalog.get(chosen.uuid);
-					await bulkVote(selected, {
-						...transition,
-						comment_is_required: tasks.some((task) =>
-							task.available_transitions.some(
-								(row) =>
-									row.transition_uuid === chosen.uuid && row.comment_is_required
-							)
-						),
-					});
-					listview.refresh();
-				},
-				__("Apply workflow action"),
-				__("Apply")
-			);
-		});
+	const loadDocumentSubjects = async (listview) => {
+		const column = listview.columns?.findIndex(
+			(item) => item.df?.fieldname === "document_name"
+		);
+		if (column == null || column < 0) return;
+		const positions = [...listview.data];
+		await Promise.all(
+			["Task", "Issue"].map(async (doctype) => {
+				if (!frappe.model.can_read(doctype)) return;
+				const matching = positions.filter(
+					(row) => row.document_type === doctype && row.document_name
+				);
+				const names = [...new Set(matching.map((row) => row.document_name))];
+				if (!names.length) return;
+				const records = await frappe.db
+					.get_list(doctype, {
+						fields: ["name", "subject"],
+						filters: { name: ["in", names] },
+						limit: names.length,
+					})
+					.catch(() => []);
+				const subjects = new Map(records.map((row) => [row.name, row.subject]));
+				for (const position of matching) {
+					const subject = subjects.get(position.document_name);
+					if (!subject || !listview.data.includes(position)) continue;
+					position.document_subject = subject;
+					listview.$frappe_list
+						.find(`a[data-name="${CSS.escape(position.name)}"]`)
+						.closest(".list-row")
+						.children(".level-left")
+						.children(".list-row-col")
+						.eq(column)
+						.text(subject)
+						.attr("title", subject);
+				}
+			})
+		);
 	};
 
 	const renderRows = async (listview) => {
+		listview.$frappe_list.addClass("dinext-utp-list");
 		await new Promise((resolve) => frappe.require(helperAssets, resolve));
 		approvals.hideColumnsAndSidebar(listview);
 		initializePeriodFilter(listview);
@@ -312,7 +251,6 @@
 				.filter((task) => task.reference_doctype === SOURCE_DOCTYPE)
 				.map((task) => [task.reference_name, task])
 		);
-		installBulkActions(listview, tasksBySource);
 		listview.data.forEach((position) => {
 			const row = listview.$frappe_list
 				.find(`a[data-name="${frappe.utils.escape_html(position.name)}"]`)
@@ -342,11 +280,13 @@
 			actions.append(plan, details);
 			approvals.addHistoryButton(actions, position);
 			const task = tasksBySource.get(position.name);
-			if (task) {
+			if (task?.available_transitions?.length) {
 				const select = $(
-					`<select class="form-control input-xs dinext-utp-action-select"
+					`<select class="form-control input-xs dinext-utp-action-select ${escape(
+						approvals.getSelectStyle(position.status)
+					)}"
 						aria-label="${escape(__("Workflow action"))}">
-						<option value="">${escape(position.status)}</option>
+						<option value="">${escape(__(position.status))}</option>
 					</select>`
 				);
 				task.available_transitions.forEach((transition, index) => {
@@ -355,17 +295,17 @@
 					);
 					const suffix =
 						sameAction.length > 1
-							? [transition.allowed, transition.next_state].filter(Boolean).join(" → ")
+							? [transition.allowed, transition.next_state]
+									.filter(Boolean)
+									.join(" → ")
 							: "";
-					select.append(
-						$("<option>")
-							.val(String(index))
-							.text(
-								suffix
-									? `${__(transition.action)} (${suffix})`
-									: __(transition.action)
-							)
-					);
+					const option = $("<option>")
+						.val(String(index))
+						.text(
+							suffix ? `${__(transition.action)} (${suffix})` : __(transition.action)
+						);
+					frappe.dinext?.decorateWorkflowTransition?.(option, transition);
+					select.append(option);
 				});
 				select.on("click", (event) => event.stopPropagation());
 				select.on("change", async (event) => {
@@ -376,17 +316,18 @@
 					await bulkVote([position.name], transition);
 					listview.refresh();
 				});
-				actions.append(select);
+				actions.prepend(select);
+			} else {
+				const status = $(
+					`<span class="indicator-pill ${escape(
+						approvals.getSelectStyle(position.status)
+					)}">${escape(__(position.status))}</span>`
+				);
+				actions.prepend(status);
 			}
-			const status = $(
-				`<span class="indicator-pill ${escape(
-					approvals.getSelectStyle(position.status)
-				)}">${escape(position.status)}</span>`
-			);
-			actions.prepend(status);
 			row.find(".level-right").prepend(actions);
 		});
-		await refreshListLimits(listview.data);
+		await Promise.all([refreshListLimits(listview.data), loadDocumentSubjects(listview)]);
 	};
 
 	frappe.listview_settings[SOURCE_DOCTYPE] = {
@@ -404,12 +345,11 @@
 			"document_subject",
 		],
 		formatters: {
-			all_hours: (value) => frappe.format(value, { fieldtype: "Float" }),
-			document_name: (value, _df, doc) => doc.document_subject || value,
+			all_hours: (value) => frappe.format(value, { fieldtype: "Data" }),
+			document_name: (value, _df, doc) => escape(doc.document_subject || value),
 			user: (value, _df, doc) => doc.custom_username || value,
 		},
-		get_form_link: (doc) =>
-			frappe.utils.get_form_link("User Timesheet", doc.user_timesheet),
+		get_form_link: (doc) => frappe.utils.get_form_link("User Timesheet", doc.user_timesheet),
 		refresh: renderRows,
 	};
 })();

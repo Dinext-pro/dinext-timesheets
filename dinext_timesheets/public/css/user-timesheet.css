@@ -37,10 +37,8 @@ body:not(.ut-show-connections)
 	display: none !important;
 }
 
-/* Desk + Dinext workspace rail — hidden on UT form/list (body class). Toggle cannot reopen. */
-body.ut-hide-desk-sidebar .layout-side-section,
-body.ut-hide-desk-sidebar .sidebar-toggle-btn,
-body.ut-hide-desk-sidebar .dinext-ws-rail-section,
+/* Hide native UT panels while preserving the global workspace navigation rail. */
+body.ut-hide-desk-sidebar .layout-side-section:not(.dinext-ws-rail-section),
 body.ut-hide-desk-sidebar .page-head .sidebar-toggle-btn {
 	display: none !important;
 }
@@ -51,16 +49,15 @@ body.ut-hide-desk-sidebar .layout-main-section-wrapper {
 	width: 100% !important;
 }
 
-/* UT form only — drop Frappe .container max-width (1090px lg).
-   Wide form, exactly 32px L/R. Desk .layout-main margin -15px cancelled below. */
-body.ut-hide-desk-sidebar
+/* Use the custom wide form when the workspace rail is inactive. */
+body.ut-hide-desk-sidebar:not(.dinext-ws-sidebar-collapsed)
 	.page-container.editable-form[data-page-route="User Timesheet"]
 	> .page-head
 	> .container,
-body.ut-hide-desk-sidebar
+body.ut-hide-desk-sidebar:not(.dinext-ws-sidebar-collapsed)
 	.page-container.editable-form[data-page-route="User Timesheet"]
 	> .page-body,
-body.ut-hide-desk-sidebar
+body.ut-hide-desk-sidebar:not(.dinext-ws-sidebar-collapsed)
 	.page-container.editable-form[data-page-route="User Timesheet"]
 	> .page-body.container {
 	max-width: none;
@@ -69,14 +66,14 @@ body.ut-hide-desk-sidebar
 	padding-right: 32px;
 }
 
-body.ut-hide-desk-sidebar
+body.ut-hide-desk-sidebar:not(.dinext-ws-sidebar-collapsed)
 	.page-container.editable-form[data-page-route="User Timesheet"]
 	.layout-main {
 	margin-left: 0;
 	margin-right: 0;
 }
 
-body.ut-hide-desk-sidebar
+body.ut-hide-desk-sidebar:not(.dinext-ws-sidebar-collapsed)
 	.page-container.editable-form[data-page-route="User Timesheet"]
 	.layout-main-section-wrapper {
 	padding-right: 0;
@@ -692,24 +689,4 @@ body.ut-hide-desk-sidebar
 	resize: none;
 	color: var(--text-color, inherit);
 	background: var(--control-bg, var(--bg-color, transparent));
-}
-
-/* Plan/fact dialog — muted fill already used on UT popover/banner */
-.ut-limits-owner {
-	margin: 15px 0;
-	padding: 8px 10px;
-	border-radius: 4px;
-	background: var(--subtle-fg, rgba(128, 128, 128, 0.14));
-	border-left: 4px solid var(--text-muted, #6c757d);
-	color: var(--text-color, inherit);
-}
-
-.ut-limits-owner__hours {
-	font-size: 16px;
-	font-weight: bold;
-	color: var(--heading-color, var(--text-color, inherit));
-}
-
-.ut-limits-muted {
-	color: var(--text-muted, #6c757d);
 }

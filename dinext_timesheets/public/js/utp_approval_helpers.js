@@ -19,7 +19,7 @@ dinext_timesheets.approvals.setModalWindowStyles = function (dialog) {
 };
 
 dinext_timesheets.approvals.hideColumnsAndSidebar = function (listview) {
-	listview.page.wrapper.find(".layout-side-section").hide();
+	listview.page.wrapper.find(".layout-side-section:not(.dinext-ws-rail-section)").hide();
 	listview.page.wrapper.find(".list-liked-by-me").hide();
 };
 

@@ -7,7 +7,7 @@
  "document_type": "Workflow Task",
  "dynamic_filters_json": "[]",
  "filters_config": "[{\r\n\tfieldname: \"doc\",\r\n\tlabel: __(\"DocType\"),\r\n\tfieldtype: \"Link\",\r\n\toptions: \"DocType\",\r\n\treqd: 1\r\n},\r\n{\r\n\tfieldname: \"state\",\r\n\tlabel: __(\"State\"),\r\n\tfieldtype: \"Data\",\r\n\tdefault: \"\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\",\r\n\treqd: 1\r\n},\r\n{\r\n\tfieldname: \"route\",\r\n\tlabel: __(\"Route\"),\r\n\tfieldtype: \"Data\",\r\n\treqd: 1\r\n}]",
- "filters_json": "{\"doc\":\"Application For Leave\",\"state\":\"\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\",\"route\":\"application-for-leave\"}",
+ "filters_json": "{\"doc\":\"Application For Leave\",\"state\":\"Pending Approval\",\"route\":\"application-for-leave\"}",
  "function": "Count",
  "idx": 24,
  "is_public": 1,

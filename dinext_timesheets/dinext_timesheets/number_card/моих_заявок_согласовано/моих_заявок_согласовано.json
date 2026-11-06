@@ -6,7 +6,7 @@
  "doctype": "Number Card",
  "document_type": "Application For Leave",
  "dynamic_filters_json": "[[\"Application For Leave\",\"lauser\",\"=\",\"evail: frappe.session.user\"]]",
- "filters_json": "[[\"Application For Leave\",\"status\",\"=\",\"\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e\",false]]",
+ "filters_json": "[[\"Application For Leave\",\"status\",\"=\",\"Approved\",false]]",
  "function": "Count",
  "idx": 102,
  "is_public": 1,

@@ -39,7 +39,7 @@ def execute() -> None:
 	for transition in frappe.get_all(
 		"Workflow Transition",
 		filters={"parent": "UTP Workflow"},
-		fields=["name", "action", "condition"],
+		fields=["name", "action", "condition", "next_state"],
 	):
 		values = {}
 		if "Z_Dinord_Team_Lead" in (transition.condition or ""):
@@ -47,7 +47,7 @@ def execute() -> None:
 				"Z_Dinord_Team_Lead",
 				"Dinext_Team_Lead",
 			)
-		if transition.action == "Согласовано":
+		if transition.action == "Approve" and transition.next_state == "Approved":
 			values["custom_auto_complete_unchanged"] = 1
 		if values:
 			frappe.db.set_value(
@@ -58,7 +58,7 @@ def execute() -> None:
 			)
 	for transition in frappe.get_all(
 		"Workflow Transition",
-		filters={"parent": "AFL Workflow", "next_state": "Отклонено"},
+		filters={"parent": "AFL Workflow", "next_state": "Rejected"},
 		pluck="name",
 	):
 		frappe.db.set_value(
@@ -71,7 +71,7 @@ def execute() -> None:
 	for workflow_name in ("UTP Workflow", "AFL Workflow"):
 		for state in frappe.get_all(
 			"Workflow Document State",
-			filters={"parent": workflow_name, "state": "Отклонено"},
+			filters={"parent": workflow_name, "state": "Rejected"},
 			pluck="name",
 		):
 			frappe.db.set_value(

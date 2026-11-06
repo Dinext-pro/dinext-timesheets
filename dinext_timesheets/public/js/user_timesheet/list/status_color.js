@@ -20,16 +20,18 @@ frappe.listview_settings['User Timesheet'] = {
     //},
     onload: function(listview) {
         add_reprocces_button( listview );
-        document.body.classList.add("ut-hide-desk-sidebar");
+        const route = frappe.get_route() || [];
+        document.body.classList.toggle(
+            "ut-hide-desk-sidebar",
+            (route[0] === "Form" || route[0] === "List") && route[1] === "User Timesheet"
+        );
         frappe.require(["/assets/dinext_timesheets/css/user-timesheet.css"]);
         if (!window._utSidebarRouteBound) {
             window._utSidebarRouteBound = true;
             $(document).on("page-change.utTimesheetSidebar", () => {
                 const r = frappe.get_route() || [];
                 const ut = (r[0] === "Form" || r[0] === "List") && r[1] === "User Timesheet";
-                if (!ut) {
-                    document.body.classList.remove("ut-hide-desk-sidebar");
-                }
+                document.body.classList.toggle("ut-hide-desk-sidebar", ut);
             });
         }
     }

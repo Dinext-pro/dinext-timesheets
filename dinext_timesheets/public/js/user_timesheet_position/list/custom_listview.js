@@ -364,6 +364,9 @@ frappe.listview_settings["User Timesheet Position"] = {
                             statusButton.replaceWith(actionHtml);
                             
                             const dropdown = holder.find(`select.action-dropdown[data-docname="${docname}"]`);
+                            dropdown.find('option').slice(1).each((index, option) => {
+                                frappe.dinext?.decorateWorkflowTransition?.(option, transitions[index]);
+                            });
                                 
                                 // Обработчик изменения статуса (из старого кода)
                                 dropdown.on('change', userTask, async function(event) {

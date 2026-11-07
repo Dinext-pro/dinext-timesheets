@@ -32,12 +32,16 @@ context("User Timesheet workflow event refresh", () => {
 		});
 	});
 
-	it("restores the editing Workflow menu after stopping without a browser reload", () => {
+	it("restores the editing Workflow menu after editing a partially rejected timesheet", () => {
 		let releaseDashboard;
 		let dashboardPending = false;
 		let holdNext = true;
 		const gate = new Promise((resolve) => {
 			releaseDashboard = resolve;
+		});
+		cy.call(actionsMethod, { timesheet_name: fixture.name }).its("body.message.actions").then((rows) => {
+			expect(rows.map((row) => row.action)).to.deep.eq(["Edit"]);
+			expect(rows[0].positions.map((row) => row.name)).to.have.members([fixture.position, fixture.rejected]);
 		});
 		cy.intercept("POST", `**/api/method/${applyMethod}`).as("applyAction");
 		cy.window().then((win) => {
@@ -54,7 +58,9 @@ context("User Timesheet workflow event refresh", () => {
 			workflowGroup(win).find("button").first().click();
 		});
 		cy.window().then((win) => {
-			cy.get(".inner-group-button .dropdown-menu a").contains(win.__(fixture.stop_action)).click();
+			const entries = workflowGroup(win).find(".dropdown-menu a");
+			expect(entries.toArray().map((entry) => entry.textContent.trim())).to.deep.eq([win.__("Edit")]);
+			cy.wrap(entries).click();
 		});
 		cy.wait("@applyAction").its("response.statusCode").should("eq", 200);
 		cy.wrap(null).should(() =>
@@ -74,6 +80,8 @@ context("User Timesheet workflow event refresh", () => {
 		});
 		cy.window().should((win) => {
 			expect(win.__workflowPageMarker).to.eq("same-page");
+			expect(win.cur_frm.doc.ut_status).to.eq("Rework");
+			expect(win.cur_frm.ts_positions.map((position) => position.status)).to.deep.eq(["Editing", "Editing"]);
 			const group = workflowGroup(win);
 			expect(group.length, "Workflow menu restored").to.eq(1);
 			for (const action of fixture.editing_actions) expect(group.text()).to.contain(win.__(action));
@@ -85,7 +93,7 @@ context("User Timesheet workflow event refresh", () => {
 		let copies;
 		cy.call(applyMethod, {
 			timesheet_name: fixture.name,
-			action: fixture.stop_action,
+			action: "Edit",
 			request_id: `cypress-workflow-event-${Date.now()}`,
 		});
 		cy.call("frappe.desk.form.load.getdoc", {

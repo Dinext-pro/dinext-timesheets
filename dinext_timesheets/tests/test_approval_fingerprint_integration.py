@@ -201,6 +201,47 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				actor=self.users[0],
 			)
 
+	def test_renaming_open_edit_transition_keeps_the_prior_approval(self):
+		from dinext_timesheets.setup import utp_edit_action
+
+		self.workflow.append("states", {
+			"state": "Editing", "doc_status": "0", "allow_edit": "System Manager",
+		})
+		retiring = self.workflow.append("transitions", {
+			"state": "Pending Approval", "action": "Stop Workflow", "next_state": "Editing",
+			"allowed": self.role, "allow_self_approval": 1,
+			"custom_parallel_approval_policy": "Any", "custom_transition_uuid": "edit-" + self.token,
+		})
+		self.workflow.save(ignore_permissions=True)
+		position = self.positions[0]
+		engine.reconcile_source(position, apply_automatic=False)
+		prior = self.vote(position, self.users[0], "Approve")
+		self.assertEqual(prior.status, "Completed")
+		self.assertEqual(prior.round_status, "Open")
+
+		frappe.set_user("Administrator")
+		incoming = frappe.copy_doc(self.workflow)
+		incoming.name = self.workflow.name
+		incoming.transitions[-1].action = "Edit"
+		incoming.transitions[-1].custom_transition_uuid = "fixture-edit-id"
+		with patch.object(utp_edit_action, "WORKFLOW", self.workflow.name):
+			with patch.dict(frappe.flags, {"in_fixtures": True}):
+				utp_edit_action.prepare_workflow_import(incoming)
+			self.assertEqual(incoming.transitions[-1].custom_transition_uuid, retiring.custom_transition_uuid)
+			utp_edit_action.guard_open_rounds()
+			retiring.action = "Edit"
+			self.workflow.save(ignore_permissions=True)
+			utp_edit_action.reconcile_open_rounds()
+			utp_edit_action.reconcile_open_rounds()
+
+		working = self.task(position, self.users[1])
+		self.assertEqual(working.approval_round_id, prior.approval_round_id)
+		self.assertIn("Edit", {row.action for row in working.available_workflow_transitions})
+		self.assertNotIn("Stop Workflow", {row.action for row in working.available_workflow_transitions})
+		self.assertEqual(prior.reload().status, "Completed")
+		self.vote(position, self.users[1], "Approve")
+		self.assertEqual(position.reload().status, "Approved")
+
 	def test_unchanged_resubmission_reuses_approval_and_waits_for_all(self):
 		approvals = self.reject_after_approval()
 		self.resubmit()

@@ -59,6 +59,7 @@ function transition(name, action, state, editable, { comment, confirm } = {}) {
 describe("Delegated User Timesheet", () => {
 	let fixture;
 	let name;
+	let positionToReject;
 
 	before(() => {
 		cy.login();
@@ -130,12 +131,28 @@ describe("Delegated User Timesheet", () => {
 				expect(rounds).not.to.be.empty;
 				expect(rounds.filter((round) => firstRound.includes(round))).to.be.empty;
 			});
+			positions(name).then(([, position]) => {
+				positionToReject = position.name;
+			});
 		});
 
 		cy.then(() => {
 			cy.login(fixture.approver, fixture.password);
 			openForm(name, "Pending Approval", false);
-			transition(name, fixture.actions.reject, "Rejected", false, { comment: "Explain the second task" });
+			cy.call("dinext_common.workflow_approval.api.apply_workflow", {
+				doc: { doctype: "User Timesheet Position", name: positionToReject },
+				action: fixture.actions.reject,
+				comment: "Explain the second task",
+			});
+		});
+
+		cy.then(() => {
+			cy.login(fixture.worker, fixture.password);
+			openForm(name, "Rejected", false);
+			cy.call(actionsMethod, { timesheet_name: name }).its("body.message.actions").then((rows) => {
+				expect(rows.map((row) => row.action)).to.deep.eq(["Edit"]);
+				expect(rows[0].positions).to.have.length(2);
+			});
 		});
 
 		cy.then(() => {
@@ -146,8 +163,19 @@ describe("Delegated User Timesheet", () => {
 					row.reject_reason?.includes("Explain the second task")
 				)).to.eq(true);
 			});
-			transition(name, fixture.actions.revise, "Rework", true);
-			positions(name).then(([position]) => {
+			positions(name).then((rows) => {
+				expect(rows.map((row) => row.status)).to.have.members(["Rejected", "Pending Approval"]);
+			});
+			cy.window().should((win) => {
+				const label = encodeURIComponent(win.__("Workflow"));
+				const entries = win.$(`.inner-group-button[data-label="${label}"] .dropdown-menu a`);
+				expect(entries.toArray().map((entry) => entry.textContent.trim())).to.deep.eq([win.__("Edit")]);
+			});
+			pendingRounds(name).should("not.be.empty");
+			transition(name, "Edit", "Rework", true);
+			pendingRounds(name).should("be.empty");
+			positions(name).then(([position, sibling]) => {
+				expect([position.status, sibling.status]).to.deep.eq(["Editing", "Editing"]);
 				cy.call("frappe.client.get", {
 					doctype: "User Timesheet Position", name: position.name,
 				}).then(({ body }) => {

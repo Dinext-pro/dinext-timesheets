@@ -153,7 +153,7 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Stop Workflow",
+    "action": "Edit",
     "allow_self_approval": 1,
     "allowed": "Dinext_Worker",
     "condition": "doc.user_timesheet and (frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\") == frappe.session.user or frappe.db.get_value(\"Teamleads Table\", {\"parenttype\": \"User Group\", \"parent\": frappe.db.get_value(\"Worker\", {\"wuser\": frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"timesheet_from\")}, \"wuser_group\"), \"date\": (\"<=\", frappe.db.get_value(\"User Timesheet\", doc.user_timesheet, \"ts_valid_for\"))}, \"teamlead\", order_by=\"date desc, idx desc\") == frappe.session.user)",

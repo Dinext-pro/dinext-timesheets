@@ -36,6 +36,13 @@ subprocess.run([
 	f"--junit-xml-output={artifacts / 'team-lead-server.xml'}",
 ], cwd=bench, env=env, check=True, timeout=600)
 
+subprocess.run([
+	"bench", "--site", "ci.test", "run-tests", "--skip-before-tests", "--skip-test-records",
+	"--module", "dinext_timesheets.tests.test_approval_fingerprint_integration",
+	"--test", "test_renaming_open_edit_transition_keeps_the_prior_approval",
+	f"--junit-xml-output={artifacts / 'utp-edit-server.xml'}",
+], cwd=bench, env=env, check=True, timeout=600)
+
 with (artifacts / "web.log").open("w") as log:
 	server = subprocess.Popen(
 		["bench", "--site", "ci.test", "serve", "--port", "8000", "--noreload"],

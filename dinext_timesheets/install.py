@@ -49,3 +49,7 @@ def after_migrate() -> None:
 	)
 
 	configure_parallel_workflows()
+
+	from dinext_timesheets.setup.utp_edit_action import reconcile_open_rounds
+
+	reconcile_open_rounds()

@@ -259,7 +259,7 @@ def cleanup_ut_workflow_stop():
 
 @whitelist_for_tests
 def seed_ut_workflow_stop():
-	"""Own user and position using the installed stop/edit workflow, without changing it."""
+	"""Seed a partially rejected timesheet using the installed workflow."""
 	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
 	from frappe.utils.password import update_password
 
@@ -300,6 +300,7 @@ def seed_ut_workflow_stop():
 			"doctype": "User Timesheet Position", "user_timesheet": doc.name,
 			"user": user.name, "status": "Editing", "workflow_state": "Editing",
 		}).insert(ignore_permissions=True)
+		rejected = frappe.copy_doc(position).insert(ignore_permissions=True)
 	previous = frappe.session.user
 	try:
 		frappe.set_user(user.name)
@@ -307,11 +308,12 @@ def seed_ut_workflow_stop():
 		frappe.db.set_value("User Timesheet Position", position.name, {
 			"status": "Pending Approval", "workflow_state": "Pending Approval",
 		}, update_modified=False)
-		frappe.db.set_value("User Timesheet", doc.name, "ut_status", "Pending Approval", update_modified=False)
-		pending = get_timesheet_position_actions(doc.name)["actions"]
-		stop = next(row for row in pending if all(p["next_state"] == "Editing" for p in row["positions"]))
+		frappe.db.set_value("User Timesheet Position", rejected.name, {
+			"status": "Rejected", "workflow_state": "Rejected",
+		}, update_modified=False)
+		frappe.db.set_value("User Timesheet", doc.name, "ut_status", "Rejected", update_modified=False)
 	finally:
 		frappe.set_user(previous)
 	return {"name": doc.name, "position": position.name, "user": user.name,
-		"password": password, "stop_action": stop["action"],
+		"password": password, "rejected": rejected.name,
 		"editing_actions": [row["action"] for row in editing]}

@@ -9,8 +9,17 @@ import {
 
 const CONTEXT = "dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context";
 
+async function getList(doctype, args) {
+	const { message } = await frappe.call({
+		method: "frappe.desk.reportview.get_list",
+		type: "GET",
+		args: { doctype, ...args },
+	});
+	return message;
+}
+
 async function loadLeaves(frm) {
-	return frappe.db.get_list("Application For Leave", {
+	return getList("Application For Leave", {
 		fields: [
 			"name",
 			"lauser",
@@ -75,7 +84,7 @@ function isSkippedRejectComment(text) {
 
 /** Latest human Comment on UTP when the position field is empty. */
 async function loadRejectReason(positionName) {
-	const comments = await frappe.db.get_list("Comment", {
+	const comments = await getList("Comment", {
 		filters: [
 			["reference_doctype", "=", "User Timesheet Position"],
 			["reference_name", "=", positionName],
@@ -101,7 +110,7 @@ async function loadRejectReason(positionName) {
 }
 
 async function loadPositions(frm) {
-	const list = await frappe.db.get_list("User Timesheet Position", {
+	const list = await getList("User Timesheet Position", {
 		filters: [["user_timesheet", "=", frm.doc.name]],
 		fields: [
 			"name",
@@ -176,7 +185,10 @@ async function loadTasksData(frm) {
 /** Load UT grid domain into frm.ut / frm.ts_positions. */
 export async function loadGridData(frm) {
 	const state = initState(frm);
-	const context = await frappe.xcall(CONTEXT, { timesheet: frm.doc.name });
+	const { message: context } = await frappe.call({
+		method: CONTEXT,
+		args: { timesheet: frm.doc.name },
+	});
 	frm.template_doc = context.template;
 	state.canEdit = context.can_edit;
 	const { work_hours: workHours, holidays } = context;

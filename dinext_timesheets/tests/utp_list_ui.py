@@ -182,10 +182,11 @@ def seed_utp_list():
 					"status": "Editing",
 				}
 			).insert(ignore_permissions=True)
+			state = "Approved" if index == 0 else "Pending Approval"
 			values = {
 				"custom_username": "Cypress List Owner",
-				"status": "Pending Approval",
-				"workflow_state": "Pending Approval",
+				"status": state,
+				"workflow_state": state,
 				"period": str(start),
 				"project": PROJECT,
 				"project_role": PROJECT_ROLE,
@@ -196,20 +197,22 @@ def seed_utp_list():
 			if frappe.get_meta("User Timesheet Position").has_field("document_subject"):
 				values["document_subject"] = issue.subject
 			frappe.db.set_value("User Timesheet Position", position.name, values, update_modified=False)
-			task = _manual_task(
-				doctype="User Timesheet Position",
-				name=position.name,
-				workflow=WORKFLOW,
-				state="Pending Approval",
-				approver=APPROVER,
-				round_status="Open",
-				status="Working",
-				round_id=frappe.generate_hash(length=40),
-				action=ACTION,
-				next_state="Approved",
-				transition_uuid="cypress-utp-list-approve",
-				allowed_role=ROLE,
-			)
+			task = None
+			if state == "Pending Approval":
+				task = _manual_task(
+					doctype="User Timesheet Position",
+					name=position.name,
+					workflow=WORKFLOW,
+					state=state,
+					approver=APPROVER,
+					round_status="Open",
+					status="Working",
+					round_id=frappe.generate_hash(length=40),
+					action=ACTION,
+					next_state="Approved",
+					transition_uuid="cypress-utp-list-approve",
+					allowed_role=ROLE,
+				)
 			positions.append(
 				{"name": position.name, "task": task, "document": issue.subject, "hours": index + 1}
 			)

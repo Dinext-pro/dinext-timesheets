@@ -9,7 +9,7 @@ context("User Timesheet workflow while unsaved", () => {
 	before(() => {
 		cy.login();
 		cy.openDesk("/app");
-		cy.call(`${method}.seed_ut_workflow_button`).then((res) => {
+		cy.call(`${method}.seed_ut_workflow_stop`, { editing_only: 1 }).then((res) => {
 			Cypress.env("utWorkflow", res.body.message);
 		});
 	});
@@ -17,12 +17,12 @@ context("User Timesheet workflow while unsaved", () => {
 	after(() => {
 		cy.login();
 		cy.openDesk("/app");
-		cy.call(`${method}.cleanup_ut_workflow_button`);
+		cy.call(`${method}.cleanup_ut_workflow_stop`);
 	});
 
 	it("hides Workflow while Not Saved and shows it again after reload", () => {
-		const name = Cypress.env("utWorkflow").name;
-		cy.login();
+		const { name, user, password } = Cypress.env("utWorkflow");
+		cy.login(user, password);
 		cy.visit(`/app/user-timesheet/${encodeURIComponent(name)}`);
 		cy.window().should((win) => {
 			expect(workflowGroup(win).length, "workflow group before edit").to.eq(1);

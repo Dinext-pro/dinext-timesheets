@@ -68,7 +68,11 @@ frappe.ui.form.on("User Timesheet", {
 			frm.set_value("timesheet_from", frappe.session.user);
 		}
 		if (window.UserTimesheet?.ensureMounted) {
-			return loadAndMount(frm);
+			const mounted = loadAndMount(frm);
+			const finishRefresh = frm._ut_wait_for_workflow_refresh;
+			frm._ut_wait_for_workflow_refresh = null;
+			finishRefresh?.(mounted);
+			return mounted;
 		}
 		frappe.require(
 			["/assets/dinext_timesheets/css/user-timesheet.css", "user-timesheet.bundle.js"],

@@ -32,7 +32,7 @@ export async function showTimesheetDashboard(frm) {
 	if (headline) {
 		comments.push({ text: headline, color: "blue" });
 	}
-	const deadlineState = await frappe.xcall("dinext_timesheets.deadlines.get_deadline_state", {
+	const deadlineState = await frappe.dinext.workflowRequest("dinext_timesheets.deadlines.get_deadline_state", {
 		name: frm.doc.name,
 	});
 	if (gen !== frm._ut_dash_gen) return;
@@ -69,8 +69,8 @@ function rebuildOptions(frm) {
 async function showRebuildRounds(frm, gen) {
 	if (frm.is_new() || !frm.doc?.name) return;
 	const requested = frm.doc.name;
-	const rounds = await frappe
-		.xcall(REBUILD_ROUNDS, { timesheet_name: requested })
+	const rounds = await frappe.dinext
+		.workflowRequest(REBUILD_ROUNDS, { timesheet_name: requested })
 		.catch(() => []);
 	if (gen !== frm._ut_dash_gen || frm.doc?.name !== requested) return;
 	const positions = new Set((rounds || []).map((round) => round.reference_name));
@@ -129,8 +129,8 @@ async function loadPendingApprovers(frm, gen) {
 		return "";
 	}
 
-	const rows = await frappe
-		.xcall(PENDING_APPROVERS, {
+	const rows = await frappe.dinext
+		.workflowRequest(PENDING_APPROVERS, {
 			doctype: frm.doctype,
 			name: frm.doc.name,
 		})

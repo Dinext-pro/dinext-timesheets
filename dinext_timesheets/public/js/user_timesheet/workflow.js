@@ -43,35 +43,67 @@ function bindUnsavedWorkflowHide(frm) {
 	});
 }
 
+async function refreshTimesheet(frm) {
+	let finishRefresh;
+	let timer;
+	const refreshed = new Promise((resolve, reject) => {
+		finishRefresh = resolve;
+		timer = setTimeout(() => reject(new Error(__("Could not reload the workflow document"))), 30000);
+	});
+	frm._ut_wait_for_workflow_refresh = finishRefresh;
+	try {
+		frm.refresh();
+		await refreshed;
+	} finally {
+		clearTimeout(timer);
+		if (frm._ut_wait_for_workflow_refresh === finishRefresh) {
+			frm._ut_wait_for_workflow_refresh = null;
+		}
+	}
+}
+
 function applyTimesheetAction(frm, transition) {
 	const {
+		captureWorkflowForm,
 		reloadWorkflowForm,
 		runWorkflowOperation,
 		withWorkflowComment,
 		workflowRequest,
 	} = frappe.dinext;
+	const target = captureWorkflowForm(frm);
 	const submit = async (comment) => {
+		if (!target.isCurrent()) return;
+		const id = requestId();
+		const count = transition.positions?.length || 1;
 		let result;
 		let validationMessage;
 		try {
-			result = await runWorkflowOperation(frm.page, async () => {
+			result = await runWorkflowOperation(frm.page, async (updateProgress) => {
 				if (!(await guardEditableTimesheet(frm, transition, (message) => {
 					validationMessage = message;
 				}))) {
 					return;
 				}
+				if (!target.isCurrent()) return;
 				const outcome = await workflowRequest(APPLY, {
-					timesheet_name: frm.doc.name,
+					timesheet_name: target.name,
 					action: transition.action,
 					comment,
-					request_id: requestId(),
+					request_id: id,
+					track_progress: count > 1,
 				});
 				if (!outcome) {
 					throw new Error(__("The workflow result could not be confirmed"));
 				}
-				await reloadWorkflowForm(frm);
-				await frm._ut_load_promise;
+				updateProgress(outcome.processed, outcome.total);
+				if (target.isCurrent()) {
+					await reloadWorkflowForm(frm, () => refreshTimesheet(frm));
+				}
 				return outcome;
+			}, {
+				count,
+				title: frappe.utils.escape_html(__("Applying: {0}", [__(transition.action)])),
+				requestId: id,
 			});
 		} catch (error) {
 			reportTimesheetError(frm, error);

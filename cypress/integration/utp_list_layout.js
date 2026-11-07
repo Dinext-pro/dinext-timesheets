@@ -8,11 +8,12 @@ const actionMenu = ".page-container:visible .actions-btn-group";
 const availabilityApi = "dinext_common.workflow_approval.api.get_common_list_transitions";
 const bulkApi = "frappe.model.workflow.bulk_workflow_approval";
 const voteApi = "dinext_common.workflow_approval.api.bulk_vote";
+const jobApi = "dinext_common.workflow_approval.api.get_bulk_workflow_job";
 const approve = "_Cypress UTP List Approve";
 const fields = ["user", "period", "project", "project_role", "document_name", "all_hours"];
 let fixture;
 
-function openList(user = fixture.approver) {
+function openList(user = fixture.approver, rowCount = 20) {
 	cy.login(user, fixture.password);
 	cy.openDesk(
 		`/app/user-timesheet-position?user_timesheet=${encodeURIComponent(fixture.timesheet)}`
@@ -25,7 +26,7 @@ function openList(user = fixture.approver) {
 			true
 		);
 	});
-	cy.get(`${root} .list-row .dinext-utp-actions`).should("have.length", 20);
+	cy.get(`${root} .list-row .dinext-utp-actions`).should("have.length", rowCount);
 }
 
 function requestArgs(body) {
@@ -41,6 +42,19 @@ function spyOnNotifications() {
 		cy.spy(win.frappe, "show_alert").as("alert");
 		cy.spy(win.frappe, "show_progress").as("progress");
 	});
+}
+
+function availableRowCheckboxes() {
+	return cy.get(`${root} .list-row:has(.dinext-utp-action-select) .list-row-checkbox`);
+}
+
+function selectVisibleRows(count) {
+	cy.get(`${root} .btn-more`).click();
+	availableRowCheckboxes().should("have.length", count).then(($boxes) => {
+		cy.wrap($boxes.slice(0, count)).check({ force: true });
+	});
+	cy.get(`${actionMenu} > button`).click();
+	cy.contains(`${actionMenu} .dinext-list-workflow-item a`, approve).click();
 }
 
 function assertUnlocked() {
@@ -149,7 +163,7 @@ context("Productive timesheet position List View", () => {
 				res.body.message.filter((task) =>
 					fixture.positions.some((position) => position.name === task.reference_name)
 				)
-			).to.have.length(21);
+			).to.have.length(20);
 		});
 		cy.get(`${root} .dinext-utp-actions .indicator-pill`).should("not.exist");
 		cy.get(`${root} .dinext-utp-action-select`).should("have.length", 20);
@@ -187,9 +201,9 @@ context("Productive timesheet position List View", () => {
 	});
 
 	it("shows only a status indicator when the viewer has no personal transitions", () => {
-		openList(fixture.viewer);
+		openList(fixture.viewer, 1);
 		cy.get(`${root} .dinext-utp-action-select`).should("not.exist");
-		cy.get(`${root} .dinext-utp-actions .indicator-pill`).should("have.length", 20);
+		cy.get(`${root} .dinext-utp-actions .indicator-pill`).should("have.length", 1);
 		assertGeometry();
 	});
 
@@ -296,9 +310,9 @@ context("Productive timesheet position List View", () => {
 		}).as("bulk");
 		openList();
 		spyOnNotifications();
-		cy.get(`${root} .list-row-checkbox`).then(($boxes) => {
+		availableRowCheckboxes().then(($boxes) => {
 			const checked = $boxes.toArray().slice(0, 2);
-			selected = checked.map((box) => decodeURIComponent(box.dataset.name));
+			selected = checked.map((box) => box.dataset.name);
 			checked.forEach((box) => cy.wrap(box).check({ force: true }));
 		});
 		cy.get(`${actionMenu} > button`).click();
@@ -314,7 +328,7 @@ context("Productive timesheet position List View", () => {
 			.should("have.attr", "data-workflow-style");
 		cy.contains(`${actionMenu} .dinext-list-workflow-item a`, approve).click();
 		cy.get(".modal:visible [data-fieldname='comment']").should("not.exist");
-		cy.get(".modal:visible .progress-bar").should("be.visible");
+		cy.get(".modal:visible .progress").should("be.visible");
 		cy.window().should((win) => {
 			expect(win.cur_list.page.wrapper[0].inert).to.eq(true);
 		});
@@ -325,6 +339,7 @@ context("Productive timesheet position List View", () => {
 			expect(requestNames(args.docnames)).to.have.members(selected);
 			expect(args.doctype).to.eq(source);
 			expect(args.action).to.eq(approve);
+			expect(args.transition_uuid).to.eq("cypress-utp-list-approve");
 			expect(args.comment).to.eq("");
 			expect(args.request_id).to.be.a("string").and.not.be.empty;
 		});
@@ -336,6 +351,67 @@ context("Productive timesheet position List View", () => {
 		assertUnlocked();
 	});
 
+	it("keeps a background batch locked until its result and shows partial failures", () => {
+		const jobId = "ab".repeat(16);
+		let names;
+		let polls = 0;
+		let finishJob;
+		const waitForResult = new Promise((resolve) => {
+			finishJob = resolve;
+		});
+		cy.intercept("POST", `**/api/method/${bulkApi}`, (req) => {
+			names = requestNames(requestArgs(req.body).docnames);
+			req.reply({ body: { message: { job_id: jobId } } });
+		}).as("queuedBatch");
+		cy.intercept("POST", `**/api/method/${jobApi}`, async (req) => {
+			expect(requestArgs(req.body).job_id).to.eq(jobId);
+			polls += 1;
+			if (polls === 1) {
+				req.reply({ body: { message: { status: "pending" } } });
+				return;
+			}
+			await waitForResult;
+			req.reply({
+				body: {
+					message: {
+						status: "finished",
+						result: {
+							succeeded: names.slice(1).map((name) => ({ name })),
+							failed: [{ name: names[0], error: "Task already completed" }],
+						},
+					},
+				},
+			});
+		}).as("batchStatus");
+		openList();
+		spyOnNotifications();
+		selectVisibleRows(20);
+		cy.wait("@queuedBatch").then(() => expect(names).to.have.length(20));
+		cy.wait("@batchStatus");
+		cy.get(".modal:visible .progress").should("be.visible");
+		cy.window().should((win) => expect(win.cur_list.page.wrapper[0].inert).to.eq(true));
+		cy.then(finishJob);
+		cy.wait("@batchStatus");
+		cy.get("@progress").should("have.been.calledWith", Cypress.sinon.match.string, 20, 20);
+		cy.contains(".modal:visible", "Task already completed").should("be.visible");
+		assertUnlocked();
+	});
+
+	it("unlocks a background batch with an unconfirmed result if the status request fails", () => {
+		cy.intercept("POST", `**/api/method/${bulkApi}`, {
+			body: { message: { job_id: "cd".repeat(16) } },
+		}).as("queuedBatch");
+		cy.intercept("POST", `**/api/method/${jobApi}`, { forceNetworkError: true }).as("lostStatus");
+		openList();
+		selectVisibleRows(20);
+		cy.wait("@queuedBatch");
+		cy.wait("@lostStatus");
+		cy.contains(".modal:visible", "The workflow result could not be confirmed").should("be.visible");
+		cy.get(".modal:visible .progress").should("not.exist");
+		assertUnlocked();
+		cy.get("@queuedBatch.all").should("have.length", 1);
+	});
+
 	it("runs a single row approval without a comment dialog or success notification", () => {
 		let name;
 		cy.intercept("POST", `**/api/method/${voteApi}`, (req) => {
@@ -345,7 +421,7 @@ context("Productive timesheet position List View", () => {
 		openList();
 		spyOnNotifications();
 		cy.get(`${root} .dinext-utp-action-select`).first().then(($select) => {
-			name = decodeURIComponent($select.closest(".list-row").find(".list-row-checkbox")[0].dataset.name);
+			name = $select.closest(".list-row").find(".list-row-checkbox")[0].dataset.name;
 			cy.wrap($select).select(approve);
 		});
 		cy.wait("@vote").then(({ request }) => {
@@ -362,10 +438,13 @@ context("Productive timesheet position List View", () => {
 
 	it("cancels a required comment safely and unlocks the row after a failed vote", () => {
 		const error = "The selected workflow item is no longer available";
+		const reject = "Reject";
 		cy.intercept("POST", `**/api/method/${queueApi}`, (req) => {
 			req.continue((res) => {
 				for (const task of res.body.message) {
 					if (fixture.positions.some((position) => position.name === task.reference_name)) {
+						task.available_transitions[0].action = reject;
+						task.available_transitions[0].next_state = "Rejected";
 						task.available_transitions[0].comment_is_required = true;
 					}
 				}
@@ -377,19 +456,21 @@ context("Productive timesheet position List View", () => {
 		}).as("failedVote");
 		openList();
 		const selects = `${root} .dinext-utp-action-select`;
-		cy.get(selects).first().select(approve);
+		cy.get(selects).first().select(reject);
+		cy.window().should((win) => expect(win.cur_dialog?.display).to.eq(true));
 		cy.get(".modal:visible .modal-header button.btn-modal-close").click();
+		cy.get(".modal:visible").should("not.exist");
 		cy.get("@failedVote.all").should("have.length", 0);
 		assertUnlocked();
-		cy.get(selects).first().should("have.value", "").select(approve);
-		cy.get(".modal:visible textarea[data-fieldname='comment']").type("Please review the hours");
+		cy.get(selects).first().should("have.value", "").select(reject);
+		cy.get(".modal:visible textarea[data-fieldname='comment']").type("Please review the hours").blur();
 		cy.get(".modal:visible .modal-footer .btn-primary").click();
-		cy.wait("@failedVote").then(({ request }) => {
+		cy.wait("@failedVote", { requestTimeout: 15000 }).then(({ request }) => {
+			expect(requestArgs(request.body).action).to.eq(reject);
 			expect(requestArgs(request.body).comment).to.eq("Please review the hours");
 		});
 		cy.contains(".modal:visible", error).should("be.visible");
 		assertUnlocked();
 		cy.get(selects).first().should("have.value", "").and("be.enabled");
 	});
-
 });

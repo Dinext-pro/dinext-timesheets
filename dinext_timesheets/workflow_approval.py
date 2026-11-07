@@ -1069,6 +1069,7 @@ def apply_timesheet_position_action(
 	action: str,
 	comment: object = None,
 	request_id: str | None = None,
+	track_progress: bool = False,
 ) -> dict[str, object]:
 	"""Apply one workflow action to every position that offers it, then roll the timesheet up."""
 	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
@@ -1081,14 +1082,38 @@ def apply_timesheet_position_action(
 		_validate_saved_positions(parent)
 	frappe.flags.timesheet_transition_messages = []
 	frappe.flags.workflow_finalization_errors = []
+	positions = chosen["positions"]
+	total = len(positions)
+	processed = 0
+	report_progress = total > 1 and bool(request_id) and str(track_progress).lower() in {"1", "true"}
+	if report_progress:
+		from dinext_common.workflow_approval.api import publish_workflow_progress
+
 	results = []
 	previous_defer = frappe.flags.defer_timesheet_rollup
 	frappe.flags.defer_timesheet_rollup = True
 	try:
-		for index, position in enumerate(chosen["positions"]):
-			if position["mode"] == "vote":
-				if _task_no_longer_matches_source(position["task"]):
-					continue
+		for processed, position in enumerate(positions, start=1):
+			if position["mode"] != "vote":
+				if _enabled():
+					from dinext_common.workflow_approval.engine import apply_domain_transition
+
+					apply_domain_transition(
+						"User Timesheet Position",
+						position["name"],
+						position["next_state"],
+						reason=_("Timesheet action {0}").format(action),
+						actor=frappe.session.user,
+					)
+				else:
+					from frappe.model.workflow import apply_workflow
+
+					apply_workflow(
+						frappe.get_doc("User Timesheet Position", position["name"]),
+						action,
+					)
+				results.append({"name": position["name"], "transitioned": True})
+			elif not _task_no_longer_matches_source(position["task"]):
 				from dinext_common.workflow_approval.engine import (
 					WorkflowApprovalConflictError,
 					cast_vote,
@@ -1100,7 +1125,7 @@ def apply_timesheet_position_action(
 							position["task"],
 							action=action,
 							comment=comment,
-							request_id=f"{request_id or frappe.generate_hash(length=16)}:{index}",
+							request_id=f"{request_id or frappe.generate_hash(length=16)}:{processed - 1}",
 							completion_source="Bulk",
 						)
 					)
@@ -1108,39 +1133,28 @@ def apply_timesheet_position_action(
 					if not any(row.get("transitioned") for row in results):
 						raise
 					_note_timesheet_transition_message(str(caught))
-				continue
-			if _enabled():
-				from dinext_common.workflow_approval.engine import apply_domain_transition
-
-				apply_domain_transition(
-					"User Timesheet Position",
-					position["name"],
-					position["next_state"],
-					reason=_("Timesheet action {0}").format(action),
-					actor=frappe.session.user,
-				)
-			else:
-				from frappe.model.workflow import apply_workflow
-
-				apply_workflow(
-					frappe.get_doc("User Timesheet Position", position["name"]),
-					action,
-				)
-			results.append({"name": position["name"], "transitioned": True})
+			if report_progress:
+				publish_workflow_progress(request_id, processed, total)
 	finally:
 		frappe.flags.defer_timesheet_rollup = previous_defer
 	parent.reload()
-	if chosen["positions"]:
+	if positions:
 		sample = frappe.get_doc(
 			"User Timesheet Position",
-			chosen["positions"][-1]["name"],
+			positions[-1]["name"],
 		)
 		_recalculate_parent(parent, sample, None)
 	messages = [
 		*(getattr(frappe.flags, "workflow_finalization_errors", None) or []),
 		*(getattr(frappe.flags, "timesheet_transition_messages", None) or []),
 	]
-	return {"timesheet": parent.name, "results": results, "messages": messages}
+	return {
+		"timesheet": parent.name,
+		"results": results,
+		"messages": messages,
+		"processed": processed,
+		"total": total,
+	}
 
 
 def on_vote_completed(task, source, transition) -> None:

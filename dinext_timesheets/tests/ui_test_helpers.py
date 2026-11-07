@@ -258,7 +258,7 @@ def cleanup_ut_workflow_stop():
 
 
 @whitelist_for_tests
-def seed_ut_workflow_stop():
+def seed_ut_workflow_stop(position_count: int = 1):
 	"""Own user and position using the installed stop/edit workflow, without changing it."""
 	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
 	from frappe.utils.password import update_password
@@ -295,23 +295,27 @@ def seed_ut_workflow_stop():
 		"timesheet_from_name": WORKFLOW_MARKER,
 		"ts_valid_from": start, "ts_valid_for": end, "ut_status": "Draft",
 	}).insert(ignore_permissions=True)
+	positions = []
 	with _pause_approval_engine():
-		position = frappe.get_doc({
-			"doctype": "User Timesheet Position", "user_timesheet": doc.name,
-			"user": user.name, "status": "Editing", "workflow_state": "Editing",
-		}).insert(ignore_permissions=True)
+		for _index in range(position_count):
+			position = frappe.get_doc({
+				"doctype": "User Timesheet Position", "user_timesheet": doc.name,
+				"user": user.name, "status": "Editing", "workflow_state": "Editing",
+			}).insert(ignore_permissions=True)
+			positions.append(position.name)
 	previous = frappe.session.user
 	try:
 		frappe.set_user(user.name)
 		editing = get_timesheet_position_actions(doc.name)["actions"]
-		frappe.db.set_value("User Timesheet Position", position.name, {
-			"status": "Pending Approval", "workflow_state": "Pending Approval",
-		}, update_modified=False)
+		for name in positions:
+			frappe.db.set_value("User Timesheet Position", name, {
+				"status": "Pending Approval", "workflow_state": "Pending Approval",
+			}, update_modified=False)
 		frappe.db.set_value("User Timesheet", doc.name, "ut_status", "Pending Approval", update_modified=False)
 		pending = get_timesheet_position_actions(doc.name)["actions"]
 		stop = next(row for row in pending if all(p["next_state"] == "Editing" for p in row["positions"]))
 	finally:
 		frappe.set_user(previous)
-	return {"name": doc.name, "position": position.name, "user": user.name,
+	return {"name": doc.name, "position": positions[0], "positions": positions, "user": user.name,
 		"password": password, "stop_action": stop["action"],
 		"editing_actions": [row["action"] for row in editing]}

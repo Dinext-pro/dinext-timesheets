@@ -483,6 +483,56 @@ class TestUserTimesheet(FrappeTestCase):
 			workflow_approval.apply_timesheet_position_action("UT-1", "Submit")
 		apply.assert_not_called()
 
+	def test_timesheet_progress_counts_handled_positions_before_one_rollup(self):
+		from dinext_common.workflow_approval.engine import WorkflowApprovalConflictError
+
+		parent = SimpleNamespace(name="UT-1", check_permission=Mock(), reload=Mock())
+		positions = [
+			{"name": "UTP-1", "mode": "domain", "next_state": "Editing"},
+			{"name": "UTP-2", "mode": "vote", "task": "changed-task"},
+			{"name": "UTP-3", "mode": "vote", "task": "stale-task"},
+		]
+		steps = Mock()
+		steps.vote.side_effect = WorkflowApprovalConflictError("The source workflow state has changed")
+
+		for track_progress in ("true", "false"):
+			with (
+				self.subTest(track_progress=track_progress),
+				patch.object(frappe, "get_doc", return_value=parent),
+				patch.object(frappe, "db", Mock()) as db,
+				patch.object(workflow_approval, "get_timesheet_position_actions", return_value={
+					"actions": [{"action": "Stop", "runs_timesheet_checks": False, "positions": positions}],
+				}),
+				patch.object(workflow_approval, "_enabled", return_value=True),
+				patch.object(workflow_approval, "_task_no_longer_matches_source", side_effect=[False, True]),
+				patch.object(workflow_approval, "_recalculate_parent", steps.rollup),
+				patch("dinext_common.workflow_approval.engine.apply_domain_transition", steps.transition),
+				patch("dinext_common.workflow_approval.engine.cast_vote", steps.vote),
+				patch("dinext_common.workflow_approval.api.publish_workflow_progress", steps.progress),
+			):
+				steps.reset_mock()
+				result = workflow_approval.apply_timesheet_position_action(
+					"UT-1", "Stop", request_id="timesheet-test", track_progress=track_progress
+				)
+
+				self.assertEqual(result["processed"], 3)
+				self.assertEqual(result["total"], 3)
+				self.assertEqual(result["results"], [{"name": "UTP-1", "transitioned": True}])
+				self.assertEqual(result["messages"], ["The source workflow state has changed"])
+				if track_progress == "true":
+					self.assertEqual(
+						[entry.args for entry in steps.progress.call_args_list],
+						[("timesheet-test", 1, 3), ("timesheet-test", 2, 3), ("timesheet-test", 3, 3)],
+					)
+					self.assertEqual(
+						[entry[0] for entry in steps.mock_calls],
+						["transition", "progress", "vote", "progress", "progress", "rollup"],
+					)
+				else:
+					steps.progress.assert_not_called()
+				db.commit.assert_not_called()
+				db.rollback.assert_not_called()
+
 	def test_self_approval_does_not_replace_a_personal_workflow_task(self):
 		transitions = [
 			{"action": "Approve", "next_state": "Approved", "allow_self_approval": 1},

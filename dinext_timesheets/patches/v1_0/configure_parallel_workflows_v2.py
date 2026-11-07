@@ -6,13 +6,14 @@ import frappe
 def execute() -> None:
 	if frappe.db.exists("Workflow", "UTP Workflow"):
 		workflow = frappe.get_doc("Workflow", "UTP Workflow")
-		workflow.send_email_alert = 1
-		workflow.custom_group_workflow_action_emails = 1
-		workflow.custom_group_interval_value = 1
-		workflow.custom_group_interval_unit = "Days"
-		workflow.custom_group_send_time = "08:00:00"
-		workflow.custom_group_email_template = "Dinext Timesheet Workflow Digest"
-		workflow.custom_attach_document_pdf = 0
+		if not workflow.get("custom_email_profile_version"):
+			workflow.send_email_alert = 1
+			workflow.custom_group_workflow_action_emails = 1
+			workflow.custom_group_interval_value = 1
+			workflow.custom_group_interval_unit = "Days"
+			workflow.custom_group_send_time = "08:00:00"
+			workflow.custom_group_email_template = "Dinext Timesheet Workflow Digest"
+			workflow.custom_attach_document_pdf = 0
 		if not any(
 			row.role == "Dinext_UT_Full_Access"
 			for row in workflow.custom_approval_monitor_roles
@@ -24,9 +25,10 @@ def execute() -> None:
 		workflow.save(ignore_permissions=True)
 	if frappe.db.exists("Workflow", "AFL Workflow"):
 		workflow = frappe.get_doc("Workflow", "AFL Workflow")
-		workflow.send_email_alert = 1
-		workflow.custom_group_workflow_action_emails = 0
-		workflow.custom_workflow_action_email_template = "Dinext Workflow Action"
+		if not workflow.get("custom_email_profile_version"):
+			workflow.send_email_alert = 1
+			workflow.custom_group_workflow_action_emails = 0
+			workflow.custom_workflow_action_email_template = "Dinext Workflow Action"
 		if not any(
 			row.role == "Dinext_UT_Full_Access"
 			for row in workflow.custom_approval_monitor_roles
@@ -69,6 +71,8 @@ def execute() -> None:
 			update_modified=False,
 		)
 	for workflow_name in ("UTP Workflow", "AFL Workflow"):
+		if frappe.db.get_value("Workflow", workflow_name, "custom_email_profile_version"):
+			continue
 		for state in frappe.get_all(
 			"Workflow Document State",
 			filters={"parent": workflow_name, "state": "Rejected"},

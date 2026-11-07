@@ -423,3 +423,5 @@ scheduler_events = {
 
 # Allow read-only filtering of historical timesheet status values.
 doctype_list_js["User Timesheet"].append("public/js/card_route_filters.js")
+
+workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_context"]

@@ -1510,3 +1510,15 @@ def notify_task_limit_if_pending(position_name: str) -> None:
 		todo.reference_name = position.name
 		todo.flags.context = context
 		notification.send(todo)
+
+
+def email_context(task, source):
+	"""Correction emails open the parent timesheet rather than its internal position."""
+	if source.doctype != "User Timesheet Position":
+		return None
+	from frappe.utils import get_url_to_form
+	return {
+		"timesheet_title": source.user_timesheet,
+		"timesheet_link": get_url_to_form("User Timesheet", source.user_timesheet),
+		"position_label": source.get("document_name") or source.name,
+	}

@@ -170,6 +170,7 @@ function dashboardHarness(request = async () => undefined) {
       model: { can_read: () => true },
       utils: { comma_and: (values) => values.join(", "), escape_html: (value) => value },
       dinext: {
+        async refreshWorkflowComments() {},
         getPendingApproverNames: names,
         paintPendingApprovers(_frm, rows) {
           find(".dinext-pending-approvers").remove();

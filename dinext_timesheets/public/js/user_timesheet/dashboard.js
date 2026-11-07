@@ -24,6 +24,7 @@ export async function showTimesheetDashboard(frm) {
 		route: frappe.get_route_str(),
 		generation: (frm._ut_dash_gen = (frm._ut_dash_gen || 0) + 1),
 	};
+	const comments = frappe.dinext.refreshWorkflowComments(frm);
 	frappe.dinext.paintPendingApprovers(frm, []);
 	applyPositionApproverTitles(frm, []);
 	paintDeadline(frm);
@@ -32,7 +33,7 @@ export async function showTimesheetDashboard(frm) {
 	if (frm.is_new() || !requested.name) return;
 
 	frappe.require(APPROVALS_CSS);
-	await loadPendingApprovers(frm, requested);
+	await Promise.all([loadPendingApprovers(frm, requested), comments]);
 	if (!isCurrentRequest(frm, requested)) return;
 
 	const deadlineState = await frappe.dinext

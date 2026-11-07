@@ -102,7 +102,7 @@ function applyTimesheetAction(frm, transition) {
 				return outcome;
 			}, {
 				count,
-				title: frappe.utils.escape_html(__("Applying: {0}", [__(transition.action)])),
+				title: frappe.utils.escape_html(__("Applying: {0}", [__(transition.action)], "Workflow")),
 				requestId: id,
 			});
 		} catch (error) {

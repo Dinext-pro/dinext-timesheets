@@ -162,6 +162,7 @@ context("User Timesheet progress for two positions", () => {
 			cy.get(".inner-group-button .dropdown-menu a").contains(win.__(fixture.stop_action)).click();
 		});
 		cy.get(".modal:visible .progress").should("be.visible");
+		cy.contains(".modal:visible .modal-title", "Обработка:").should("be.visible");
 		cy.window().should((win) => {
 			expect(win.cur_frm.page.wrapper[0].inert).to.eq(true);
 		});
@@ -187,10 +188,39 @@ context("User Timesheet progress for two positions", () => {
 		cy.then(releaseRefresh);
 		cy.wait("@refreshTimesheet").its("response.statusCode").should("eq", 200);
 		cy.get(".modal:visible .progress").should("not.exist");
+		cy.get("#freeze, .modal-backdrop").should("not.exist");
 		cy.window().should((win) => {
 			expect(win.cur_frm.page.wrapper[0].inert).to.eq(false);
 			const group = workflowGroup(win);
 			for (const action of fixture.editing_actions) expect(group.text()).to.contain(win.__(action));
 		});
+		cy.window().then((win) => {
+			cy.wrap(workflowGroup(win).find("button").first()).click();
+		});
+		cy.get(".inner-group-button .dropdown-menu:visible").should("exist");
+	});
+
+	it("restores interaction when refreshing after a completed batch fails", () => {
+		cy.intercept({
+			method: "GET",
+			pathname: "/api/method/frappe.desk.form.load.getdoc",
+			query: { doctype: "User Timesheet", name: fixture.name },
+		}, { body: {} }).as("failedRefresh");
+		cy.window().then((win) => {
+			workflowGroup(win).find("button").first().click();
+			cy.get(".inner-group-button .dropdown-menu a").contains(win.__(fixture.stop_action)).click();
+		});
+		cy.wait("@failedRefresh");
+		cy.window().should((win) => {
+			expect(win.cur_frm.page.wrapper[0].inert).to.eq(false);
+			expect(win.frappe.dom.freeze_count).to.eq(0);
+			expect(win.frappe.cur_progress == null).to.eq(true);
+		});
+		cy.window().then((win) => {
+			cy.contains(".modal:visible", win.__("Could not reload the workflow document")).should("be.visible");
+		});
+		cy.window().should((win) => expect(win.cur_dialog?.display).to.eq(true));
+		cy.get(".modal:visible .modal-header button.btn-modal-close").click();
+		cy.get("#freeze, .modal-backdrop").should("not.exist");
 	});
 });

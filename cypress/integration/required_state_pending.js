@@ -1,7 +1,7 @@
 Cypress.removeAllListeners("uncaught:exception");
 const helper = "dinext_common.tests.required_pending_ui";
 const pendingApi = "dinext_common.workflow_approval.api.get_pending_approvers";
-const banner = ".form-message.blue";
+const banner = ".form-message.blue.dinext-pending-approvers";
 let fixture;
 
 function setOptional(value) {
@@ -16,7 +16,7 @@ function assertNames() {
 		.and("contain", fixture.required)
 		.and("contain", fixture.mixed)
 		.and("not.contain", fixture.optional);
-	cy.get(banner).should("not.contain", fixture.viewer_name);
+	cy.get(banner).should("have.length", 1).and("not.contain", fixture.viewer_name);
 
 	cy.window().should((win) => {
 		const rows = win.cur_frm.ut.rows.filter((row) => row.rowType === "position");
@@ -110,5 +110,50 @@ context("Mandatory target pending actors timesheet", () => {
 		cy.window().then((win) => win.cur_frm.reload_doc());
 		assertNames();
 		readPending().then((res) => expect(JSON.stringify(res.body.message)).to.eq(original));
+	});
+
+	it("clears the parent headline and tooltips when only the viewer is pending", () => {
+		assertNames();
+		cy.intercept("POST", `**/api/method/${pendingApi}`, (req) => {
+			req.continue((res) => {
+				res.body.message = res.body.message.filter((row) => row.approver === fixture.viewer);
+			});
+		}).as("onlySelf");
+		cy.window().then((win) => win.UserTimesheet.showTimesheetDashboard(win.cur_frm));
+		cy.wait("@onlySelf");
+		assertEmpty();
+	});
+
+	it("keeps one owned pending and overdue message while preserving another message", () => {
+		cy.intercept("POST", "**/api/method/dinext_timesheets.deadlines.get_deadline_state", {
+			body: { message: { overdue: true, deadline: "2026-10-01" } },
+		});
+		assertNames();
+		cy.window().then(async (win) => {
+			win.cur_frm.dashboard.add_comment("Other timesheet message", "yellow", true);
+			await win.UserTimesheet.showTimesheetDashboard(win.cur_frm);
+			await win.UserTimesheet.showTimesheetDashboard(win.cur_frm);
+		});
+		assertNames();
+		cy.contains(".form-message.yellow", "Other timesheet message").should("be.visible");
+		cy.get(".form-message.orange.dinext-timesheet-deadline")
+			.should("have.length", 1).and("be.visible");
+	});
+
+	it("shows pending approvers together with a position rebuild banner", () => {
+		assertNames();
+		cy.intercept("POST", "**/api/method/dinext_timesheets.workflow_approval.get_timesheet_rebuild_rounds", {
+			body: { message: [{
+				round_id: "cypress-position-conflict",
+				round_status: "Conflicted",
+				reference_name: fixture.positions[1],
+				source_title: fixture.positions[1],
+				can_reset: false,
+			}] },
+		}).as("rebuildWithPending");
+		cy.window().then((win) => win.UserTimesheet.showTimesheetDashboard(win.cur_frm));
+		cy.wait("@rebuildWithPending");
+		assertNames();
+		cy.get(".dinext-rebuild-summary").should("have.length", 1).and("be.visible");
 	});
 });

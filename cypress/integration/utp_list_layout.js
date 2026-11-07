@@ -345,9 +345,33 @@ context("Productive timesheet position List View", () => {
 		});
 		cy.get("@progress").should("have.been.calledWith", Cypress.sinon.match.string, 2, 2);
 		cy.get(".modal:visible .progress-bar").should("not.exist");
-		cy.window().then((win) => {
-			cy.contains(".modal:visible .modal-title", win.__("Workflow result"));
-		});
+		cy.get(".modal:visible, #freeze, .modal-backdrop").should("not.exist");
+		cy.get("@alert").should("not.have.been.called");
+		assertUnlocked();
+	});
+
+	it("finishes a successful background batch quietly after closing progress", () => {
+		const jobId = "ef".repeat(16);
+		let names;
+		cy.intercept("POST", `**/api/method/${bulkApi}`, (req) => {
+			names = requestNames(requestArgs(req.body).docnames);
+			req.reply({ body: { message: { job_id: jobId } } });
+		}).as("queuedSuccess");
+		cy.intercept("POST", `**/api/method/${jobApi}`, (req) => {
+			req.reply({ body: { message: {
+				status: "finished",
+				result: { succeeded: names.map((name) => ({ name })), failed: [] },
+			} } });
+		}).as("successfulJob");
+		openList();
+		spyOnNotifications();
+		selectVisibleRows(20);
+		cy.wait("@queuedSuccess");
+		cy.wait("@successfulJob");
+		cy.get("@progress").should("have.been.calledWith", Cypress.sinon.match.string, 0, 20);
+		cy.get("@progress").should("have.been.calledWith", Cypress.sinon.match.string, 20, 20);
+		cy.get(".modal:visible, #freeze, .modal-backdrop").should("not.exist");
+		cy.get("@alert").should("not.have.been.called");
 		assertUnlocked();
 	});
 

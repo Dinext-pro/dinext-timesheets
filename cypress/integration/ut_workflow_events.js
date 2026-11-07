@@ -188,6 +188,7 @@ context("User Timesheet progress for two positions", () => {
 		cy.then(releaseRefresh);
 		cy.wait("@refreshTimesheet").its("response.statusCode").should("eq", 200);
 		cy.get(".modal:visible .progress").should("not.exist");
+		cy.get(".modal:visible").should("not.exist");
 		cy.get("#freeze, .modal-backdrop").should("not.exist");
 		cy.window().should((win) => {
 			expect(win.cur_frm.page.wrapper[0].inert).to.eq(false);

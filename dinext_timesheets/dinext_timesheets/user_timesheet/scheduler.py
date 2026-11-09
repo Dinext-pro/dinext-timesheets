@@ -156,7 +156,10 @@ def create_weekly_timesheets(dry_run: bool = False):
 				timesheet.ts_valid_from = p_from
 				timesheet.ts_valid_for = p_to
 				try:
-					timesheet.insert()
+					# This trusted scheduler already resolves the worker calendar,
+					# period and overlap above; the interactive creation guard is
+					# intentionally bypassed through the standard Document flag.
+					timesheet.insert(ignore_permissions=True)
 				except (frappe.ValidationError, frappe.DoesNotExistError) as exc:
 					frappe.db.rollback(save_point="timesheet_worker_creation")
 					result["skipped"].append({**payload, "reason": "validation_error", "error": str(exc)})

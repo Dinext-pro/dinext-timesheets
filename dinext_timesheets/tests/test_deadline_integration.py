@@ -134,6 +134,8 @@ class TestDeadlineIntegration(FrappeTestCase):
         ):
             result = scheduler.create_weekly_timesheets()
         self.assertEqual(len(result["created"]), 1)
+        self.assertEqual(frappe.session.user, "Administrator")
+        self.assertEqual(frappe.db.get_value("User Timesheet", result["created"][0]["name"], "owner"), "Administrator")
         self.assertEqual(result["created"][0]["user"], self.user)
         self.assertEqual(result["skipped"][0]["reason"], "validation_error")
         self.assertFalse(frappe.db.exists("User Timesheet", {"timesheet_from": bad_user}))

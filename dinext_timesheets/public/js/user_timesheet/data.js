@@ -124,7 +124,7 @@ async function loadPositions(frm) {
 			"custom_username",
 		],
 		limit: 0,
-		order_by: "creation asc",
+		order_by: "creation asc, name asc",
 	});
 
 	const positions = [];

@@ -14,3 +14,4 @@ dinext_timesheets.patches.v1_0.repair_personal_number_cards
 dinext_timesheets.patches.v1_0.refresh_personal_workspace
 dinext_timesheets.patches.v1_0.visible_position_list
 dinext_timesheets.patches.v1_0.migrate_fingerprint_exclusions
+dinext_timesheets.patches.v1_0.add_workflow_deadlines

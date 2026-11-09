@@ -827,25 +827,8 @@ def pending_approvers(doctype: str, name: str):
 
 
 def digest_item(task):
-	if task.reference_doctype != "User Timesheet Position":
-		return None
-	parent = frappe.db.get_value(
-		"User Timesheet Position",
-		task.reference_name,
-		"user_timesheet",
-	)
-	if not parent:
-		return None
-	from frappe.utils import get_url_to_form
-
-	return {
-		"group_key": f"User Timesheet:{parent}",
-		"doctype": "User Timesheet",
-		"name": parent,
-		"title": parent,
-		"link": get_url_to_form("User Timesheet", parent),
-		"actions": [],
-	}
+	from dinext_timesheets.workflow_email import digest_item as item
+	return item(task)
 
 
 @frappe.whitelist()
@@ -1218,6 +1201,8 @@ def on_utp_update(doc, method=None) -> None:
 	):
 		recalculate_task_actual_dates(doc.document_name)
 	if old_status != PENDING and doc.status == PENDING:
+		from dinext_timesheets.submission_discipline import maybe_record_complete
+		maybe_record_complete(parent)
 		frappe.enqueue(
 			notify_task_limit_if_pending,
 			position_name=doc.name,
@@ -1514,11 +1499,5 @@ def notify_task_limit_if_pending(position_name: str) -> None:
 
 def email_context(task, source):
 	"""Correction emails open the parent timesheet rather than its internal position."""
-	if source.doctype != "User Timesheet Position":
-		return None
-	from frappe.utils import get_url_to_form
-	return {
-		"timesheet_title": source.user_timesheet,
-		"timesheet_link": get_url_to_form("User Timesheet", source.user_timesheet),
-		"position_label": source.get("document_name") or source.name,
-	}
+	from dinext_timesheets.workflow_email import email_context as context
+	return context(task, source)

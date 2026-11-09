@@ -28,11 +28,15 @@ def detach_owned_project_team_fields() -> None:
 
 
 def after_install() -> None:
+	from dinext_timesheets.submission_discipline import ensure_submission_tracking
+	ensure_submission_tracking()
 	detach_owned_project_team_fields()
 	register_dinext_hub_items()
 
 
 def after_migrate() -> None:
+	from dinext_timesheets.submission_discipline import ensure_submission_tracking
+	ensure_submission_tracking()
 	from dinext_timesheets.dinext_timesheets.user_timesheet._disable_cutover_scripts import (
 		run as disable_cutover_scripts,
 	)
@@ -49,3 +53,5 @@ def after_migrate() -> None:
 	)
 
 	configure_parallel_workflows()
+	from dinext_timesheets.setup.workflow_deadlines import configure_utp_deadlines
+	configure_utp_deadlines()

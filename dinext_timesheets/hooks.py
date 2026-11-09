@@ -231,7 +231,10 @@ doctype_list_js = {
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
 after_migrate = "dinext_timesheets.install.after_migrate"
-after_sync = "dinext_timesheets.setup.deadlines.configure_deadline_metadata"
+after_sync = [
+    "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
+    "dinext_timesheets.setup.workflow_deadlines.configure_utp_deadlines",
+]
 extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 
 # Uninstallation
@@ -293,7 +296,8 @@ doc_events = {
 		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_insert",
 		"before_save": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_save",
 		# Server Script "After Save" ≡ Document.on_update (JE create/cancel)
-		"on_update": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.on_update",
+		"on_update": ["dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.on_update",
+			"dinext_timesheets.submission_discipline.on_timesheet_update"],
 	},
 	"User Timesheet Position": {
 		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.before_insert",
@@ -425,3 +429,4 @@ scheduler_events = {
 doctype_list_js["User Timesheet"].append("public/js/card_route_filters.js")
 
 workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_context"]
+workflow_approval_email_permission = ["dinext_timesheets.workflow_email.can_receive"]

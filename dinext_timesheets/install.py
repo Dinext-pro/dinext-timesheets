@@ -41,3 +41,6 @@ def after_migrate() -> None:
 	# Fixtures still ship enabled=1 CS/SS; without this, migrate re-enables
 	# V10 / UT_Accept_WF / Set Timesheet Status and form RPC goes bare again.
 	disable_cutover_scripts()
+	from dinext_timesheets.setup.deadlines import configure_deadline_metadata
+
+	configure_deadline_metadata()

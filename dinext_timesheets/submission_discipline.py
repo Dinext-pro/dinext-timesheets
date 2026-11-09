@@ -3,7 +3,6 @@
 import hashlib
 import json
 from collections import defaultdict
-from datetime import date, datetime
 
 import frappe
 from frappe.utils import get_system_timezone, getdate, now_datetime, nowdate
@@ -62,7 +61,12 @@ def record_submission(
 	first = not frappe.db.exists(
 		"Timesheet Submission Event", {"timesheet": parent.name, "first_submission": 1}
 	)
-	from dinext_common.workflow_approval.notifications import _aware_utc, _recipient_timezone, get_timezone
+	tracking_start = frappe.db.get_default(TRACKING_KEY)
+	first = first and (
+		evidence.startswith("Version ")
+		or bool(tracking_start and str(parent.creation) >= str(tracking_start))
+	)
+	from dinext_common.workflow_approval.notifications import _aware_utc, get_timezone
 
 	submitted_at = submitted_at or now_datetime()
 	timezone_name = get_system_timezone()
@@ -117,6 +121,7 @@ def maybe_record_complete(parent):
 
 
 def visible_data(filters=None):
+	from dinext_common.workflow_approval.deadlines.discipline import _candidate_rows
 	from dinext_common.workflow_approval.deadlines.discipline import metrics as approval_metrics
 
 	filters = filters or {}
@@ -125,9 +130,58 @@ def visible_data(filters=None):
 		query["timesheet_from"] = filters["author"]
 	if filters.get("timesheet"):
 		query["name"] = filters["timesheet"]
+	start = getdate(filters.get("from_date") or frappe.utils.add_days(nowdate(), -29))
+	end = getdate(filters.get("to_date") or nowdate())
+	approval_filters = {
+		"reference_doctype": "User Timesheet Position",
+		**{key: filters[key] for key in ("from_date", "to_date", "approver") if filters.get(key)},
+	}
+	# Discover candidate parents from bounded current/cohort task references only.
+	# No task metric is evaluated until permitted parents have been established.
+	candidates = (
+		_candidate_rows(approval_filters, ["reference_name"])
+		if frappe.has_permission("Workflow Task", "read")
+		else []
+	)
+	position_names = list({row.reference_name for row in candidates})
+	approval_parents = (
+		set(
+			frappe.get_all(
+				"User Timesheet Position", filters={"name": ["in", position_names]}, pluck="user_timesheet"
+			)
+		)
+		if position_names
+		else set()
+	)
+	first_parents = frappe.get_all(
+		"Timesheet Submission Event",
+		filters={"first_submission": 1, "submission_deadline": ["between", [str(start), str(end)]]},
+		pluck="timesheet",
+	)
+	cohort_parents = approval_parents | set(first_parents)
+	parent_scope = [["ts_date_of_dispatch", "between", [str(start), str(end)]]]
+	parent_scope.append(
+		[
+			"ut_status",
+			"in",
+			[
+				"Draft",
+				"Rework",
+				"Rejected",
+				"Pending Approval",
+				"Черновик",
+				"На доработке",
+				"Отклонено",
+				"На согласовании",
+			],
+		]
+	)
+	if cohort_parents:
+		parent_scope.append(["name", "in", list(cohort_parents)])
 	parents = frappe.get_list(
 		"User Timesheet",
 		filters=query,
+		or_filters=parent_scope,
 		fields=[
 			"name",
 			"timesheet_from",
@@ -140,8 +194,18 @@ def visible_data(filters=None):
 		],
 		limit_page_length=0,
 	)
-	parents = [row for row in parents if frappe.get_doc("User Timesheet", row.name).has_permission("read")]
-	names = [row.name for row in parents]
+	from dinext_common.workflow_approval.permissions import _batch_read_helper
+
+	batch_read = _batch_read_helper()
+	if batch_read:
+		permitted = batch_read("User Timesheet", [row.name for row in parents])
+		parents = [row for row in parents if row.name in permitted]
+	else:
+		parents = [
+			row for row in parents if frappe.get_doc("User Timesheet", row.name).has_permission("read")
+		]
+	names = {row.name for row in parents}
+
 	events = defaultdict(list)
 	if names:
 		# Internal event storage is readable only through a permitted parent.
@@ -158,32 +222,30 @@ def visible_data(filters=None):
 			order_by="submitted_at asc",
 		):
 			events[row.timesheet].append(dict(row))
-	approvals = approval_metrics(
-		{
-			"reference_doctype": "User Timesheet Position",
-			**{key: filters[key] for key in ("from_date", "to_date", "approver") if filters.get(key)},
-		}
-	)
-	position_names = list({row["reference_name"] for row in approvals["all_rows"]})
+	# Author and source permissions narrow the approval query before task reads.
 	position_map = (
 		{
 			row.name: row
 			for row in frappe.get_all(
 				"User Timesheet Position",
-				filters={"name": ["in", position_names]},
+				filters={"user_timesheet": ["in", list(names)]},
 				fields=["name", "user_timesheet", "all_hours"],
 			)
 		}
-		if position_names
+		if names
 		else {}
 	)
+	approvals = (
+		approval_metrics({**approval_filters, "reference_name": ["in", list(position_map)]})
+		if position_map
+		else {"all_rows": []}
+	)
+
 	by_parent = defaultdict(list)
 	for row in approvals["all_rows"]:
 		position = position_map.get(row["reference_name"])
 		if position and position.user_timesheet in names:
 			by_parent[position.user_timesheet].append(row)
-	start = getdate(filters.get("from_date") or frappe.utils.add_days(nowdate(), -29))
-	end = getdate(filters.get("to_date") or nowdate())
 	data = []
 	tracking_start = frappe.db.get_default(TRACKING_KEY)
 	for parent in parents:

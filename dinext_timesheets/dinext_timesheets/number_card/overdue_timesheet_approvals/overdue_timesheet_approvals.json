@@ -1,6 +1,5 @@
 {
  "creation": "2026-11-09 02:48:53.338579",
- "currency": "RUB",
  "docstatus": 0,
  "doctype": "Number Card",
  "function": "Count",
@@ -9,7 +8,7 @@
  "is_standard": 1,
  "label": "Overdue Timesheet Approvals",
  "method": "dinext_timesheets.submission_discipline.overdue_timesheets_card",
- "modified": "2026-11-09 02:48:53.338579",
+ "modified": "2026-11-09 06:03:25.751640",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "Overdue Timesheet Approvals",

@@ -430,3 +430,5 @@ doctype_list_js["User Timesheet"].append("public/js/card_route_filters.js")
 
 workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_context"]
 workflow_approval_email_permission = ["dinext_timesheets.workflow_email.can_receive"]
+
+has_permission = {"Number Card": "dinext_timesheets.number_card_permissions.has_permission"}

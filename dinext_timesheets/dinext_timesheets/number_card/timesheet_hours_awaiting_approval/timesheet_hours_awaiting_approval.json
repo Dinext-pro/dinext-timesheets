@@ -1,6 +1,5 @@
 {
  "creation": "2026-11-09 02:48:58.970103",
- "currency": "RUB",
  "docstatus": 0,
  "doctype": "Number Card",
  "function": "Count",
@@ -9,7 +8,7 @@
  "is_standard": 1,
  "label": "Timesheet Hours Awaiting Approval",
  "method": "dinext_timesheets.submission_discipline.pending_hours_card",
- "modified": "2026-11-09 02:48:58.970103",
+ "modified": "2026-11-09 06:03:31.412450",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "Timesheet Hours Awaiting Approval",

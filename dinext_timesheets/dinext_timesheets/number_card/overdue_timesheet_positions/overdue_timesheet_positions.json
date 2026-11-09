@@ -1,6 +1,5 @@
 {
  "creation": "2026-11-09 02:48:56.516608",
- "currency": "RUB",
  "docstatus": 0,
  "doctype": "Number Card",
  "function": "Count",
@@ -9,7 +8,7 @@
  "is_standard": 1,
  "label": "Overdue Timesheet Positions",
  "method": "dinext_timesheets.submission_discipline.overdue_positions_card",
- "modified": "2026-11-09 02:48:56.516608",
+ "modified": "2026-11-09 06:03:28.771475",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "Overdue Timesheet Positions",

@@ -1,6 +1,5 @@
 {
  "creation": "2026-11-09 02:48:49.971034",
- "currency": "RUB",
  "docstatus": 0,
  "doctype": "Number Card",
  "function": "Count",
@@ -9,7 +8,7 @@
  "is_standard": 1,
  "label": "On-time Timesheet Approvals",
  "method": "dinext_timesheets.submission_discipline.approval_card",
- "modified": "2026-11-09 02:48:49.971034",
+ "modified": "2026-11-09 06:03:19.870101",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "On-time Timesheet Approvals",

@@ -52,7 +52,8 @@
   {
    "fieldname": "submission_deadline",
    "fieldtype": "Date",
-   "label": "Submission Deadline"
+   "label": "Submission Deadline",
+   "search_index": 1
   },
   {
    "default": "0",
@@ -82,7 +83,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-09 02:42:44.468671",
+ "modified": "2026-11-09 05:32:07.478662",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "Timesheet Submission Event",

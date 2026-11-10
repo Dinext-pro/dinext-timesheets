@@ -8,7 +8,7 @@ def execute(filters=None):
 	import frappe
 	from frappe import _
 
-	from dinext_timesheets.submission_discipline import summary
+	from dinext_timesheets.submission_discipline import overdue_chart, summary
 
 	result = summary(filters)
 	data = result["rows"]
@@ -45,7 +45,7 @@ def execute(filters=None):
 			("Hours awaiting approval", "pending_hours"),
 		]
 	]
-	return columns, data, None, None, summaries
+	return columns, data, None, overdue_chart(result, (filters or {}).get("chart_metric", "Approval")), summaries
 
 
 def execute_snapshot_report(filters: dict | None = None):

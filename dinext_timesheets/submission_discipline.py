@@ -120,7 +120,7 @@ def maybe_record_complete(parent):
 	record_submission(parent, event_key="complete:" + identity, evidence="Complete parent and positions")
 
 
-def visible_data(filters=None):
+def _visible_data(filters=None):
 	from dinext_common.workflow_approval.deadlines.discipline import _candidate_rows
 	from dinext_common.workflow_approval.deadlines.discipline import metrics as approval_metrics
 
@@ -247,6 +247,8 @@ def visible_data(filters=None):
 		if position and position.user_timesheet in names:
 			by_parent[position.user_timesheet].append(row)
 	data = []
+	from dinext_timesheets.deadlines import is_timesheet_overdue
+
 	tracking_start = frappe.db.get_default(TRACKING_KEY)
 	for parent in parents:
 		result = submission_result(
@@ -281,6 +283,7 @@ def visible_data(filters=None):
 				submission_status=result["status"],
 				resubmissions=result["resubmissions"],
 				submission_in_period=submission_in_period,
+				submission_overdue=is_timesheet_overdue(parent.ts_date_of_dispatch, parent.ut_status),
 				approval_observations=eligible,
 				approval_on_time=ontime,
 				approval_percent=100 * ontime / eligible if eligible else None,
@@ -289,11 +292,18 @@ def visible_data(filters=None):
 				pending_hours=sum(float(position_map[name].all_hours or 0) for name in pending),
 			)
 		)
-	return data
+	approval_rows = [
+		{**row, "timesheet": parent} for parent, assignments in by_parent.items() for row in assignments
+	]
+	return data, approval_rows
+
+
+def visible_data(filters=None):
+	return _visible_data(filters)[0]
 
 
 def summary(filters=None):
-	rows = visible_data(filters)
+	rows, approval_rows = _visible_data(filters)
 	known = [
 		row
 		for row in rows
@@ -303,6 +313,7 @@ def summary(filters=None):
 	approval_count = sum(row["approval_observations"] for row in rows)
 	return dict(
 		rows=rows,
+		approval_rows=approval_rows,
 		submission_percent=100 * sum(row["submission_status"] == "On Time" for row in known) / len(known)
 		if known
 		else None,
@@ -320,8 +331,8 @@ def _card(key, *, percent=False):
 		raise frappe.PermissionError
 	result = summary({"author": frappe.session.user})
 	return dict(
-		value=round(result[key], 1) if result[key] is not None else None,
-		fieldtype="Percent" if percent else "Float",
+		value=round(result[key], 1) if result[key] is not None else frappe._("No observations"),
+		fieldtype=("Percent" if percent else "Float") if result[key] is not None else "Data",
 		route=["query-report", "Timesheet Deadline Discipline"],
 		route_options={"author": frappe.session.user},
 	)
@@ -350,3 +361,29 @@ def overdue_positions_card():
 @frappe.whitelist()
 def pending_hours_card():
 	return _card("pending_hours")
+
+
+def overdue_chart(result, metric="Approval"):
+	"""Current overdue parents; input has already passed parent and task permissions."""
+	from dinext_common.workflow_approval.email_presentation import full_name
+
+	buckets = defaultdict(set)
+	if metric == "Submission":
+		for row in result["rows"]:
+			if row["submission_overdue"]:
+				buckets[row["author"]].add(row["timesheet"])
+	else:
+		for row in result["approval_rows"]:
+			if row["discipline_status"] == "Overdue":
+				buckets[row["approver"]].add(row["timesheet"])
+	groups = sorted(
+		((full_name(user), user, len(names)) for user, names in buckets.items()),
+		key=lambda item: (-item[2], item[0], item[1]),
+	)
+	return dict(
+		type="bar",
+		data=dict(
+			labels=[item[0] for item in groups],
+			datasets=[dict(name=frappe._("Overdue Timesheets"), values=[item[2] for item in groups])],
+		),
+	)

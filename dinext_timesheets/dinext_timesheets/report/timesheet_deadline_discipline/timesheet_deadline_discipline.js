@@ -8,5 +8,6 @@ frappe.query_reports["Timesheet Deadline Discipline"] = {
         {fieldname:"author",label:__("Author"),fieldtype:"Link",options:"User"},
         {fieldname:"timesheet",label:__("Timesheet"),fieldtype:"Link",options:"User Timesheet"},
         {fieldname:"approver",label:__("Approver"),fieldtype:"Link",options:"User"},
+        {fieldname:"chart_metric",label:__("Chart Metric"),fieldtype:"Select",options:[{label:__("Submission"),value:"Submission"},{label:__("Approval"),value:"Approval"}],default:"Approval"},
     ],
 };

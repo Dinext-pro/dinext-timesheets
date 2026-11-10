@@ -268,3 +268,10 @@ Holiday List,Список выходных,
 "task or issue is not assigned or shared with the owner","задача или запрос не назначены владельцу и не расшарены ему",""
 "project role is not valid for the owner and period","проектная роль не действует для владельца в этом периоде",""
 "Approval needs rebuilding for {0} positions","Нужна пересборка позиций: {0}",""
+Deadline Control,Контроль сроков
+Overdue Timesheet Submissions by Author,Просроченная отправка ТШ по авторам
+Overdue Timesheet Approvals by Approver,Просроченное согласование ТШ по согласующим
+Chart Metric,Показатель графика
+Submission,Отправка
+Approval,Согласование
+No observations,Нет наблюдений

@@ -54,6 +54,11 @@ def _position(source):
 		ordinal=ordinal,
 		position_label=label,
 		hours=float(source.all_hours or 0),
+		hours_details=[
+			dict(hours=float(row.hours or 0), description=row.description or "")
+			for row in source.get("table") or []
+			if float(row.hours or 0) != 0
+		],
 		link=get_url_to_form("User Timesheet", parent.name),
 	)
 
@@ -81,6 +86,8 @@ def email_context(task, source):
 		timesheet_period_from=row["period_from"],
 		timesheet_period_to=row["period_to"],
 		position_label=row["position_label"],
+		hours=row["hours"],
+		hours_details=row["hours_details"],
 		document_title=row["position_label"],
 		document_link=row["link"],
 	)

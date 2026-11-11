@@ -1,0 +1,328 @@
+[English](README.md)
+
+<!-- dinext-presentation:start -->
+<p align="center">
+  <a href="https://dinext.ru"><img src="docs/assets/readme/dinext-logo.png" alt="Dinext" width="128"></a>
+</p>
+<h1 align="center">Dinext Timesheets</h1>
+
+<hr>
+
+<p align="center">Учёт рабочего времени, доступности сотрудников, отпусков и согласований по проектам и задачам.</p>
+
+<p align="center">
+  <img src="docs/assets/readme/overview.png" alt="Учёт времени по проектам и задачам на демонстрационных данных." width="960">
+</p>
+<p align="center"><sub>Учёт времени по проектам и задачам на демонстрационных данных.</sub></p>
+
+<p align="center">
+  <a href="https://dinext.ru">Сайт</a> · <a href="https://docs.dinext.ru">Документация</a>
+</p>
+<!-- dinext-presentation:end -->
+
+# Dinext Timesheets
+
+## 📖 Обзор
+
+**Dinext Timesheets** — приложение на платформе Frappe для стека ERPNext Dinext. Оно отвечает за учёт рабочего времени (таймшиты), заявки на отсутствие и связанные согласования. Модуль **Dinext Timesheets** владеет базовыми сущностями контура: **Worker**, **Working Hours On Date**, UT/AFL DocType, workflow, отчёты и workspace **Мои Таймшиты**.
+
+Большая часть поведения задаётся метаданными Frappe (фикстуры: клиентские и серверные скрипты, workflow, пользовательские поля, права), а не объёмными Python-контроллерами. Зависимости: **dinext_projects**, **dinext_projects_pl** (child DocTypes ставок/ЦФО, на которые ссылается Worker), **doctype_permission**. Плановые трудозатраты и project utilization принадлежат **project_workload_assignment**. Публикуется в GitHub Dinext, устанавливается через bench.
+
+## ✨ Возможности
+
+### Таймшиты и утилизация
+
+- **User Timesheet** / **User Timesheet Position** / **User Timesheet Position Details** — учёт времени по проектам, Task/Issue, ролям и датам (план, факт, утилизация, отпуска, отчётный период).
+- **Timesheet Template**, **Doctype for Timesheet**, **Working Hours Table** — шаблоны норм и объекты списания; расчёт часов и проводок Journal Entry — серверные скрипты.
+- Автосоздание недельных таймшитов по шаблону (планировщик, серверный скрипт `TSCrW2`).
+- Шаблон в фикстурах: `Внутренняя команда РФ`.
+
+### Отпуска
+
+- **Application For Leave** — заявки на отсутствие (Worker, Type Of Leave, проекты через дочернюю таблицу **User Projects**, частичный день).
+- **Type Of Leave** — справочник типов (в фикстурах: ежегодный отпуск, отгул, больничный, отпуск/отгул за свой счёт).
+- Представление календаря `AFL` для согласованных отсутствий.
+
+### Согласования
+
+- **UTP Workflow** и **AFL Workflow** остаются Frappe Workflow metadata этого приложения.
+- Исполнение — общий engine `dinext_common.workflow_approval` плюс
+  `dinext_timesheets.workflow_approval`: действия workflow позиций,
+  pending approvers, digest и cascade голоса.
+- Состояния позиции хранятся по-английски: Editing → Pending Approval → Approved / Rejected. Статусы табеля: Draft, Pending Approval, Rejected, Rework, Approved. Русские подписи — в `translations/ru.csv`.
+- Синглтон **Timesheet Settings** задаёт пересчёт строками «позиция → табель» с порогом Any или All: первая подходящая побеждает. «Перевести все позиции» переводит остальные позиции в статус позиции этой строки. «Проверка ТШ» — одна строка; проверки заполнения выполняются только перед входом табеля в её статус. Начальные строки: одна Rejected ставит табель Rejected и позиции не двигает; все Approved ставят Approved; одна Editing ставит Rework и переводит остальные в Editing; одна Pending Approval при отсутствии Editing и Rejected ставит табель Pending Approval, проверяет заполнение и переводит остальные в Pending Approval. Пустой табель остаётся Draft. Вторая таблица скрывает статусы в списке позиций; по умолчанию это Editing, Not Set (позиция без статуса) и Rejected. На карточке табеля эти позиции остаются.
+- Форма `User Timesheet Position` открывает родительский User Timesheet.
+- Роли в фикстурах: `Dinext_UTP_Appoval`, `Dinext_UT_Full_Access` (роль `Dinext_Worker` остаётся в **dinext_projects**).
+- UX дат AFL и индикатор pending approvers — в `dinext_projects`.
+
+### Отчёты
+
+| Отчёт | Тип | Базовый DocType |
+|-------|-----|-----------------|
+| Отчет по ТШ | Script Report | User Timesheet Position |
+| Отчет для Подрядчиков | Script Report | User Timesheet Position |
+| Отчет по утилизации | Report Builder | User Timesheet |
+| Статистика по ТШ | Report Builder | User Timesheet |
+
+### Рабочее пространство, карточки, уведомления
+
+- Рабочее пространство **My Timesheets** — числовые карточки, отчёты, календарь AFL и контроль сроков; approval-карточки считают через `dinext_common.workflow_approval.api.get_legacy_number_card_result`.
+- Уведомления (в репозитории выключены, `enabled=0`): **Таймшит не отправлен**, **Лимит по Задаче**. Notification согласования ТШ удалено: письма идут через шаблоны `dinext_common`.
+
+### Автоматизации и расширения
+
+- Клиентские скрипты (12) / серверные скрипты (22): расчёт часов, лимиты, утилизация, Journal Entry, копирование позиций, просрочки по Task/Issue. Согласование и `set_timesheet_status` из fixtures убраны.
+- Пользовательские поля модуля `Dinext Timesheets`:
+  - `Task.custom_include`, `Issue.custom_include`
+  - `Journal Entry.custom_user_timesheet`
+  - `Project.custom_holidays_and_working_days`, `Project.custom_working_hours_on_date`
+  - базовый DocType `Worker` (table fields `worker_level` / `cost_center_table` / `utilization` остаются на Worker; child DocTypes — у PL/PWA)
+- Права: `Custom DocPerm` и `DocType Permission` (`UT_Permissions-1`, `UTP_Permissions-1`, `Timesheet_Template_Permissions-1`, `AFL_Permissions-1`).
+- Переводы: `dinext_timesheets/translations/ru.csv`.
+
+## 🚀 Установка
+
+Описанные ниже письма и дедлайны Workflow подготовлены в `feat/dinext_workflow`. Для отдельного локального стенда приёмки выберите эту ветку в Common, Projects и Timesheets: `bench get-app --branch feat/dinext_workflow <repository-url>`. Общие команды установки ниже не выбирают эту версию функциональности. Для выкладки нужен принятый тег выпуска; эта ветка ещё не прошла маршрут develop → release → main.
+
+
+```bash
+cd $PATH_TO_YOUR_BENCH
+
+# Зависимости (если ещё не установлены)
+bench get-app --branch dinext/main/main https://github.com/Dinext-pro/doctype_permission.git
+bench get-app https://github.com/Dinext-pro/dinext-projects.git
+
+# Приложение
+bench get-app https://github.com/Dinext-pro/dinext-timesheets.git --branch develop
+bench --site <site> install-app dinext_timesheets
+bench --site <site> migrate
+bench --site <site> clear-cache
+```
+
+Дочерняя таблица `Worker.utilization` принадлежит `project_workload_assignment`. Для создания карточек Worker нужно и это приложение: устанавливайте его после Timesheets согласно существующему порядку зависимостей. Минимальная установка metadata перечисленных выше приложений не предоставляет контроллер этой таблицы.
+
+После `install-app` / `migrate` подтягиваются фикстуры из `dinext_timesheets/fixtures/` (скрипты, workflow, роли, права, пользовательские поля и др.).
+
+Порядок обновления приложения на сайте (сборка frontend → `bench build` → `clear-cache`) описан в центральном руководстве `dinext-docs` → `agents/ide/guides/frappe/app-structure.md`, раздел 3.3.
+
+## 🛠️ Использование
+
+### Рабочий контур пользователя
+
+1. Откройте рабочее пространство **Мои Таймшиты** (роль `Dinext_Worker` обычно ведёт сюда как домашнюю страницу из **dinext_projects**).
+2. Создайте или откройте **User Timesheet** за отчётный период; позиции добавляются как **User Timesheet Position** (проект, роль, Task/Issue, часы по датам).
+3. На форме табеля доступны действия workflow позиций: «Передать на согласование», «Остановить Воркфлоу», «Редактировать» и голос согласующего по открытой задаче. Форма позиции открывает родительский UT. Согласующий с ролью `Dinext_UTP_Appoval` работает из workspace **My Approvals** или list bulk (`bulk_vote` / `get_my_queue`).
+4. Для отсутствия создайте **Application For Leave**, укажите тип, даты и проекты (таблица **User Projects**), отправьте по AFL Workflow.
+5. Отчёты доступны из рабочего пространства: по ТШ, для подрядчиков, по утилизации, статистика.
+
+### Типовые автоматизации (серверные скрипты)
+
+| Скрипт | Назначение |
+|--------|------------|
+| `TSCrW2` | Планировщик: автосоздание таймшитов по шаблону |
+| `UT_Hours_Calculate_V4` / `All_Hours_Calculate` | Расчёт часов UT / UTP |
+| `Utilization_Hours_V2` | Утилизация по позиции |
+| `Create_Journal_Entries_For_Timesheet_V5` | Создание Journal Entry по таймшиту |
+| `Task Limit Exceeded_V4` | Проверка лимитов по задаче |
+| `Copy_Positions_From_Previous_Timesheet` | Копирование позиций с прошлого периода |
+| `AFL_Calculate_Hours` | Часы по заявке на отсутствие |
+| `apply_timesheet_position_action` | Действие workflow для позиций табеля |
+
+### Типы документов модуля
+
+| DocType | Назначение |
+|---------|------------|
+| User Timesheet | Таймшит пользователя за период |
+| User Timesheet Position | Позиция списания |
+| User Timesheet Position Details | Часы по датам |
+| Timesheet Template | Шаблон норм и правил |
+| Doctype for Timesheet | Допустимые объекты списания |
+| Working Hours On Date | Справочник сокращённых/особых рабочих дней |
+| Working Hours Table | Дочерняя таблица: часы на дату |
+| Worker | Карточка исполнителя / identity таймшитного контура |
+| Application For Leave | Заявка на отсутствие |
+| User Projects | Дочерняя таблица AFL: проекты заявки |
+| Type Of Leave | Тип отсутствия |
+
+### Уведомления Workflow и контроль сроков
+
+UTP и AFL наследуют сводки согласования в `08:00, 17:00` и используют отдельные письма корректировки в Rejected. Для UTP используются специализированные шаблоны ТШ, для AFL — общие. Права и текущие флаги автора проверяет Common перед формированием. Флаг Workflow в Notification Settings получателя управляет обычными письмами и уведомлениями о просрочке.
+
+Обычная сводка UTP группирует табели по авторам, сохраняет номера строк из родительской карточки и подпись **«проект — задача — роль»**, со ссылкой на родительский ТШ. Показаны количество позиций и часы на согласовании. Сумма позиции включает её ненулевые часы с комментариями в сохранённом порядке, в том числе дробные значения. Письмо корректировки указывает отклонённую позицию и точное замечание возврата; содержит только ссылку на ТШ, без кнопок переходов.
+
+Подтверждённый порог уведомления менеджера — **3 рабочих дня** по календарю Worker согласующего, повторно согласован 11 ноября 2026; короткие рабочие даты считаются днями. Текущий менеджер user group Worker получает сводки просрочек в `08:00, 17:00`. Это письмо показывает родительские ТШ, ответственных согласующих, сроки и просрочку; дочерних позиций, группировки по авторам и кнопок действий нет. Существующие задания сохраняют снимок политики дедлайна; безопасное заполнение сохраняет известное время назначения, а неизвестную историю помечает явно.
+
+В **My Timesheets** секция **«Контроль сроков»** идёт после **My Approvals** и содержит числовые карточки дисциплины и два стандартных графика количества просрочек отправки/согласования по ответственным. Ссылка **Timesheet Deadline Discipline** находится в **Timesheet Reports**. Последние секции — **Timesheet Reports** и **Timesheet Configuration**. Дисциплина отправки и согласования разделена; отсутствие исторических данных не превращается в выдуманное своевременное событие. Пустые проценты показывают переводимое «Нет наблюдений». Строки, карточки и данные графиков учитывают доступ к табелю и заданию.
+
+```bash
+bench --site your-test-site.local run-tests --module dinext_timesheets.tests.test_workflow_email_details
+bench --site your-test-site.local run-tests --module dinext_timesheets.tests.test_deadline_integration
+bench --site your-test-site.local run-tests --module dinext_timesheets.tests.test_deadline_workspace_charts
+```
+
+`workflow_email.py` предоставляет деловые подписи и существующие строки детализации, `workflow_approval.py` управляет действиями позиций, `deadlines.py` и модули дисциплины отправки дают данные отчётов, `setup/workflow_deadlines.py` настраивает порог UTP. Провайдеры календаря и менеджера принадлежат `dinext_projects`; шаблоны, доставка, подписанное подтверждение и общий движок дедлайнов — `dinext_common`.
+
+## 📦 Технологии
+
+| Технология | Использование |
+|------------|---------------|
+| Python 3.10+ | Контроллеры DocType, Script Report, контекст уведомлений |
+| JavaScript | Клиентские скрипты форм и списков (фикстуры), JS отчётов |
+| Frappe / ERPNext | DocType, hooks, фикстуры, Workflow, Workspace |
+| MariaDB / PostgreSQL | Хранение документов (через ORM Frappe) |
+| doctype_permission | Гибкие права на DocType (`DocType Permission`) |
+| ruff / eslint / prettier | Проверка и форматирование кода (pre-commit, CI) |
+
+## 🔧 Конфигурация
+
+Основная конфигурация — `dinext_timesheets/hooks.py`:
+
+| Параметр | Описание |
+|----------|----------|
+| `app_*` | Метаданные приложения (имя, издатель, GPL-3) |
+| `fixtures` | Экспорт и импорт Type Of Leave, Workflow*, Calendar View, Custom Field / Property Setter, клиентских и серверных скриптов, Timesheet Template, Role, Custom DocPerm, DocType Permission |
+| `required_apps` | `dinext_common`, `dinext_projects`, `dinext_projects_pl`, `doctype_permission` |
+| `doctype_js` / `doctype_list_js` | UT form: `user_timesheet/entry.js`. UTP form и list: `user_timesheet_position_form.js`, `user_timesheet_position_list.js` |
+| `workflow_approval_*` | Domain hooks: lock, pending approvers, vote completed, digest |
+
+Окружение: стандартный сайт Frappe (`site_config.json` bench). Отдельных переменных окружения приложение не вводит.
+
+Экспорт фикстур после правок на сайте:
+
+```bash
+bench --site <site> export-fixtures --app dinext_timesheets
+```
+
+## ✅ Требования
+
+- [Frappe bench](https://github.com/frappe/bench) с установленным Frappe/ERPNext (версия — по вашему bench).
+- Python >= 3.10 (`pyproject.toml`).
+- Обычно установлены: **doctype_permission**, **dinext_projects**.
+- **Worker** и **Working Hours On Date** принадлежат `dinext_timesheets`; проектные справочники, команды, роли, лимиты и `Dinext_Worker` предоставляет `dinext_projects`.
+
+## 🤝 Участие в разработке
+
+```bash
+cd apps/dinext_timesheets
+pre-commit install
+```
+
+Перед коммитом: ruff, eslint, prettier, pyupgrade (см. [`.pre-commit-config.yaml`](.pre-commit-config.yaml)). CI: [`.github/workflows/linters.yml`](.github/workflows/linters.yml) (правила Semgrep для Frappe).
+
+Общие правила разработки Dinext — в соседнем репозитории `dinext-docs`; в этом приложении см. [AGENTS.md](AGENTS.md).
+
+## 📄 Документация
+
+| Ресурс | Описание |
+|--------|----------|
+| [AGENTS.md](AGENTS.md) | Навигация для агентов: central `dinext-docs`, реестр, руководство разработчика |
+| [`dinext_common` README](https://github.com/Dinext-pro/dinext-common/blob/feat/dinext_workflow/README.md) | Общий engine согласования и workspace «Мои согласования» |
+| `dinext-docs` → `agents/ide/skills/readme-writer/` | Центральный навык оформления README |
+| `dinext-docs` → `agents/ide/guides/frappe/app-structure.md` | Структура приложения, hooks, чеклист развёртывания (§3.3) |
+| [Frappe hooks](https://frappeframework.com/docs/user/en/python-api/hooks) | Документация по hooks |
+| [license.txt](license.txt) | Лицензия GPL-3 |
+
+## 📝 История изменений
+
+| Дата | Коммит | Изменения |
+|------|--------|-----------|
+| 2026-09-10 | — | Параллельное согласование: `orchestrate_timesheet`, hooks `workflow_approval_*`, form/list JS; удалены `set_timesheet_status` и Notification «Согласоанияе ТШ» |
+| 2026-07-29 | `0190ee8` | Начальный коммит приложения (`feat: Initialize App`) |
+
+Дальнейшая миграция таймшитного контура из dinext_projects (отчёты, числовые карточки, уведомления, User Projects, переводы и др.) отражена в рабочем дереве поверх этого коммита.
+
+## 🗂️ Структура репозитория
+
+```
+dinext_timesheets/                      # Корень репозитория / приложение Frappe
+├── README.md                           # Документация проекта
+├── AGENTS.md                           # Указатель на центральный dinext-docs
+├── license.txt                         # Лицензия GPL-3
+├── pyproject.toml                      # Метаданные, ruff, Python >=3.10
+├── .pre-commit-config.yaml             # Хуки pre-commit
+├── .editorconfig / .eslintrc           # Стиль редактора и ESLint
+├── .github/workflows/linters.yml       # CI Semgrep
+├── .cursor/rules/                      # Локальные правила IDE: central-first
+└── dinext_timesheets/                  # Python-пакет приложения
+    ├── __init__.py                     # __version__ = 0.0.1
+    ├── hooks.py                        # Фикстуры и интеграция с Frappe
+    ├── workflow_approval.py            # Оркестрация UT и domain hooks
+    ├── modules.txt                     # Модуль «Dinext Timesheets»
+    ├── patches.txt / patches/          # Патчи базы данных
+    ├── config/                         # Зарезервировано bench
+    ├── public/js/                      # UT/UTP form и list согласования
+    ├── templates/                      # Веб-шаблоны (заготовка)
+    ├── translations/ru.csv             # Русские переводы подписей
+    ├── fixtures/                       # Скрипты, workflow, роли, права, …
+    └── dinext_timesheets/
+        ├── doctype/                    # UT, UTP, AFL, шаблоны, …
+        ├── report/                     # 4 отчёта по ТШ / утилизации
+        ├── number_card/                # 14 карточек рабочего пространства
+        ├── notification/               # 2 уведомления (выключены)
+        └── workspace/мои_таймшиты/     # Рабочее пространство Desk
+```
+
+| Путь | Назначение |
+|------|------------|
+| `hooks.py` | Точка интеграции: экспорт фикстур, doctype JS, domain hooks |
+| `workflow_approval.py` | Действия workflow позиций и hooks `workflow_approval_*` |
+| `public/js/` | Form/list UT и UTP |
+| `fixtures/` | Переносимые скрипты, workflow, роли, пользовательские поля, права |
+| `doctype/` | Схемы и тонкие контроллеры типов документов модуля |
+| `report/` | Отчёты Script Report и Report Builder |
+| `number_card/`, `workspace/` | Интерфейс Desk «Мои Таймшиты» |
+| `notification/` | Шаблоны и Python-контекст уведомлений |
+| `translations/ru.csv` | Локализация строк таймшитного контура |
+| `AGENTS.md` | Обязательный порядок загрузки центральных инструкций |
+
+## 🔗 Схема взаимодействия
+
+### Жизненный цикл таймшита
+
+```mermaid
+flowchart TD
+    A[Планировщик TSCrW2 / ручное создание] --> B[User Timesheet]
+    B --> C[User Timesheet Position + Details]
+    C --> D[Серверные скрипты: часы, утилизация, лимиты]
+    D --> E[Действия workflow позиций]
+    E --> F[apply_domain_transition]
+    F --> G[dinext_common.workflow_approval]
+    G -->|На согласовании| H[Согласующий Dinext_UTP_Appoval]
+    H -->|Согласовано| I[Journal Entry: Create_Journal_Entries_For_Timesheet_V5]
+    H -->|Отклонено| C
+```
+
+Действия workflow позиций переводят позиции через голос по открытой задаче или
+`apply_domain_transition`. Статус табеля ставит первая подходящая строка настроек.
+Согласующий голосует в общем engine; после кворума остаются проводки Journal Entry.
+
+### Заявка на отсутствие и зависимости
+
+```mermaid
+flowchart LR
+    subgraph timesheets [dinext_timesheets]
+      AFL[Application For Leave]
+      UP[User Projects]
+      TOL[Type Of Leave]
+      WF[AFL Workflow]
+      WS[Рабочее пространство Мои Таймшиты]
+      REP[Отчёты / числовые карточки]
+    end
+    subgraph projects [dinext_projects]
+      AFLJs[JS формы AFL]
+      LC[Limit Control / Project Team]
+    end
+    subgraph common [dinext_common]
+      Engine[workflow_approval]
+    end
+    AFL --> UP
+    AFL --> TOL
+    AFL --> WF
+    WF --> Engine
+    AFLJs --> Engine
+    UT[User Timesheet] --> Engine
+    UT --> LC
+    WS --> REP
+    WS --> AFL
+    WS --> UT
+```

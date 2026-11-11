@@ -5,6 +5,27 @@ import frappe
 
 
 class TestDeadlineWorkspaceCharts(TestCase):
+	def test_upgrade_creates_missing_chart_dependencies_before_workspace_save(self):
+		from types import SimpleNamespace
+
+		from dinext_timesheets.patches.v1_0.refine_deadline_workspace import CHARTS, execute
+
+		created = set()
+		workspace = SimpleNamespace(content='[]', charts=[])
+		workspace.append = lambda field, row: workspace.charts.append(SimpleNamespace(**row))
+		workspace.save = lambda **kwargs: self.assertEqual(created, set(CHARTS))
+		def exists(doctype, name):
+			return doctype == "Workspace" or name in created
+		def reload(module, doctype, name, **kwargs):
+			created.update(chart for chart in CHARTS if frappe.scrub(chart) == name)
+		with (
+			patch.object(frappe.db, "exists", side_effect=exists),
+			patch.object(frappe, "reload_doc", side_effect=reload),
+			patch.object(frappe, "get_doc", side_effect=lambda doctype, name: workspace if doctype == "Workspace" else SimpleNamespace(chart_type="Custom")),
+		):
+			execute()
+		self.assertEqual({row.chart_name for row in workspace.charts}, set(CHARTS))
+
 	def test_current_counts_are_unique_parents_per_responsible(self):
 		from dinext_timesheets.submission_discipline import overdue_chart
 
@@ -34,7 +55,7 @@ class TestDeadlineWorkspaceCharts(TestCase):
 			self.assertEqual(chart["data"]["datasets"][0]["values"], [2])
 			chart = overdue_chart(result, "Approval")
 			self.assertEqual(
-				dict(zip(chart["data"]["labels"], chart["data"]["datasets"][0]["values"])),
+				dict(zip(chart["data"]["labels"], chart["data"]["datasets"][0]["values"], strict=True)),
 				{"Мария Соколова": 1, "Алексей Смирнов": 1},
 			)
 

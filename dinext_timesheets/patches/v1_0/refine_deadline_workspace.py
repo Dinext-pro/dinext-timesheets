@@ -72,6 +72,8 @@ def execute():
 	workspace = frappe.get_doc("Workspace", "My Timesheets")
 	workspace.content = frappe.as_json(arrange(frappe.parse_json(workspace.content)))
 	for name in CHARTS:
+		if not frappe.db.exists("Dashboard Chart", name):
+			frappe.reload_doc("dinext_timesheets", "dashboard_chart", frappe.scrub(name), force=True)
 		if frappe.db.exists("Dashboard Chart", name):
 			chart = frappe.get_doc("Dashboard Chart", name)
 			if chart.chart_type == "Report" and chart.report_name == "Timesheet Deadline Discipline":

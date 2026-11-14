@@ -5,12 +5,14 @@ from __future__ import annotations
 from textwrap import indent
 
 import frappe
+from dinext_common.tests.ui_test_helpers import _ensure_read_perm, _ensure_role
 from dinext_timesheets.timesheet_status import DEFAULT_POSITION_RULES
 from frappe.model.workflow import get_workflow
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 from frappe.utils.password import update_password
 
 PREFIX = "Cypress UT Team Lead"
+DESK_ROLE = PREFIX + " Desk"
 WORKER = "cy.ut.team.worker@example.com"
 LEAD = "cy.ut.team.lead@example.com"
 FORMER = "cy.ut.team.former@example.com"
@@ -128,12 +130,19 @@ def cleanup():
 	for email in (WORKER, LEAD, FORMER, APPROVER):
 		if frappe.db.exists("User", email):
 			frappe.delete_doc("User", email, ignore_permissions=True, force=True)
+	frappe.db.delete("Custom DocPerm", {"parent": "Kanban Board", "role": DESK_ROLE})
+	if frappe.db.exists("Role", DESK_ROLE):
+		frappe.delete_doc("Role", DESK_ROLE, ignore_permissions=True, force=True)
+	frappe.clear_cache(doctype="Kanban Board")
 	return True
 
 
 @whitelist_for_tests
 def seed():
 	cleanup()
+	_ensure_role(DESK_ROLE)
+	_ensure_read_perm("Kanban Board", DESK_ROLE)
+	frappe.clear_cache(doctype="Kanban Board")
 	workflow = get_workflow("User Timesheet Position")
 	transitions = {(row.state, row.next_state): row for row in workflow.transitions}
 	basic_role = transitions["Editing", "Pending Approval"].allowed
@@ -149,7 +158,7 @@ def seed():
 		user = frappe.get_doc({
 			"doctype": "User", "email": email, "first_name": f"{PREFIX} {email.split('@')[0].rsplit('.', 1)[-1]}",
 			"enabled": 1, "send_welcome_email": 0, "user_type": "System User", "language": "en",
-			"roles": [{"role": role} for role in set(roles)],
+			"roles": [{"role": role} for role in dict.fromkeys([*roles, DESK_ROLE])],
 		}).insert(ignore_permissions=True)
 		update_password(user.name, password)
 

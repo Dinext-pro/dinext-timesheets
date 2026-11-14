@@ -4,7 +4,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import frappe
+from dinext_common.workflow_approval.scenarios.metadata import ORDER_FIELD, next_selection_order
 from dinext_timesheets.timesheet_settings import (
+	POSITION_DOCTYPE,
 	position_workflow_states,
 	utp_state_query,
 	visible_list_rules,
@@ -41,6 +43,7 @@ class TestLiveWorkflowStatusChoices(FrappeTestCase):
 	def setUp(self):
 		self.savepoint = "live_ts_statuses"
 		frappe.db.savepoint(self.savepoint)
+		self.addCleanup(frappe.db.rollback, save_point=self.savepoint)
 		self.prefix = "_Test TS States " + frappe.generate_hash(length=8)
 		# All changes are uncommitted and rolled back. Other sessions retain the real active Workflow.
 		for name in frappe.get_all(
@@ -55,17 +58,15 @@ class TestLiveWorkflowStatusChoices(FrappeTestCase):
 		self.workflow = self.make_workflow(" Active", [self.states[0], self.states[1]], 1)
 		self.make_workflow(" Inactive", [self.states[3]], 0)
 
-	def tearDown(self):
-		frappe.db.rollback(save_point=self.savepoint)
-
 	def make_workflow(self, suffix, states, active):
 		doc = frappe.get_doc(
 			{
 				"doctype": "Workflow",
 				"name": self.prefix + suffix,
 				"workflow_name": self.prefix + suffix,
-				"document_type": "User Timesheet Position",
+				"document_type": POSITION_DOCTYPE,
 				"is_active": active,
+				ORDER_FIELD: next_selection_order(POSITION_DOCTYPE),
 				"states": [{"state": s, "doc_status": "0", "allow_edit": "All"} for s in states],
 			}
 		)

@@ -1,6 +1,7 @@
 const fixtureMethod = "dinext_timesheets.tests.timesheet_team_lead_ui";
 const actionsMethod = "dinext_timesheets.workflow_approval.get_timesheet_position_actions";
 const applyMethod = "dinext_timesheets.workflow_approval.apply_timesheet_position_action";
+const contextMethod = "dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context";
 let requestNumber = 0;
 
 function pendingRounds(name) {
@@ -43,11 +44,10 @@ function transition(name, action, state, editable, { comment, confirm } = {}) {
 		cy.get(".modal:visible .modal-footer .btn-danger").click();
 	}
 	if (comment) {
-		cy.get('.modal:visible textarea[data-fieldname="comment"]').should("be.visible");
-		cy.window().should((win) => expect(win.cur_dialog?.fields_dict?.comment).to.exist)
-			.then((win) => win.cur_dialog.set_value("comment", comment));
-		cy.window().should((win) => expect(win.cur_dialog.get_value("comment")).to.eq(comment));
-		cy.get(".modal:visible .modal-footer .btn-primary").click();
+		const confirmButton = ".modal:visible .modal-footer .btn-primary";
+		cy.get(confirmButton).should("be.disabled");
+		cy.get('.modal:visible textarea[data-fieldname="comment"]').type(comment).blur();
+		cy.get(confirmButton).should("not.be.disabled").click();
 	}
 	cy.wait(`@${alias}`).its("response.statusCode").should("eq", 200);
 	cy.window().should((win) => {
@@ -77,19 +77,25 @@ describe("Delegated User Timesheet", () => {
 	it("lets the assigned lead create, withdraw, correct and resubmit through position Workflow", () => {
 		cy.login(fixture.former, fixture.password);
 		cy.openDesk("/app");
-		cy.call("dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context", {
+		cy.call(contextMethod, {
 			worker: fixture.worker, start: fixture.start,
 		}, { failOnStatusCode: false }).its("status").should("eq", 403);
 
 		cy.login(fixture.lead, fixture.password);
 		cy.openDesk("/app");
-		cy.window().then((win) => win.frappe.new_doc("User Timesheet"));
-		cy.window().should((win) => expect(win.cur_frm?.doctype).to.eq("User Timesheet"));
-		cy.window().then(async (win) => {
-			const frm = win.cur_frm;
-			await frm.set_value("timesheet_from", fixture.worker);
-			await frm.set_value("ts_valid_from", fixture.start);
-			await frm.save();
+		cy.window().then((win) => win.frappe.new_doc("User Timesheet", {
+			timesheet_from: fixture.worker,
+			ts_valid_from: fixture.start,
+		}));
+		cy.window().should((win) => {
+			expect(win.cur_frm?.doctype).to.eq("User Timesheet");
+			expect(win.cur_frm?.doc?.timesheet_from).to.eq(fixture.worker);
+			expect(win.cur_frm?.doc?.ts_valid_from).to.eq(fixture.start);
+		});
+		cy.intercept("POST", `**/api/method/${contextMethod}`).as("validateNewTimesheet");
+		cy.window().then((win) => { void win.cur_frm.save(); });
+		cy.wait("@validateNewTimesheet").then(({ response }) => {
+			expect(response.statusCode, response.body._server_messages || "Timesheet context").to.eq(200);
 		});
 		cy.window().should((win) => {
 			expect(Boolean(win.cur_frm?.is_new())).to.eq(false);

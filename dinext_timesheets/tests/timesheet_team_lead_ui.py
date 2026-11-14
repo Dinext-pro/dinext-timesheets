@@ -5,6 +5,7 @@ from __future__ import annotations
 from textwrap import indent
 
 import frappe
+from dinext_timesheets.timesheet_status import DEFAULT_POSITION_RULES
 from frappe.model.workflow import get_workflow
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 from frappe.utils.password import update_password
@@ -25,6 +26,12 @@ def _insert(doctype, name, **fields):
 	return doc
 
 
+def _set_position_rules(rows):
+	settings = frappe.get_single("Timesheet Settings")
+	settings.set("position_rules", rows)
+	settings.update_child_table("position_rules")
+
+
 def _restore_fixture_settings():
 	backup = frappe.cache.get_value(FIXTURE_SETTINGS)
 	if not backup:
@@ -35,6 +42,8 @@ def _restore_fixture_settings():
 	for name, script in backup["scripts"].items():
 		frappe.db.set_value("Server Script", name, "script", script, update_modified=False)
 		frappe.clear_document_cache("Server Script", name)
+	if "position_rules" in backup:
+		_set_position_rules(backup["position_rules"])
 	frappe.cache.delete_value(FIXTURE_SETTINGS)
 
 
@@ -49,11 +58,14 @@ def _scope_fixture_settings(workflow, project, transitions):
 		fields=["name", "api_method", "script"],
 	)
 	if getattr(frappe.local, "request", None):
+		settings = frappe.get_single("Timesheet Settings")
 		frappe.cache.set_value(FIXTURE_SETTINGS, {
 			"workflow": workflow.name,
 			"conditions": {row.name: row.condition for row in transitions},
 			"scripts": {row.name: row.script for row in scripts},
+			"position_rules": [row.as_dict() for row in settings.position_rules or []],
 		})
+	_set_position_rules(DEFAULT_POSITION_RULES)
 	for row in transitions:
 		condition = f"({row.condition or 'True'}) and (doc.project != {project!r} or frappe.session.user == {APPROVER!r})"
 		frappe.db.set_value(row.doctype, row.name, "condition", condition, update_modified=False)

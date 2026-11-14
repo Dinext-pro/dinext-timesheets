@@ -65,8 +65,11 @@ def seed_deadline_ui():
 	frappe.db.set_value("User Timesheet", pending.name, {
 		"ut_status": fixture.status("Pending Approval"), "ts_date_of_dispatch": today - timedelta(days=2),
 	})
+	# The next browser save should use the updated synthetic template and preserve the period.
+	frappe.db.set_value("Timesheet Template", fixture.template.name, "working_days", 2)
+	frappe.db.set_value("User Timesheet", doc.name, "is_overdue", 1)
 	result = {"user": fixture.user, "password": password, "timesheet": doc.name,
-		"deadline": str(doc.ts_date_of_dispatch), "next_period_end": str(doc.ts_valid_for + timedelta(days=1)),
+		"deadline": str(doc.ts_date_of_dispatch),
 		"next_deadline": str(doc.ts_valid_for + timedelta(days=2)), "empty": empty.name, "pending": pending.name,
 		"marker": fixture.marker}
 	# Keep only identities required for cleanup, never the generated password.

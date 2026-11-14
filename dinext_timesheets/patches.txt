@@ -16,3 +16,4 @@ dinext_timesheets.patches.v1_0.visible_position_list
 dinext_timesheets.patches.v1_0.migrate_fingerprint_exclusions
 dinext_timesheets.patches.v1_0.add_workflow_deadlines
 dinext_timesheets.patches.v1_0.refine_deadline_workspace
+dinext_timesheets.patches.v1_0.grant_timesheet_approver_report_permission

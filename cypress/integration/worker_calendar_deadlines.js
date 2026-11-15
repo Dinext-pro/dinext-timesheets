@@ -1,4 +1,5 @@
 const helper = "dinext_timesheets.tests.deadline_ui";
+const fixtures = {};
 let fixture;
 
 function loginAuthor() {
@@ -40,13 +41,21 @@ context("Worker calendar timesheet deadlines", () => {
 		cy.task("deadlineCheckpoint", "bootstrap login");
 		cy.login(); cy.openDesk("/app");
 		cy.task("deadlineCheckpoint", "seed fixtures");
-		cy.call(`${helper}.seed_deadline_ui`).then(res => { fixture = res.body.message; });
+		for (const language of ["en", "ru"]) {
+			cy.call(`${helper}.seed_deadline_ui`, { language }).then(res => {
+				fixtures[language] = res.body.message;
+			});
+		}
 	});
-	beforeEach(() => cy.task("deadlineCheckpoint", Cypress.currentTest.title));
+	beforeEach(() => {
+		fixture = fixtures.en;
+		cy.task("deadlineCheckpoint", Cypress.currentTest.title);
+	});
 	after(() => {
-		if (!fixture) return;
+		const seeded = Object.values(fixtures);
+		if (!seeded.length) return;
 		cy.login(); cy.openDesk("/app");
-		cy.call(`${helper}.cleanup_deadline_ui`, { user: fixture.user });
+		for (const item of seeded) cy.call(`${helper}.cleanup_deadline_ui`, { user: item.user });
 	});
 
 	it("recalculates on an actual form save and reads overdue independently of the old flag", () => {
@@ -68,17 +77,13 @@ context("Worker calendar timesheet deadlines", () => {
 
 	for (const language of ["en", "ru"]) for (const theme of ["light", "dark"]) {
 		it(`shows matching form/card/list in ${language}, ${theme} theme`, () => {
+			fixture = fixtures[language];
 			loginAuthor();
-			cy.window().should(win => expect(win.cur_frm?.doc.name).to.eq(fixture.timesheet));
-			cy.window().then(win => win.frappe.after_ajax());
-			cy.call(`${helper}.set_deadline_language`, { language });
-			const locale = `?_lang=${language}`;
-			cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}${locale}`);
 			cy.window().its("frappe.boot.lang").should("eq", language);
 			cy.window().then(win => win.frappe.ui.set_theme(theme));
 			cy.get(".form-message:visible").should("contain.text", language === "ru" ? "Срок отправки" : "Submission deadline");
 			cy.screenshot(`deadline-form-${language}-${theme}`, { capture: "viewport" });
-			cy.openDesk(`/app/${encodeURIComponent("мои-таймшиты")}${locale}`);
+			cy.openDesk(`/app/${encodeURIComponent("мои-таймшиты")}`);
 			cy.window().its("frappe.boot.lang").should("eq", language);
 			cy.window().then(win => win.frappe.ui.set_theme(theme));
 			cy.contains(".number-widget-box", /просроч|overdue/i).as("overdueCard");

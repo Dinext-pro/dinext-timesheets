@@ -31,8 +31,10 @@ def _require_test_request(admin=False):
 
 
 @whitelist_for_tests
-def seed_deadline_ui():
+def seed_deadline_ui(language: str = "en"):
 	_require_test_request(admin=True)
+	if language not in ("en", "ru"):
+		frappe.throw("Unknown deadline acceptance language")
 	from dinext_timesheets.tests.test_deadline_integration import TestDeadlineIntegration
 
 	fixture = TestDeadlineIntegration()
@@ -48,7 +50,7 @@ def seed_deadline_ui():
 	user.onboarding_status = json.dumps({
 		name: {"is_complete": True} for name in frappe.get_all("Form Tour", pluck="name")
 	})
-	user.language = "en"
+	user.language = language
 	user.save(ignore_permissions=True)
 	password = frappe.generate_hash(length=24)
 	update_password(fixture.user, password)
@@ -82,16 +84,6 @@ def seed_deadline_ui():
 	path.parent.mkdir(parents=True, exist_ok=True)
 	path.write_text(json.dumps(registry))
 	return result
-
-
-@whitelist_for_tests
-def set_deadline_language(language: str):
-	_require_test_request()
-	user = frappe.session.user
-	if language not in ("en", "ru") or not _fixture_info(user):
-		frappe.throw("Only synthetic deadline users can change acceptance language")
-	frappe.db.set_value("User", user, "language", language)
-	frappe.db.after_commit.add(lambda: frappe.clear_cache(user=user))
 
 
 @whitelist_for_tests

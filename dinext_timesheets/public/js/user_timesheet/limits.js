@@ -13,9 +13,8 @@ const LIMIT_COLORS = {
 	"no-plan": "#9E9E9E",
 };
 
-/** Prefer UTP.status; fall back to workflow_state (often only that is set). */
 export function positionLimitStatus(pos) {
-	return (pos?.status || pos?.workflow_state || "").trim();
+	return (pos?.status || "").trim();
 }
 
 /** Sync all_hours/status from grid rows before limits API (demodev getPayload). */

@@ -10,10 +10,10 @@ import frappe
 from frappe.utils import flt, getdate, nowdate
 
 from dinext_timesheets.timesheet_status import (
+	APPROVED_POSITION_STATUSES,
 	PARENT_APPROVED,
 	PARENT_REJECTED,
 	PARENT_REWORK,
-	POSITION_APPROVED,
 	POSITION_EDITING,
 	POSITION_REJECTED,
 )
@@ -23,22 +23,19 @@ def rollup_ut_status_and_task_dates(doc) -> None:
 	old_doc = doc.get_doc_before_save()
 	old_status = old_doc.status if old_doc and old_doc.status else None
 
-	entered_approved = doc.status == POSITION_APPROVED and old_status != POSITION_APPROVED
-	left_approved = old_status == POSITION_APPROVED and doc.status != POSITION_APPROVED
+	approval_changed = (doc.status in APPROVED_POSITION_STATUSES) != (old_status in APPROVED_POSITION_STATUSES)
 
-	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
+	from dinext_timesheets.workflow_approval import _enabled
 
-	if not is_engine_enabled():
+	if not _enabled():
 		if doc.status == POSITION_REJECTED:
 			_set_ut_status(doc.user_timesheet, PARENT_REJECTED)
-		elif doc.status == POSITION_APPROVED:
+		elif doc.status in APPROVED_POSITION_STATUSES:
 			_maybe_approve_ut(doc.user_timesheet)
 		elif doc.status == POSITION_EDITING:
 			_maybe_rework_ut(doc, old_doc)
 
-	if doc.document_type == "Task" and doc.document_name and (
-		entered_approved or left_approved
-	):
+	if doc.document_type == "Task" and doc.document_name and approval_changed:
 		_update_task_act_dates(doc)
 
 
@@ -53,7 +50,7 @@ def _set_ut_status(ut_name, status, approval_date=None) -> None:
 def _maybe_approve_ut(ut_name) -> None:
 	pending = frappe.get_all(
 		"User Timesheet Position",
-		filters={"user_timesheet": ut_name, "status": ["!=", POSITION_APPROVED]},
+		filters={"user_timesheet": ut_name, "status": ("not in", APPROVED_POSITION_STATUSES)},
 		ignore_permissions=True,
 	)
 	if pending:
@@ -70,10 +67,10 @@ def _maybe_approve_ut(ut_name) -> None:
 
 def _maybe_rework_ut(doc, old_doc) -> None:
 	# ISS-2025-02143
-	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
+	from dinext_timesheets.workflow_approval import _enabled
 
 	# The parallel engine moves sibling positions and cancels their rounds.
-	if is_engine_enabled():
+	if _enabled():
 		return
 	if not (old_doc and old_doc.status and old_doc.status != POSITION_EDITING):
 		return
@@ -89,11 +86,14 @@ def _maybe_rework_ut(doc, old_doc) -> None:
 		fields=["name"],
 		ignore_permissions=True,
 	)
+	from dinext_timesheets.dinext_timesheets.user_timesheet.status import position_status_values
+
+	values = position_status_values(POSITION_EDITING)
 	for position in positions:
 		frappe.db.set_value(
 			"User Timesheet Position",
 			position.name,
-			{"status": POSITION_EDITING, "workflow_state": POSITION_EDITING},
+			values,
 		)
 
 	user_timesheet.ut_status = PARENT_REWORK
@@ -101,12 +101,17 @@ def _maybe_rework_ut(doc, old_doc) -> None:
 
 
 def _update_task_act_dates(doc) -> None:
+	recalculate_task_actual_dates(doc.document_name)
+
+
+def recalculate_task_actual_dates(task_name: str) -> None:
+	"""Derive actual Task dates from approved time without shortening recorded history."""
 	approved_positions = frappe.get_all(
 		"User Timesheet Position",
 		filters={
 			"document_type": "Task",
-			"document_name": doc.document_name,
-			"status": POSITION_APPROVED,
+			"document_name": task_name,
+			"status": ("in", APPROVED_POSITION_STATUSES),
 		},
 		fields=["name"],
 		ignore_permissions=True,
@@ -129,7 +134,7 @@ def _update_task_act_dates(doc) -> None:
 			if act_end_date is None or row_date > act_end_date:
 				act_end_date = row_date
 
-	task_doc = frappe.get_doc("Task", doc.document_name)
+	task_doc = frappe.get_doc("Task", task_name)
 
 	if task_doc.completed_on:
 		completed_on_date = getdate(task_doc.completed_on)
@@ -219,4 +224,6 @@ def _update_task_act_dates(doc) -> None:
 			task_doc.act_end_date = new_end
 		# Save_PM_Only still runs on ignore_permissions; skip СПП gate for date sync.
 		task_doc.flags.skip_pss_guard = True
-		task_doc.save(ignore_permissions=True)
+		from dinext_timesheets.workflow_approval import _save_system_task
+
+		_save_system_task(task_doc)

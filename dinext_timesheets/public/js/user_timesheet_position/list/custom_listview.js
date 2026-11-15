@@ -633,7 +633,7 @@ function hideColumnsAndSidebar(listview) {
     listview.$result.find('.list-row-head .list-row-col').each(function() {
         const $col = $(this);
         const colname = $col.attr('data-fieldname');
-        if (colname && ['name', 'workflow_state'].includes(colname)) {
+        if (['name', 'status', 'workflow_state'].includes(colname)) {
             $col.hide();
         }
     });

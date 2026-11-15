@@ -141,7 +141,7 @@ def seed_utp_list():
 			"doctype": "Workflow",
 			"workflow_name": WORKFLOW,
 			"document_type": "User Timesheet Position",
-			"workflow_state_field": "workflow_state",
+			"workflow_state_field": "status",
 			"is_active": 0,
 			"states": [
 				{"state": state, "doc_status": "0", "allow_edit": "All"}
@@ -178,7 +178,6 @@ def seed_utp_list():
 					"doctype": "User Timesheet Position",
 					"user_timesheet": parent.name,
 					"user": OWNER,
-					"workflow_state": "Editing",
 					"status": "Editing",
 				}
 			).insert(ignore_permissions=True)
@@ -186,7 +185,6 @@ def seed_utp_list():
 			values = {
 				"custom_username": "Cypress List Owner",
 				"status": state,
-				"workflow_state": state,
 				"period": str(start),
 				"project": PROJECT,
 				"project_role": PROJECT_ROLE,

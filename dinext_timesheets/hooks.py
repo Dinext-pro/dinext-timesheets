@@ -240,6 +240,7 @@ doctype_list_js = {
 after_install = "dinext_timesheets.install.after_install"
 before_migrate = [
     "dinext_timesheets.setup.utp_edit_action.guard_open_rounds",
+    "dinext_timesheets.patches.v1_0.unify_utp_workflow_status.guard_parallel_migration",
     "dinext_timesheets.workflow_email.ensure_approval_email_templates",
 ]
 after_migrate = "dinext_timesheets.install.after_migrate"
@@ -307,6 +308,7 @@ permission_query_conditions = {
 doc_events = {
 	"Workflow": {
 		"before_import": "dinext_timesheets.setup.utp_edit_action.prepare_workflow_import",
+		"validate": "dinext_timesheets.setup.utp_edit_action.validate_position_state_field",
 	},
 	"User Timesheet": {
 		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_insert",
@@ -466,3 +468,7 @@ workflow_approval_form_references = {
 workflow_approval_localization = {
     "UTP Workflow": "dinext_timesheets.workflow_localization.label_rules",
 }
+
+workflow_approval_round_opened = [
+	"dinext_timesheets.dinext_timesheets.user_timesheet.events.limits_notify.schedule_limit_notice",
+]

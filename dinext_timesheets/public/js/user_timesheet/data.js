@@ -110,6 +110,7 @@ async function loadRejectReason(positionName) {
 }
 
 async function loadPositions(frm) {
+	const legacyStatus = frappe.boot.dinext_timesheet_legacy_position_status;
 	const list = await getList("User Timesheet Position", {
 		filters: [["user_timesheet", "=", frm.doc.name]],
 		fields: [
@@ -119,7 +120,7 @@ async function loadPositions(frm) {
 			"document_type",
 			"document_name",
 			"status",
-			"workflow_state",
+			...(legacyStatus ? ["workflow_state"] : []),
 			"all_hours",
 			"custom_username",
 		],
@@ -133,7 +134,7 @@ async function loadPositions(frm) {
 		const details = (doc.table || []).filter(
 			(d) => d.date >= frm.doc.ts_valid_from && d.date <= frm.doc.ts_valid_for
 		);
-		const status = (item.status || item.workflow_state || "").trim();
+		const status = (item.status || (legacyStatus && item.workflow_state) || "").trim();
 		let reject_reason = "";
 		if (status === "Rejected") {
 			reject_reason = String(doc.reject_reason || "").trim();
@@ -145,7 +146,6 @@ async function loadPositions(frm) {
 		positions.push({
 			...item,
 			status,
-			workflow_state: item.workflow_state || status,
 			user: item.user || frm.doc.timesheet_from,
 			custom_username:
 				item.custom_username || frm.doc.timesheet_from_name || "",

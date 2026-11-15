@@ -18,3 +18,4 @@ dinext_timesheets.patches.v1_0.add_workflow_deadlines
 dinext_timesheets.patches.v1_0.refine_deadline_workspace
 dinext_timesheets.patches.v1_0.grant_timesheet_approver_report_permission
 dinext_timesheets.patches.v1_0.restore_overdue_timesheet_cards
+dinext_timesheets.patches.v1_0.unify_utp_workflow_status

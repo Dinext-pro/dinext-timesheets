@@ -22,7 +22,7 @@ def seed():
 	marker = PREFIX + frappe.generate_hash(length=10)
 	user = _insert("User", {
 		"email": marker + "@example.com", "first_name": marker, "send_welcome_email": 0,
-		"roles": [{"role": "Dinext_Worker"}],
+		"roles": [{"role": "Dinext_User"}, {"role": "Dinext_Worker"}],
 	}).name
 	password = frappe.generate_hash(length=25) + "!7aZ"
 	update_password(user, password)

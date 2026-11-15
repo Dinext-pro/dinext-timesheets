@@ -9,6 +9,11 @@ from dinext_timesheets.dinext_timesheets.user_timesheet.events import workflow_t
 
 
 class TestWorkflowTasksBridge(FrappeTestCase):
+	def setUp(self):
+		super().setUp()
+		self.legacy_schema = self.enterContext(patch.object(bridge, "has_legacy_position_status", return_value=True))
+		self.enterContext(patch("dinext_timesheets.workflow_scenario_actions.uses_local_scenarios", return_value=False))
+
 	def position(self):
 		return frappe.get_doc({
 			"doctype": "User Timesheet Position",
@@ -28,6 +33,14 @@ class TestWorkflowTasksBridge(FrappeTestCase):
 		with patch.object(bridge, "is_engine_enabled", return_value=True), patch.object(bridge, "call_whitelisted_function") as legacy:
 			bridge.process_workflow_tasks_after_save(self.position())
 		legacy.assert_not_called()
+
+	def test_native_status_is_kept_when_a_legacy_value_is_present_in_memory(self):
+		self.legacy_schema.return_value = False
+		doc = self.position()
+		doc.status = "Approved"
+		with patch.object(bridge, "is_engine_enabled", return_value=True):
+			bridge.process_workflow_tasks_before_save(doc)
+		self.assertEqual(doc.status, "Approved")
 
 	def test_parallel_trash_leaves_task_audit_for_archive_lifecycle(self):
 		with patch.object(bridge, "is_engine_enabled", return_value=True), patch.object(bridge.frappe, "get_all") as query, patch.object(bridge.frappe, "get_doc") as load:

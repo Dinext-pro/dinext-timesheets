@@ -1,97 +1,189 @@
-"""Notify project team when UTP enters approval with limit overrun (phase 2 C).
-
-Port of demodev Server Script ``Task Limit Exceeded_V4`` (After Save / on_update).
-Calculate via PWA ``project_workload_assignment.api.calculate_user_timesheet_limits``
-(ISS-2026-02105 unified calculator; same core as ``calculate_timesheet_limits``).
-"""
+"""Send limit notices for committed entries into position approval."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 import frappe
-from frappe.utils.safe_exec import call_whitelisted_function
+from frappe.core.doctype.server_script.server_script_utils import get_server_script_map
+from frappe.utils import flt, get_datetime
 
-LIMITS_METHOD = "project_workload_assignment.api.calculate_user_timesheet_limits"
+from dinext_timesheets.timesheet_status import PENDING_POSITION_STATUSES
+
+POSITION = "User Timesheet Position"
+
+
+def schedule_limit_notice(position, round_id: str) -> None:
+	if position.doctype == POSITION and position.status in PENDING_POSITION_STATUSES:
+		frappe.enqueue(
+			notify_task_limit_if_pending,
+			position_name=position.name,
+			source_created_at=str(get_datetime(position.creation)),
+			round_id=round_id,
+			queue="short",
+			enqueue_after_commit=True,
+		)
 
 
 def notify_task_limit_exceeded(doc) -> None:
+	"""Schedule the legacy notice only when the generic engine is inactive."""
+	from dinext_timesheets.workflow_approval import _enabled
+
+	if _enabled():
+		return
 	old_doc = doc.get_doc_before_save()
-	if not old_doc:
+	if old_doc and old_doc.status not in PENDING_POSITION_STATUSES and doc.status in PENDING_POSITION_STATUSES:
+		legacy_scripts = get_server_script_map().get(POSITION, {}).get("After Save", ())
+		if "Task Limit Exceeded_V4" in legacy_scripts:
+			return
+		modified = str(get_datetime(doc.modified))
+		identity = hashlib.sha256(f"{doc.name}\n{doc.creation}\n{modified}".encode()).hexdigest()
+		frappe.enqueue(
+			notify_task_limit_if_pending,
+			position_name=doc.name,
+			source_created_at=str(get_datetime(doc.creation)),
+			legacy_modified=modified,
+			queue="short",
+			enqueue_after_commit=True,
+			job_id=f"timesheet-limit-{identity}",
+			deduplicate=True,
+		)
+
+
+def _lock_position(position_name: str):
+	parent = frappe.db.get_value(POSITION, position_name, "user_timesheet")
+	if not parent or not frappe.db.get_value("User Timesheet", parent, "name", for_update=True):
+		return None
+	try:
+		position = frappe.get_doc(POSITION, position_name, for_update=True)
+	except frappe.DoesNotExistError:
+		return None
+	return position if position.user_timesheet == parent else None
+
+
+def _is_current_round(position, round_id: str) -> bool:
+	return bool(frappe.db.exists("Workflow Task", {
+		"approval_round_id": round_id,
+		"reference_doctype": POSITION,
+		"reference_name": position.name,
+		"source_created_at": position.creation,
+		"status": "Working",
+		"round_status": "Open",
+	}))
+
+
+def _lock_round_ledger(position, round_id: str):
+	return frappe.db.get_value("Workflow Task", {
+		"approval_round_id": round_id,
+		"reference_doctype": POSITION,
+		"reference_name": position.name,
+		"source_created_at": position.creation,
+	}, ["name", "notification_delivery_snapshot"],
+		as_dict=True, order_by="creation asc, name asc", for_update=True)
+
+
+def notify_task_limit_if_pending(
+	position_name: str,
+	round_id: str | None = None,
+	source_created_at: str | None = None,
+	legacy_modified: str | None = None,
+) -> None:
+	"""Lock the committed source, then claim at most one notice per round and recipient."""
+	position = _lock_position(position_name)
+	if (
+		not position
+		or not source_created_at
+		or str(get_datetime(position.creation)) != source_created_at
+		or position.status not in PENDING_POSITION_STATUSES
+	):
 		return
+	if round_id:
+		if not _is_current_round(position, round_id):
+			return
+		ledger = _lock_round_ledger(position, round_id)
+		if not ledger:
+			return
+		snapshot = frappe.parse_json(ledger.notification_delivery_snapshot or "{}")
+	else:
+		from dinext_timesheets.workflow_approval import _enabled
 
-	from dinext_timesheets.timesheet_status import PENDING_POSITION_STATUSES
-
-	entered_pending = (
-		old_doc.status not in PENDING_POSITION_STATUSES
-		and doc.status in PENDING_POSITION_STATUSES
-	)
-	if not entered_pending:
+		if _enabled() or not legacy_modified or str(get_datetime(position.modified)) != legacy_modified:
+			return
+		ledger = None
+		snapshot = {}
+	notice = _limit_notice(position)
+	if not notice:
 		return
+	config, recipients = notice
+	delivered = set(snapshot.get("limit_notice_recipients", ()))
+	for recipient in dict.fromkeys(recipients):
+		if recipient not in delivered:
+			_send_notice(position, config, recipient)
+			delivered.add(recipient)
+	if ledger and delivered != set(snapshot.get("limit_notice_recipients", ())):
+		snapshot["limit_notice_recipients"] = sorted(delivered)
+		frappe.db.set_value("Workflow Task", ledger.name, "notification_delivery_snapshot",
+			frappe.as_json(snapshot), update_modified=False)
 
-	project_managers = frappe.db.get_all(
-		"Project Team Details",
-		filters={"parent": doc.project, "notifications_on_limits": 1},
-		fields=["pt_participant"],
-	)
-	if not project_managers:
-		return
 
-	position_data = {
-		"document_name": doc.document_name,
-		"project_role": doc.project_role,
-		"project": doc.project,
-		"status": doc.status,
-	}
+def _limit_notice(position):
+	recipients = frappe.get_all("Project Team Details", filters={
+		"parent": position.project,
+		"notifications_on_limits": 1,
+		"pt_participant_type": "User",
+		"pt_participant": ("is", "set"),
+	}, pluck="pt_participant")
+	if not recipients:
+		return None
+	limit = frappe.db.get_value("Limit Control", {
+		"parent": position.project, "type": "Уведомление", "view": "Notification",
+	}, ["limit", "notification"], as_dict=True)
+	if not limit or not limit.notification:
+		return None
+	positions = [{
+		"document_name": position.document_name,
+		"project_role": position.project_role,
+		"project": position.project,
+		"status": position.status,
+	}]
+	from project_workload_assignment import api
 
-	api_result = call_whitelisted_function(
-		LIMITS_METHOD,
-		positions=json.dumps([position_data]),
-		timesheet_name=doc.name,
-	)
-	# SS read frappe.response.message; whitelisted method returns value directly.
-	if api_result is None:
-		api_result = frappe.response.get("message")
+	calculate = getattr(api, "calculate_timesheet_limits_for", None)
+	if calculate:
+		rows = calculate(positions)
+	else:
+		# The older PWA exposes the same calculator through its original API.
+		from frappe.utils.safe_exec import call_whitelisted_function
 
-	if not api_result:
-		return
+		rows = call_whitelisted_function(
+			"project_workload_assignment.api.calculate_user_timesheet_limits",
+			positions=json.dumps(positions),
+		) or frappe.response.get("message")
+	if not rows or (planned := flt(rows[0].get("planned_hours"))) <= 0:
+		return None
+	actual = flt(rows[0].get("total_hours"))
+	percentage = actual / planned * 100
+	if percentage <= limit.limit:
+		return None
+	return {
+		"notification": limit.notification,
+		"completion_percentage": percentage,
+		"actual_hours": actual,
+		"planned_hours": planned,
+		"timesheet_position": position.name,
+		"task_name": position.document_name,
+		"project": position.project,
+		"project_role": position.project_role,
+	}, recipients
 
-	result = api_result[0]
-	if not result.get("planned_hours", 0) > 0:
-		return
 
-	notification_limit = frappe.db.get_value(
-		"Limit Control",
-		{"parent": doc.project, "type": "Уведомление", "view": "Notification"},
-		["limit", "notification"],
-		as_dict=True,
-	)
-	if not notification_limit:
-		return
-
-	completion_percentage = (result["total_hours"] / result["planned_hours"]) * 100
-	if completion_percentage <= notification_limit.limit:
-		return
-
-	context = {
-		"completion_percentage": completion_percentage,
-		"actual_hours": result["total_hours"],
-		"planned_hours": result["planned_hours"],
-		"timesheet_position": doc.name,
-		"task_name": doc.document_name,
-		"project": doc.project,
-		"project_role": doc.project_role,
-	}
-
-	notification = frappe.get_doc(
-		"Notification", notification_limit.notification, ignore_permissions=True
-	)
-
-	for manager in project_managers:
-		todo = frappe.new_doc("ToDo")
-		todo.description = "Уведомление о превышении лимитов"
-		todo.allocated_to = manager.pt_participant
-		todo.reference_type = "User Timesheet Position"
-		todo.reference_name = doc.name
-		todo.flags.context = context
-		notification.send(todo)
+def _send_notice(position, config, recipient):
+	notification = frappe.get_doc("Notification", config["notification"])
+	todo = frappe.new_doc("ToDo")
+	todo.description = frappe._("Timesheet limit exceeded")
+	todo.allocated_to = recipient
+	todo.reference_type = POSITION
+	todo.reference_name = position.name
+	todo.flags.context = {key: value for key, value in config.items() if key != "notification"}
+	notification.send(todo)

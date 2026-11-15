@@ -117,6 +117,14 @@ describe("Delegated User Timesheet", () => {
 
 		cy.then(() => {
 			openForm(name, "Draft", true);
+			cy.window().should((win) => {
+				expect(win.frappe.boot.dinext_timesheet_legacy_position_status).to.eq(false);
+				expect(win.cur_frm.ts_positions).to.have.length(2);
+				for (const position of win.cur_frm.ts_positions) {
+					expect(position.status).to.eq("Editing");
+					expect(position).not.to.have.property("workflow_state");
+				}
+			});
 			positions(name).then((rows) => {
 				expect(rows).to.have.length(2);
 				expect(rows.every((row) => row.user === fixture.worker)).to.eq(true);

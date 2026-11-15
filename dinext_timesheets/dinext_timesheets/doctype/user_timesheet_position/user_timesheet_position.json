@@ -64,11 +64,11 @@
   },
   {
    "fieldname": "status",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "hidden": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "\nEditing\nPending Approval\nApproved\nRejected",
+   "options": "Workflow State",
    "read_only": 1
   },
   {

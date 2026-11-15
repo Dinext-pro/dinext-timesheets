@@ -224,7 +224,6 @@ def seed_ut_workflow_button():
 			"user_timesheet": doc.name,
 			"user": frappe.session.user,
 			"status": "Editing",
-			"workflow_state": "Editing",
 		}
 	)
 	with _pause_approval_engine():
@@ -275,7 +274,7 @@ def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0, partia
 			for index, name in enumerate(fixture["positions"]):
 				state = "Rejected" if partially_rejected and index == 1 else "Pending Approval"
 				frappe.db.set_value("User Timesheet Position", name, {
-					"status": state, "workflow_state": state,
+					"status": state,
 				}, update_modified=False)
 			parent_status = "Rejected" if partially_rejected else "Pending Approval"
 			frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", parent_status, update_modified=False)
@@ -329,7 +328,7 @@ def _seed_ut_workflow_card(calendar, position_count: int, *, name: str | None = 
 		for _index in range(position_count):
 			position = frappe.get_doc({
 				"doctype": "User Timesheet Position", "user_timesheet": doc.name,
-				"user": user.name, "status": "Editing", "workflow_state": "Editing",
+				"user": user.name, "status": "Editing",
 			}).insert(ignore_permissions=True)
 			positions.append(position.name)
 	return {"name": doc.name, "position": positions[0], "positions": positions, "user": user.name,
@@ -436,7 +435,7 @@ def seed_ut_position_batch(block_one: int = 1):
 		"doctype": "Workflow",
 		"workflow_name": BATCH_FAILURE_WORKFLOW,
 		"document_type": position_doctype,
-		"workflow_state_field": "workflow_state",
+		"workflow_state_field": "status",
 		"custom_selection_order": next_selection_order(position_doctype),
 		"custom_activation_condition": f"doc.user_timesheet == {fixture['name']!r}",
 		"is_active": 1,
@@ -459,7 +458,7 @@ def seed_ut_position_batch(block_one: int = 1):
 	frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", "Pending Approval")
 	for name in fixture["positions"]:
 		frappe.db.set_value(position_doctype, name, {
-			"workflow_state": "Pending Approval", "status": "Pending Approval",
+			"status": "Pending Approval",
 			"custom_data": "blocked" if name == blocked else "ready",
 		})
 		position = frappe.get_doc(position_doctype, name)

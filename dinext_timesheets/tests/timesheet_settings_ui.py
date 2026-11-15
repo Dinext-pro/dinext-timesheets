@@ -55,7 +55,7 @@ def seed_settings_refinements():
 			"doctype": "Workflow",
 			"workflow_name": WORKFLOW,
 			"document_type": "User Timesheet Position",
-			"workflow_state_field": "workflow_state",
+			"workflow_state_field": "status",
 			"is_active": 0,
 			"states": [{"state": "Pending Approval", "doc_status": "0", "allow_edit": "All"}],
 		}

@@ -80,8 +80,8 @@
     "parenttype": "Workflow",
     "send_email": 0,
     "state": "Editing",
-    "update_field": "status",
-    "update_value": "Editing",
+    "update_field": null,
+    "update_value": null,
     "workflow_builder_id": null
    },
    {
@@ -105,8 +105,8 @@
     "parenttype": "Workflow",
     "send_email": 1,
     "state": "Pending Approval",
-    "update_field": "status",
-    "update_value": "Pending Approval",
+    "update_field": null,
+    "update_value": null,
     "workflow_builder_id": null
    },
    {
@@ -130,8 +130,8 @@
     "parenttype": "Workflow",
     "send_email": 0,
     "state": "Approved",
-    "update_field": "status",
-    "update_value": "Approved",
+    "update_field": null,
+    "update_value": null,
     "workflow_builder_id": null
    },
    {
@@ -155,8 +155,8 @@
     "parenttype": "Workflow",
     "send_email": 1,
     "state": "Rejected",
-    "update_field": "status",
-    "update_value": "Rejected",
+    "update_field": null,
+    "update_value": null,
     "workflow_builder_id": null
    }
   ],
@@ -362,7 +362,7 @@
   ],
   "workflow_data": null,
   "workflow_name": "UTP Workflow",
-  "workflow_state_field": "workflow_state"
+  "workflow_state_field": "status"
  },
  {
   "custom_approval_monitor_roles": [

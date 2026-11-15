@@ -100,17 +100,21 @@ def on_timesheet_update(parent, method=None):
 
 
 def maybe_record_complete(parent):
+	from dinext_timesheets.dinext_timesheets.user_timesheet.status import has_legacy_position_status
+
 	parent = frappe.get_doc("User Timesheet", parent.name, for_update=True)
 	if parent.ut_status not in ("Pending Approval", "Approved", "На согласовании", "Согласован"):
 		return
 	positions = frappe.get_all(
 		"User Timesheet Position",
 		filters={"user_timesheet": parent.name},
-		fields=["name", "status", "workflow_state", "modified"],
+		fields=[
+			"name", "status", "modified", *(["workflow_state"] if has_legacy_position_status() else []),
+		],
 		order_by="name asc",
 	)
 	accepted = {"Pending Approval", "Approved", "На согласовании", "Согласован"}
-	if any((row.status or row.workflow_state) not in accepted for row in positions):
+	if any((row.status or row.get("workflow_state")) not in accepted for row in positions):
 		return
 	identity = (
 		json.dumps([(row.name, str(row.modified)) for row in positions], ensure_ascii=False)

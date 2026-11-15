@@ -69,40 +69,50 @@ def guard_open_rounds():
 
 
 def prepare_workflow_import(doc, method=None):
-	if not frappe.flags.in_fixtures or doc.name != WORKFLOW:
+	if not frappe.flags.in_fixtures or doc.document_type != POSITION:
 		return
-
-	incoming = [
-		row for row in doc.transitions
-		if (row.state, row.next_state, row.action) == ("Pending Approval", "Editing", "Edit")
-	]
-	if len(incoming) != 1 or not frappe.db.exists("Workflow", WORKFLOW):
+	if not frappe.db.exists("Workflow", doc.name):
+		doc.workflow_state_field = "status"
 		return
-
+	# Frappe reimports fixtures by replacing the entire document and its child tables.
+	# Keep the site's configured UTP schemes, including legacy sites awaiting cutover.
+	doc.update(frappe.get_doc("Workflow", doc.name).as_dict())
+	if doc.name != WORKFLOW:
+		return
 	previous = [
-		row for row in frappe.get_doc("Workflow", WORKFLOW).transitions
+		row for row in doc.transitions
 		if row.state in PENDING_STATES
 		and row.next_state in EDITING_STATES
 		and row.action in FORMER_ACTIONS | {"Edit"}
 	]
-	if len(previous) == 1 and previous[0].custom_transition_uuid != incoming[0].custom_transition_uuid:
-		if previous[0].custom_transition_uuid:
-			incoming[0].custom_transition_uuid = previous[0].custom_transition_uuid
-			# The Common hooks run before this app discovers the renamed transition's live UUID.
-			from dinext_common.workflow_approval.deadlines.fixtures import preserve_deadline_settings
-			from dinext_common.workflow_approval.email_import import preserve_workflow_email_settings
-
-			preserve_deadline_settings(doc)
-			preserve_workflow_email_settings(doc)
+	if not any(row.action in FORMER_ACTIONS for row in previous):
+		return
+	if len(previous) != 1:
+		frappe.throw(_("Resolve the duplicate Pending Approval to Editing transitions before replacing Stop Workflow."))
+	edit = previous[0]
+	edit.action = "Edit"
 
 	from dinext_common.workflow_approval.engine import _eligible_approvers, _transition_dict
 
 	rounds = _affected_rounds()
 	_check_rounds(rounds)
-	_check_edit_identity(rounds, _transition_dict(incoming[0]))
+	_check_edit_identity(rounds, _transition_dict(edit))
 	for name in _open_sources(rounds):
-		if not _eligible_approvers(frappe.get_doc(POSITION, name), incoming[0]):
+		if not _eligible_approvers(frappe.get_doc(POSITION, name), edit):
 			frappe.throw(_("Position {0} has no eligible actor for Edit.").format(name))
+
+
+def validate_position_state_field(doc, method=None):
+	if doc.document_type != POSITION:
+		return
+	from dinext_timesheets.dinext_timesheets.user_timesheet.status import has_legacy_position_status
+
+	if has_legacy_position_status():
+		return
+	if doc.workflow_state_field != "status":
+		frappe.throw(_("Select status as the Workflow state field for User Timesheet Position."))
+	if any(row.update_field == "status" and row.update_value != row.state for row in doc.states):
+		frappe.throw(_("A User Timesheet Position Workflow state cannot set status to a different state."))
 
 
 def _open_sources(rounds):
@@ -153,7 +163,7 @@ def reconcile_open_rounds():
 	workflow = frappe.get_doc("Workflow", WORKFLOW)
 	edit = next(
 		row for row in workflow.transitions
-		if (row.state, row.action, row.next_state) == ("Pending Approval", "Edit", "Editing")
+		if row.state in PENDING_STATES and row.action == "Edit" and row.next_state in EDITING_STATES
 	)
 	current = _transition_dict(edit)
 	_check_edit_identity(rounds, current)

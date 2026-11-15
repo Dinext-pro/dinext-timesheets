@@ -156,7 +156,7 @@ class TestWorkflowPositionBatchFailures(unittest.TestCase):
 			fixture.parent.name, action, request_id=fixture.marker
 		), result)
 
-	def test_failed_rework_keeps_a_below_quorum_vote_from_the_same_batch(self):
+	def test_failed_rework_rolls_back_a_below_quorum_vote_from_the_same_batch(self):
 		fixture = self.fixture
 		sibling, trigger = fixture.positions
 		sibling_action = fixture.marker + " Sibling Edit"
@@ -182,12 +182,11 @@ class TestWorkflowPositionBatchFailures(unittest.TestCase):
 		result = self._run_batch(fixture.action, fixture.marker)
 
 		self.assertEqual((result["processed"], result["total"]), (2, 2))
-		self.assertEqual([(row["reference_name"], row["transitioned"]) for row in result["results"]],
-			[(sibling.name, False)], result)
+		self.assertEqual(result["results"], [], result)
 		self.assertEqual(len(result["failed"]), 1)
 		self._assert_missing_cohort(result["failed"][0], 0, "Editing")
-		self.assertEqual(fixture._state_of_task(accepted_task), ("Completed", "Open"))
-		self.assertEqual(fixture._workflow_comments(sibling), comments + 1)
+		self.assertEqual(fixture._state_of_task(accepted_task), ("Working", "Open"))
+		self.assertEqual(fixture._workflow_comments(sibling), comments)
 		self.assertEqual(fixture._state_of_task(trigger_task), ("Working", "Open"))
 		self.assertEqual(trigger.reload().status, "Pending Approval")
 		self.assertEqual(fixture.parent.reload().ut_status, "Pending Approval")
@@ -228,7 +227,7 @@ class TestWorkflowPositionBatchFailures(unittest.TestCase):
 				expected = ["timesheet_before", "timesheet_after"] if existing_log else ["timesheet_after"]
 				self.assertEqual([call.args[0] for call in emit.call_args_list], expected)
 
-	def _best_effort_rollup(self):
+	def _start_rejected_cascade(self):
 		fixture = self.fixture
 		sibling, trigger = fixture.positions
 		self._block_successor(0, "Rejected")
@@ -248,34 +247,33 @@ class TestWorkflowPositionBatchFailures(unittest.TestCase):
 
 		return patch.object(Document, "has_permission", has_permission)
 
-	def test_best_effort_cascade_reports_related_position_and_scopes_replay(self):
-		sibling, trigger = self._best_effort_rollup()
+	def test_mandatory_cascade_reports_related_position_and_scopes_replay(self):
+		sibling, trigger = self._start_rejected_cascade()
 		fixture = self.fixture
 		args = {"timesheet_name": fixture.parent.name, "action": fixture.action,
 			"comment": "Review the synthetic positions", "request_id": fixture.marker}
 
 		result = workflow_approval.apply_timesheet_position_action(**args)
 
-		self.assertEqual([row["reference_name"] for row in result["results"]], [trigger.name])
+		self.assertEqual(result["results"], [])
 		self.assertEqual(len(result["failed"]), 1)
 		self._assert_missing_cohort(result["failed"][0], 0, "Rejected")
 		self.assertEqual(result["messages"], [])
 		self.assertEqual(sibling.reload().status, "Pending Approval")
-		self.assertEqual(trigger.reload().status, "Rejected")
-		self.assertEqual(fixture.parent.reload().ut_status, "Rejected")
+		self.assertEqual(trigger.reload().status, "Pending Approval")
+		self.assertEqual(fixture.parent.reload().ut_status, "Pending Approval")
 		self.assertEqual(workflow_approval.apply_timesheet_position_action(**args), result)
 		cause = engine.NoEligibleApproversError(result["failed"][0]["workflow_error"])
 		with self._deny_sibling_read(sibling):
 			with self.assertRaises(frappe.PermissionError):
 				workflow_approval.apply_timesheet_position_action(**args)
-			for required in (False, True):
-				failure = workflow_scenario_actions._cascade_failure(sibling, cause, required)
-				self.assertIsNone(failure["name"])
-				self.assertIsNone(failure["workflow_error"])
-				self.assertNotIn(sibling.name, failure["error"])
+			failure = workflow_scenario_actions._cascade_failure(sibling, cause)
+			self.assertIsNone(failure["name"])
+			self.assertIsNone(failure["workflow_error"])
+			self.assertNotIn(sibling.name, failure["error"])
 
-	def test_best_effort_cascade_hides_unreadable_related_position(self):
-		sibling, trigger = self._best_effort_rollup()
+	def test_mandatory_cascade_hides_unreadable_related_position(self):
+		sibling, trigger = self._start_rejected_cascade()
 		fixture = self.fixture
 		args = {"timesheet_name": fixture.parent.name, "action": fixture.action,
 			"comment": "Review the synthetic positions", "request_id": fixture.marker}
@@ -283,10 +281,34 @@ class TestWorkflowPositionBatchFailures(unittest.TestCase):
 			result = workflow_approval.apply_timesheet_position_action(**args)
 			self.assertEqual(workflow_approval.apply_timesheet_position_action(**args), result)
 
-		self.assertEqual([row["reference_name"] for row in result["results"]], [trigger.name])
-		self.assertEqual(result["failed"], [])
-		self.assertEqual(result["messages"], ["Could not update a related timesheet position"])
+		self.assertEqual(result["results"], [])
+		self.assertEqual(len(result["failed"]), 1)
+		failure = result["failed"][0]
+		self.assertIsNone(failure["name"])
+		self.assertIsNone(failure["workflow_error"])
+		self.assertIn("rolled back", failure["error"])
+		self.assertEqual(trigger.reload().status, "Pending Approval")
 		self.assertNotIn(sibling.name, json.dumps(result))
 		self.assertNotIn(self.empty_role, json.dumps(result))
 		receipt = request_receipts.get(request_receipts.request_key("Timesheet", fixture.marker))
 		self.assertNotIn(sibling.name, receipt.targets)
+
+	def test_pending_cascade_validation_leaves_parent_and_positions_unchanged(self):
+		fixture = self.fixture
+		sibling, trigger = fixture.positions
+		field = fixture.workflows[0].workflow_state_field
+		frappe.db.set_value(scenarios.POSITION, sibling.name, {"status": "Rejected", field: "Rejected"})
+		frappe.db.set_value("User Timesheet", fixture.parent.name, "ut_status", "Draft")
+		fixture._set_rules(("Pending Approval", "Pending Approval", "Any", 0, 1))
+		comments = fixture._workflow_comments(sibling, trigger)
+		frappe.set_user(fixture.reviewer)
+
+		with patch.object(workflow_scenario_actions, "_move_position",
+			side_effect=frappe.ValidationError("Synthetic validation failure")):
+			with self.assertRaisesRegex(workflow_scenario_actions.TimesheetTransitionError, "rolled back"):
+				workflow_scenario_actions.recalculate_parent(fixture.parent.reload(), trigger, None)
+
+		self.assertEqual(fixture.parent.reload().ut_status, "Draft")
+		self.assertEqual(sibling.reload().status, "Rejected")
+		self.assertEqual(trigger.reload().status, "Pending Approval")
+		self.assertEqual(fixture._workflow_comments(sibling, trigger), comments)

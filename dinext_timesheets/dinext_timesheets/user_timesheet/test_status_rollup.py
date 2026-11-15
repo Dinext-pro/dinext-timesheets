@@ -106,6 +106,32 @@ class TestRollupTriggers(unittest.TestCase):
 
 
 class TestActDates(unittest.TestCase):
+	def test_workflow_reconciliation_retains_the_linked_issue_end(self):
+		from dinext_timesheets import workflow_approval
+
+		position = _Doc(table=[SimpleNamespace(date="2026-10-05", hours=2),
+			SimpleNamespace(date="2026-10-09", hours=1)])
+		task = _Doc(
+			type="Issue", custom_linked_issue="ISS-1", completed_on=None,
+			act_start_date="2026-10-05", act_end_date="2026-10-21", flags=SimpleNamespace(),
+			save=lambda **kwargs: None,
+		)
+		with (
+			patch.object(workflow_approval.frappe, "get_all",
+				side_effect=lambda *args, **kwargs: ["UTP-1"] if kwargs.get("pluck") else [_Doc(name="UTP-1")]),
+			patch.object(workflow_approval.frappe, "get_doc",
+				side_effect=lambda doctype, name: task if doctype == "Task" else position),
+			patch.object(workflow_approval.frappe, "get_meta",
+				return_value=_Doc(has_field=lambda field: field == "sla_resolution_date")),
+			patch.object(workflow_approval.frappe.db, "get_value", return_value={
+				"opening_date": "2026-10-05", "sla_resolution_date": "2026-10-21",
+			}),
+			patch.object(workflow_approval, "_save_system_task"),
+		):
+			workflow_approval.recalculate_task_actual_dates("TASK-1")
+
+		self.assertEqual(getdate(task.act_end_date), getdate("2026-10-21"))
+
 	@patch("dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup.frappe.get_doc")
 	@patch("dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup.frappe.get_all")
 	def test_expands_act_from_approved_hours(self, get_all, get_doc):

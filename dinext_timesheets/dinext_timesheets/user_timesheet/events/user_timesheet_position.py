@@ -14,6 +14,7 @@ from ..permissions import (
 	timesheet_management_transitions,
 	worker_group,
 )
+from ..status import has_legacy_position_status
 from .hours import calculate_utp_all_hours
 from .limits_notify import notify_task_limit_exceeded
 from .ownership import set_utp_owner_from_user, set_utp_period, set_utp_user_group
@@ -58,11 +59,12 @@ def _before_save(doc, method=None):
 	if before and not doc.flags.ignore_permissions:
 		if any(doc.get(key) != before.get(key) for key in ("user_timesheet", "user", "user_group")):
 			frappe.throw(_("The position must belong to the timesheet worker"), frappe.PermissionError)
-		if doc.workflow_state == before.workflow_state:
+		state_field = "workflow_state" if has_legacy_position_status() else "status"
+		if doc.get(state_field) == before.get(state_field):
 			if doc.status != before.status:
 				frappe.throw(_("Change the position status through its Workflow"), frappe.PermissionError)
 			assert_can_edit_timesheet(frappe.get_doc("User Timesheet", doc.user_timesheet))
-		elif any(row.next_state == doc.workflow_state for row in timesheet_management_transitions(before)):
+		elif any(row.next_state == doc.get(state_field) for row in timesheet_management_transitions(before)):
 			parent = frappe.get_doc("User Timesheet", doc.user_timesheet)
 			if not has_worker_scope(parent.timesheet_from, parent.ts_valid_for) or not frappe.has_permission(
 				before, "write", ignore_share_permissions=True

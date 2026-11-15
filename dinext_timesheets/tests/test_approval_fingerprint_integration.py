@@ -31,6 +31,14 @@ class TestPositionApprovalReuse(FrappeTestCase):
 		self.enterContext(patch(parent_events + ".maybe_create_or_cancel_journal_entries"))
 		self.role = "_Test FP " + self.token
 		frappe.get_doc({"doctype": "Role", "role_name": self.role}).insert(ignore_permissions=True)
+		frappe.get_doc({
+			"doctype": "Custom DocPerm",
+			"parent": "User Timesheet Position",
+			"parenttype": "DocType",
+			"parentfield": "permissions",
+			"role": self.role,
+			"read": 1,
+		}).insert(ignore_permissions=True)
 		self.users = []
 		for number in (1, 2):
 			user = frappe.get_doc(
@@ -69,7 +77,8 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				"doctype": "Workflow",
 				"workflow_name": "_Test FP " + self.token,
 				"document_type": "User Timesheet Position",
-				"workflow_state_field": "workflow_state",
+				"workflow_state_field": "status",
+				"custom_activation_condition": 'doc.status != "Approved"',
 				"is_active": 1,
 				"send_email_alert": 0,
 				"states": [
@@ -77,8 +86,6 @@ class TestPositionApprovalReuse(FrappeTestCase):
 						"state": state,
 						"doc_status": "0",
 						"allow_edit": "System Manager",
-						"update_field": "status",
-						"update_value": state,
 					}
 					for state in ("Pending Approval", "Approved", "Rejected")
 				],
@@ -147,7 +154,6 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				"user_timesheet": self.parent.name,
 				"user": "Administrator",
 				"user_group": "_Test Group",
-				"workflow_state": "Pending Approval",
 				"status": "Pending Approval",
 				"all_hours": 8.0,
 				"period": "2039-01-01",
@@ -279,7 +285,7 @@ class TestPositionApprovalReuse(FrappeTestCase):
 			self.assertEqual(current.reused_from_workflow_task, prior.name)
 			self.assertEqual(current.content_fingerprint, prior.content_fingerprint)
 			self.assertEqual(self.task(position, self.users[1]).status, "Working")
-			self.assertEqual(position.reload().workflow_state, "Pending Approval")
+			self.assertEqual(position.reload().status, "Pending Approval")
 			self.assertTrue(
 				frappe.db.exists(
 					"Comment",
@@ -295,7 +301,7 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				frappe.db.exists("ToDo", {"reference_type": "Workflow Task", "reference_name": current.name})
 			)
 			self.vote(position, self.users[1], "Approve")
-			self.assertEqual(position.reload().workflow_state, "Approved")
+			self.assertEqual(position.reload().status, "Approved")
 
 	def test_changed_work_stays_pending_while_unchanged_position_reuses_vote(self):
 		self.reject_after_approval()

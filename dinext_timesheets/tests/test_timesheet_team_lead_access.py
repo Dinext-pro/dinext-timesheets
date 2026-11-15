@@ -160,7 +160,6 @@ class TestDelegatedTimesheetWorkflow(FrappeTestCase):
 		self.assertFalse(frappe.db.exists("Workflow Task", {
 			"reference_doctype": "User Timesheet Position",
 			"reference_name": ("in", [row.name for row in positions]),
-			"workflow_state": "Pending Approval",
 			"round_status": "Open",
 		}))
 		apply_timesheet_position_action(parent.name, fixture["actions"]["submit"])

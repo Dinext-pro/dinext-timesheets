@@ -294,7 +294,6 @@ def seed(namespace="cypress"):
 				user_timesheet=other_timesheet if who == "other" else ut["Draft"],
 				user=users[who],
 				status=status,
-				workflow_state=status,
 				custom_username=p + who,
 				period="2026-01-01",
 				project=p + "Project",

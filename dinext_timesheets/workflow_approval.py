@@ -5,12 +5,17 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from datetime import timedelta
+from importlib.util import find_spec
 from typing import Literal, TypedDict
 
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate, nowdate
 
+from dinext_timesheets.dinext_timesheets.user_timesheet.status import (
+	position_status_values,
+	position_workflow_state,
+)
 from dinext_timesheets.timesheet_status import (
 	PARENT_APPROVED,
 	PARENT_DRAFT as DRAFT,
@@ -56,7 +61,13 @@ class TimesheetRebuildRoundResponse(TypedDict):
 	can_reset: bool
 
 
+def _has_workflow_engine() -> bool:
+	return find_spec("dinext_common.workflow_approval") is not None
+
+
 def _enabled() -> bool:
+	if not _has_workflow_engine():
+		return False
 	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
 
 	return is_engine_enabled()
@@ -666,8 +677,7 @@ def _materialize_position(parent: object, payload: TimesheetPositionInput, exist
 	doc = existing or frappe.get_doc(
 		{
 			"doctype": "User Timesheet Position",
-			"status": EDITING,
-			"workflow_state": EDITING,
+			**position_status_values(EDITING),
 			**values,
 		}
 	)
@@ -987,6 +997,8 @@ def _position_action_items(doc) -> list[dict]:
 @frappe.whitelist()
 def get_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
 	"""Workflow actions available on the timesheet card."""
+	if not _has_workflow_engine():
+		return _legacy_timesheet_position_actions(timesheet_name)
 	from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
 
 	if not empty_timesheet_workflow.has_positions(timesheet_name):
@@ -1009,7 +1021,7 @@ def _legacy_timesheet_position_actions(timesheet_name: str) -> dict[str, object]
 	current: dict[str, str] = {}
 	for name in position_names:
 		doc = frappe.get_doc("User Timesheet Position", name)
-		current[name] = str(doc.workflow_state or doc.status or "")
+		current[name] = str(position_workflow_state(doc) or "")
 		for item in _position_action_items(doc):
 			row = grouped.setdefault(
 				item["action"],
@@ -1076,16 +1088,17 @@ def apply_timesheet_position_action(
 	scope: str | None = None,
 ) -> dict[str, object]:
 	"""Apply a direct timesheet action or an action on its positions."""
-	from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
+	if _has_workflow_engine():
+		from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
 
-	if scope == empty_timesheet_workflow.SCOPE:
-		return empty_timesheet_workflow.apply_action(timesheet_name, action, request_id)
+		if scope == empty_timesheet_workflow.SCOPE:
+			return empty_timesheet_workflow.apply_action(timesheet_name, action, request_id)
+		if scope is None and workflow_scenario_actions.is_active():
+			return workflow_scenario_actions.apply_timesheet_position_action(
+				timesheet_name, action, comment, request_id, track_progress, targets
+			)
 	if scope is not None:
 		raise frappe.ValidationError(_("Invalid timesheet action scope"))
-	if workflow_scenario_actions.is_active():
-		return workflow_scenario_actions.apply_timesheet_position_action(
-			timesheet_name, action, comment, request_id, track_progress, targets
-		)
 	return _legacy_apply_timesheet_position_action(timesheet_name, action, comment, request_id, track_progress)
 
 
@@ -1106,7 +1119,10 @@ def _legacy_apply_timesheet_position_action(timesheet_name, action, comment, req
 	positions = chosen["positions"]
 	total = len(positions)
 	processed = 0
-	report_progress = total > 1 and bool(request_id) and str(track_progress).lower() in {"1", "true"}
+	report_progress = (
+		_has_workflow_engine() and total > 1 and bool(request_id)
+		and str(track_progress).lower() in {"1", "true"}
+	)
 	if report_progress:
 		from dinext_common.workflow_approval.api import publish_workflow_progress
 
@@ -1159,7 +1175,7 @@ def _legacy_apply_timesheet_position_action(timesheet_name, action, comment, req
 	finally:
 		frappe.flags.defer_timesheet_rollup = previous_defer
 	parent.reload()
-	if positions:
+	if positions and _enabled():
 		sample = frappe.get_doc(
 			"User Timesheet Position",
 			positions[-1]["name"],
@@ -1223,6 +1239,8 @@ def orchestrate_timesheet(
 
 
 def on_utp_update(doc, method=None) -> None:
+	if not _enabled():
+		return
 	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
 
 	if uses_local_scenarios():
@@ -1230,8 +1248,6 @@ def on_utp_update(doc, method=None) -> None:
 
 		if handle_selected_state_update(doc):
 			return
-	if not _enabled():
-		return
 	old = doc.get_doc_before_save()
 	old_status = old.status if old else None
 	if old_status == doc.status:
@@ -1239,22 +1255,10 @@ def on_utp_update(doc, method=None) -> None:
 	parent = frappe.get_doc("User Timesheet", doc.user_timesheet, for_update=True)
 	if old and not frappe.flags.in_timesheet_approval_cascade and not frappe.flags.defer_timesheet_rollup:
 		_recalculate_parent(parent, doc, old_status)
-	if (
-		doc.document_type == "Task"
-		and doc.document_name
-		and ((doc.status == POSITION_APPROVED) != (old_status == POSITION_APPROVED))
-	):
-		recalculate_task_actual_dates(doc.document_name)
 	if old_status != PENDING and doc.status == PENDING:
 		from dinext_timesheets.submission_discipline import maybe_record_complete
+
 		maybe_record_complete(parent)
-		frappe.enqueue(
-			notify_task_limit_if_pending,
-			position_name=doc.name,
-			queue="short",
-			enqueue_after_commit=True,
-			now=frappe.flags.in_test,
-		)
 
 
 def _task_no_longer_matches_source(task_name: str) -> bool:
@@ -1360,7 +1364,7 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 			filters={
 				"user_timesheet": parent.name,
 				"name": ("!=", changed_position.name),
-				"workflow_state": ("!=", target),
+				"status": ("!=", target),
 			},
 			pluck="name",
 			order_by="name asc",
@@ -1387,82 +1391,12 @@ def _recalculate_parent(parent, changed_position, old_status: str | None) -> Non
 		frappe.flags.in_timesheet_approval_cascade = False
 
 
-def _linked_issue_dates(task_doc) -> tuple[object, object]:
-	if task_doc.get("type") != "Issue" or not task_doc.get("custom_linked_issue"):
-		return None, None
-	meta = frappe.get_meta("Issue")
-	resolution_field = (
-		"resolution_date"
-		if meta.has_field("resolution_date")
-		else "sla_resolution_date"
-		if meta.has_field("sla_resolution_date")
-		else None
-	)
-	fields = ["opening_date", *([resolution_field] if resolution_field else [])]
-	row = frappe.db.get_value(
-		"Issue",
-		task_doc.custom_linked_issue,
-		fields,
-		as_dict=True,
-	)
-	return (
-		row.get("opening_date") if row else None,
-		row.get(resolution_field) if row and resolution_field else None,
-	)
-
-
 def recalculate_task_actual_dates(task_name: str) -> None:
-	"""Expand Task actual dates from all approved UTP rows without narrowing history."""
-	positions = frappe.get_all(
-		"User Timesheet Position",
-		filters={
-			"document_type": "Task",
-			"document_name": task_name,
-			"status": POSITION_APPROVED,
-		},
-		pluck="name",
+	from dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup import (
+		recalculate_task_actual_dates as recalculate,
 	)
-	actual_dates = []
-	for position_name in positions:
-		position = frappe.get_doc("User Timesheet Position", position_name)
-		actual_dates.extend(
-			getdate(row.date)
-			for row in position.table
-			if row.date and flt(row.hours) > 0
-		)
-	new_start = min(actual_dates) if actual_dates else None
-	new_end = max(actual_dates) if actual_dates else None
-	task = frappe.get_doc("Task", task_name)
-	if task.completed_on:
-		completed_on = getdate(task.completed_on)
-		new_end = max(filter(None, (new_end, completed_on)))
-	current_start = task.act_start_date
-	current_end = task.act_end_date
-	protected_start = current_start
-	protected_end = current_end
-	issue_start, issue_end = _linked_issue_dates(task)
-	if (
-		issue_start
-		and str(current_start or "") == str(issue_start)
-		and str(current_end or "") == str(getdate(issue_end) if issue_end else "")
-		and (str(new_start or ""), str(new_end or ""))
-		!= (str(current_start or ""), str(current_end or ""))
-	):
-		protected_start = protected_end = None
-	if not new_start and not new_end:
-		return
-	if protected_start and (not new_start or getdate(new_start) > getdate(protected_start)):
-		return
-	if protected_end and (not new_end or getdate(new_end) < getdate(protected_end)):
-		return
-	if (str(current_start or ""), str(current_end or "")) == (
-		str(new_start or ""),
-		str(new_end or ""),
-	):
-		return
-	task.act_start_date = new_start
-	task.act_end_date = new_end
-	_save_system_task(task)
+
+	recalculate(task_name)
 
 
 def _save_system_task(task) -> None:
@@ -1478,78 +1412,10 @@ def _save_system_task(task) -> None:
 
 
 def notify_task_limit_if_pending(position_name: str) -> None:
-	"""Recheck committed round before emitting the retained limit Notification."""
-	if not frappe.db.exists(
-		"Workflow Task",
-		{
-			"reference_doctype": "User Timesheet Position",
-			"reference_name": position_name,
-			"status": "Working",
-			"round_status": "Open",
-		},
-	):
-		return
-	position = frappe.get_doc("User Timesheet Position", position_name)
-	if position.status != PENDING:
-		return
-	managers = frappe.get_all(
-		"Project Team Details",
-		filters={"parent": position.project, "notifications_on_limits": 1},
-		pluck="pt_participant",
-	)
-	if not managers:
-		return
-	frappe.call(
-		"calculate_timesheet_limits",
-		positions=json.dumps(
-			[
-				{
-					"document_name": position.document_name,
-					"project_role": position.project_role,
-					"project": position.project,
-					"status": position.status,
-				}
-			]
-		),
-		timesheet_name=position.user_timesheet,
-	)
-	result_rows = frappe.response.get("message") or []
-	if not result_rows or not result_rows[0].get("planned_hours"):
-		return
-	result = result_rows[0]
-	limit = frappe.db.get_value(
-		"Limit Control",
-		{
-			"parent": position.project,
-			"type": "Уведомление",
-			"view": "Notification",
-		},
-		["limit", "notification"],
-		as_dict=True,
-	)
-	if not limit:
-		return
-	percentage = result["total_hours"] / result["planned_hours"] * 100
-	if percentage <= limit.limit:
-		return
-	notification = frappe.get_doc("Notification", limit.notification)
-	context = {
-		"completion_percentage": percentage,
-		"actual_hours": result["total_hours"],
-		"planned_hours": result["planned_hours"],
-		"timesheet_position": position.name,
-		"task_name": position.document_name,
-		"project": position.project,
-		"project_role": position.project_role,
-	}
-	for manager in managers:
-		todo = frappe.new_doc("ToDo")
-		todo.description = _("Timesheet limit exceeded")
-		todo.allocated_to = manager
-		todo.reference_type = "User Timesheet Position"
-		todo.reference_name = position.name
-		todo.flags.context = context
-		notification.send(todo)
+	"""Handle an old queued job without guessing which round it belonged to."""
+	from dinext_timesheets.dinext_timesheets.user_timesheet.events.limits_notify import notify_task_limit_if_pending
+
+	notify_task_limit_if_pending(position_name)
 
 
 def email_context(task, source):

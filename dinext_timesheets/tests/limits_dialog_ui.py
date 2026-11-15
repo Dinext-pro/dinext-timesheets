@@ -135,7 +135,6 @@ def seed_limits_dialog():
 				"document_type": "Task",
 				"document_name": TASK,
 				"status": status,
-				"workflow_state": status,
 				"all_hours": hours,
 			},
 			update_modified=False,

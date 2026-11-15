@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -5,6 +7,46 @@ import frappe
 
 
 class TestDeadlineWorkspaceCharts(TestCase):
+	@staticmethod
+	def shipped_workspace():
+		root = Path(__file__).resolve().parents[1]
+		return json.loads(
+			(root / "dinext_timesheets/workspace/my_timesheets/my_timesheets.json").read_text()
+		)
+
+	def test_shipped_workspace_places_both_overdue_cards(self):
+		workspace = self.shipped_workspace()
+		blocks = json.loads(workspace["content"])
+		cards = [block["data"].get("number_card_name") for block in blocks]
+		personal = cards.index("Overdue Timesheets")
+		deadline = next(index for index, block in enumerate(blocks) if block["id"] == "deadline-control")
+		self.assertEqual(cards[personal - 1:personal + 2], [
+			"Rejected Timesheets", "Overdue Timesheets", "Approved Timesheets",
+		])
+		self.assertEqual(cards[deadline + 1], "Timesheets Overdue for Submission")
+		self.assertEqual(cards.count("Overdue Timesheets"), 1)
+		self.assertEqual(cards.count("Timesheets Overdue for Submission"), 1)
+		links = {row["label"]: row["number_card_name"] for row in workspace["number_cards"]}
+		self.assertEqual(links["Overdue Timesheets"], "Мои просроченные таймшиты")
+		self.assertEqual(links["Timesheets Overdue for Submission"], "Timesheets Overdue for Submission")
+
+	def test_upgrade_moves_old_card_and_preserves_other_blocks(self):
+		from dinext_timesheets.patches.v1_0.restore_overdue_timesheet_cards import place_overdue_cards
+
+		blocks = json.loads(self.shipped_workspace()["content"])
+		overdue = next(b for b in blocks if b["data"].get("number_card_name") == "Overdue Timesheets")
+		overall = next(b for b in blocks if b["data"].get("number_card_name") == "Timesheets Overdue for Submission")
+		note = {"id": "custom-note", "type": "paragraph", "data": {"text": "Workspace note"}}
+		previous = [
+			{**overdue, "data": {"col": 4, "number_card_name": "тш просрочено"}} if block == overall else block
+			for block in blocks if block != overdue
+		]
+		previous.insert(1, note)
+		blocks.insert(1, note)
+		updated = place_overdue_cards(previous)
+		self.assertEqual(updated, blocks)
+		self.assertEqual(place_overdue_cards(updated), updated)
+
 	def test_upgrade_creates_missing_chart_dependencies_before_workspace_save(self):
 		from types import SimpleNamespace
 

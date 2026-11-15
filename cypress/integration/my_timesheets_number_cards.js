@@ -49,7 +49,9 @@ let fixture;
 function open(user, route = workspace) {
 	cy.login(user || fixture.user, fixture.password);
 	cy.openDesk(route);
-	cy.get(".number-widget-box", { timeout: 60000 }).should("have.length", cases.length);
+	cy.get(".number-widget-box", { timeout: 60000 }).should(($cards) => {
+		expect($cards.length).to.be.at.least(cases.length);
+	});
 }
 
 function cardWidget(label) {
@@ -72,6 +74,7 @@ function sectionFor(name) {
 		"My Timesheets": "My Timesheets",
 		"My Expense Claims": "Мои Заявки на расходы",
 		"My Leave Applications": "Мои Заявки на отсутствие",
+		"Deadline Control": "Deadline Control",
 	};
 	const approvalSections = {
 		"Timesheet Approvals": "По Таймшитам",
@@ -210,6 +213,48 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 		});
 	}
 
+	for (const [account, language] of [["main", "ru"], ["other", "en"]]) {
+		for (const theme of ["light", "dark"]) {
+			it(`keeps the overdue cards and their lists in sync in ${language}, ${theme} theme`, () => {
+				const user = account === "main" ? fixture.user : fixture.other;
+				const cards = [
+					[
+						"Мои просроченные таймшиты",
+						language === "ru" ? "тш просрочено" : "Overdue Timesheets",
+						"My Timesheets",
+						"personal",
+					],
+					[
+						"Timesheets Overdue for Submission",
+						language === "ru" ? "ТШ с просроченной отправкой" : "Timesheets Overdue for Submission",
+						"Deadline Control",
+						"overall",
+					],
+				];
+				for (const [name, label, section, scope] of cards) {
+					open(user);
+					cy.window().then((win) => win.frappe.ui.set_theme(theme));
+					expect(sectionFor(name)).to.eq(section);
+					const expected = fixture.overdue[account][scope];
+					cy.get("html").should("have.attr", "data-theme", theme);
+					cardWidget(label).scrollIntoView().find(".number").should(($number) => {
+						expect($number).to.be.visible;
+						expect($number).to.have.text(String(expected.length));
+						expect($number).to.have.css("color", "rgb(203, 41, 41)");
+					});
+					cardWidget(label).find(".widget-body").click();
+					cy.window().should((win) => {
+						expect(win.cur_list?.doctype).to.eq("User Timesheet");
+						expect(win.cur_list?.data?.map((row) => row.name)).to.have.members(expected);
+					});
+					cy.window().then((win) => {
+						readPages("User Timesheet", win.cur_list.filter_area.get(), expected);
+					});
+				}
+			});
+		}
+	}
+
 	it("renders English captions and resolves the legacy route", () => {
 		open(fixture.other, legacyWorkspace);
 		cy.location("pathname").should("eq", workspace);
@@ -283,11 +328,8 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 		() => {
 			open(fixture.empty);
 			cy.window().its("frappe.boot.dinext_expense_claim_employees").should("deep.eq", []);
-			cy.get(".number-widget-box .number")
-				.should("have.length", cases.length)
-				.each(($number) => {
-					expect($number.text()).to.eq("0");
-				});
+			for (const [, label] of cases) cardWidget(label).find(".number").should("have.text", "0");
+			cardWidget("ТШ с просроченной отправкой").find(".number").should("have.text", "0");
 			cardWidget("Всего заявок на расходы").find(".widget-body").click();
 			cy.window().should((win) => {
 				expect(win.cur_list?.doctype).to.eq("Expense Claim");

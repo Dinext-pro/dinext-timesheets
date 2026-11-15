@@ -56,9 +56,26 @@ class TestMyTimesheetsCards(FrappeTestCase):
 				self.fixture[who],
 			)
 
-	def test_workspace_has_exactly_the_20_covered_cards(self):
+	def test_workspace_has_all_20_personal_and_approval_cards(self):
 		workspace = frappe.get_doc("Workspace", "My Timesheets")
-		self.assertCountEqual([c.number_card_name for c in workspace.number_cards], self.fixture["expected"])
+		covered = self.fixture["expected"]
+		self.assertCountEqual([c.number_card_name for c in workspace.number_cards if c.number_card_name in covered], covered)
+
+	def test_overdue_cards_match_their_permission_filtered_lists(self):
+		for who, session in (("main", "user"), ("other", "other"), ("empty", "empty")):
+			frappe.set_user(self.fixture[session])
+			expected = self.fixture["overdue"][who]
+			with self.subTest(who=who):
+				rows = fixture.evaluate({
+					**self.fixture,
+					"expected": {
+						"Мои просроченные таймшиты": expected["personal"],
+						"Timesheets Overdue for Submission": expected["overall"],
+					},
+				})
+				for row in rows:
+					self.assertEqual(row["value"], len(row["expected"]), row["card"])
+					self.assertCountEqual(row["names"], row["expected"], row["card"])
 
 	def test_expense_section_starts_with_the_total(self):
 		workspace = frappe.get_doc("Workspace", "My Timesheets")

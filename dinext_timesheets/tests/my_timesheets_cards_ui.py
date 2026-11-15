@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import frappe
@@ -28,7 +29,7 @@ READ_TYPES = (
 	"Timesheet Settings",
 	"Support Settings",
 )
-VERSION = 6
+VERSION = 7
 
 
 def identity(namespace):
@@ -137,6 +138,12 @@ def seed(namespace="cypress"):
 	for rule in frappe.get_all("DocType Permission", fields=["name", "ref_doctype"]):
 		if rule.ref_doctype not in SOURCES:
 			continue
+		scope = f"`tab{rule.ref_doctype}`.`name` like '{p}%'"
+		if rule.ref_doctype == "User Timesheet":
+			scope += f" AND `tabUser Timesheet`.`name` <> '{p}UT-hidden-overdue'"
+		script = f"conditions = {scope!r}"
+		if rule.ref_doctype == "User Timesheet":
+			script += f" if user != {users['empty']!r} else 'false'"
 		insert(
 			"DocType Permission Condition",
 			frappe.generate_hash(length=20),
@@ -145,7 +152,7 @@ def seed(namespace="cypress"):
 			parentfield="conditions",
 			role=role,
 			perm_level="Full Access",
-			script=f"conditions = \"`tab{rule.ref_doctype}`.`name` like '{p}%'\"",
+			script=script,
 		)
 	frappe.cache.delete_value("doctype_permission_map")
 	company = frappe.db.get_value("Company", {}, "name")
@@ -180,8 +187,10 @@ def seed(namespace="cypress"):
 			ts_valid_from=add_days("2026-01-01", i * 7),
 			ts_valid_for=add_days("2026-01-07", i * 7),
 			ut_status=status,
-			ts_date_of_dispatch=add_days(now_datetime(), -1 if status in {"Draft", "Rejected"} else 2),
-			is_overdue=int(status in {"Draft", "Rejected"}),
+			ts_date_of_dispatch=add_days(now_datetime(), {
+				"Draft": -1, "Pending Approval": -1, "Rejected": 0,
+			}.get(status, 2)),
+			is_overdue=int(status == "Draft"),
 		)
 	legacy = [
 		source(
@@ -200,6 +209,17 @@ def seed(namespace="cypress"):
 		ts_valid_from="2026-03-01",
 		ut_status="Pending Approval",
 	)
+	visible_overdue, hidden_overdue = [
+		source(
+			"User Timesheet",
+			f"UT-{visibility}-overdue",
+			timesheet_from=users["other"],
+			ts_valid_from="2026-03-01",
+			ts_date_of_dispatch=add_days(now_datetime(), -1),
+			ut_status=status,
+		)
+		for visibility, status in (("visible", "Rework"), ("hidden", "Rejected"))
+	]
 	leaves = {}
 	for status in ("Редактирование", "На согласовании", "Согласовано", "Отклонено"):
 		leaves[status] = source(
@@ -361,7 +381,7 @@ def seed(namespace="cypress"):
 		"Моих таймшитов на редактировании": [ut["Draft"], ut["Rework"], *legacy],
 		"Моих таймшитов на согласовании": [ut["Pending Approval"]],
 		"Мои отклоненные таймшиты": [ut["Rejected"]],
-		"Мои просроченные таймшиты": [ut["Draft"], ut["Rejected"]],
+		"Мои просроченные таймшиты": [ut["Draft"]],
 		"Мои согласованные таймшиты": [ut["Approved"]],
 		"Моих Заявок всего": list(leaves.values()),
 		"Моих Заявок на согласовании": [leaves["На согласовании"]],
@@ -390,6 +410,14 @@ def seed(namespace="cypress"):
 		"password": PASSWORD,
 		"employee": p + "main",
 		"expected": expected,
+		"overdue": {
+			"main": {"personal": [ut["Draft"]], "overall": [ut["Draft"], visible_overdue]},
+			"other": {
+				"personal": [visible_overdue, hidden_overdue],
+				"overall": [ut["Draft"], visible_overdue, hidden_overdue],
+			},
+			"empty": {"personal": [], "overall": []},
+		},
 		"reopened_position": positions[23],
 		"created": created,
 	}

@@ -81,6 +81,9 @@ jobs:
           bench --site ci.test run-tests --app dinext_timesheets --skip-before-tests --skip-test-records \
             --module dinext_timesheets.test_workflow_transition_styles \
             --junit-xml-output="$RUNNER_TEMP/workflow-acceptance/server-transition-styles.xml"
+          bench --site ci.test run-tests --app dinext_timesheets --skip-before-tests --skip-test-records \
+            --module dinext_timesheets.tests.test_deadline_workspace_charts \
+            --junit-xml-output="$RUNNER_TEMP/workflow-acceptance/server-deadline-workspace.xml"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

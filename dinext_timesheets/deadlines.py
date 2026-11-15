@@ -70,13 +70,15 @@ def is_timesheet_overdue(deadline, status, as_of=None) -> bool:
 	return _date(deadline) < _date(as_of)
 
 
-def overdue_filters(user: str, as_of: str, statuses=AUTHOR_QUERY_STATUSES) -> list:
-	return [
-		["timesheet_from", "=", user],
+def overdue_filters(user: str | None, as_of: str, statuses=AUTHOR_QUERY_STATUSES) -> list:
+	filters = [
 		["ut_status", "in", list(statuses)],
 		["ts_date_of_dispatch", "is", "set"],
 		["ts_date_of_dispatch", "<", as_of],
 	]
+	if user is not None:
+		filters.insert(0, ["timesheet_from", "=", user])
+	return filters
 
 
 def prepare_dispatch_date(doc, method=None) -> None:
@@ -130,8 +132,17 @@ def get_deadline_state(name: str) -> dict:
 @frappe.whitelist()
 def get_my_overdue_summary(filters=None) -> dict:
 	"""Number Card/Desk contract. Caller-supplied filters cannot change the owner."""
+	return _overdue_summary(frappe.session.user)
+
+
+@frappe.whitelist()
+def get_overdue_submission_summary(filters=None) -> dict:
+	"""Count overdue submissions visible in the current user's timesheet list."""
+	return _overdue_summary(None)
+
+
+def _overdue_summary(user: str | None) -> dict:
 	today = nowdate()
-	user = frappe.session.user
 	# Select filters reject values absent from their options. Use this site's
 	# status vocabulary for both count and navigation (English or legacy Russian).
 	options = frappe.get_meta("User Timesheet").get_field("ut_status").options.splitlines()
@@ -142,13 +153,15 @@ def get_my_overdue_summary(filters=None) -> dict:
 		fields=["count(name) as total"],
 		order_by=None,
 	)
+	route_options = {
+		"ut_status": ["in", statuses],
+		# ListView supports several comparisons for one field as JSON strings.
+		"ts_date_of_dispatch": [json.dumps(["is", "set"]), json.dumps(["<", today])],
+	}
+	if user is not None:
+		route_options["timesheet_from"] = user
 	return {
 		"value": int(rows[0].total) if rows else 0,
 		"route": ["List", "User Timesheet"],
-		"route_options": {
-			"timesheet_from": user,
-			"ut_status": ["in", statuses],
-			# ListView supports several comparisons for one field as JSON strings.
-			"ts_date_of_dispatch": [json.dumps(["is", "set"]), json.dumps(["<", today])],
-		},
+		"route_options": route_options,
 	}

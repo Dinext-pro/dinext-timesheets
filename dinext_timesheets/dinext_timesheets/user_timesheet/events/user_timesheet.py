@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dinext_timesheets.deadlines import prepare_dispatch_date
+from dinext_timesheets.empty_timesheet_workflow import guard_status_write
 
 from ..api import prepare_timesheet_insert, validate_timesheet_write
 from .hours import calculate_ut_hours
@@ -15,6 +16,7 @@ def before_insert(doc, method=None):
 
 
 def before_save(doc, method=None):
+	guard_status_write(doc)
 	validate_timesheet_write(doc)
 	prepare_dispatch_date(doc)
 	set_ut_user_group(doc)

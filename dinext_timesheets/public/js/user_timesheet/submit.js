@@ -443,7 +443,7 @@ export async function guardEditableTimesheet(frm, action, showError) {
 		showError(__("Save the timesheet first"));
 		return false;
 	}
-	if (!action?.runs_timesheet_checks) {
+	if (!action?.runs_timesheet_checks || action.scope === "timesheet") {
 		return true;
 	}
 	const validation = await timesheetValidation("Start", frm);

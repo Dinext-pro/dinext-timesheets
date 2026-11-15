@@ -103,17 +103,14 @@ def calculate_ut_hours(doc) -> None:
 
 		absence_hours = 0.0
 		for app in leave_apps:
-			start = max(getdate(app.alfrom_date), getdate(doc.ts_valid_from))
-			end = min(getdate(app.alto_date), getdate(doc.ts_valid_for))
-			if date_diff(day, start) < 0 or date_diff(day, end) > 0:
+			start = getdate(app.alfrom_date)
+			end = getdate(app.alto_date)
+			if not start <= day <= end:
 				continue
 
-			span = date_diff(end, start) + 1
-			offset = date_diff(day, start)
-
-			if offset == 0 and flt(app.alfrom_hours) > 0:
+			if day == start and flt(app.alfrom_hours) > 0:
 				hrs = flt(app.alfrom_hours)
-			elif offset == span - 1 and span > 1 and flt(app.alto_hours) > 0:
+			elif day == end and end > start and flt(app.alto_hours) > 0:
 				hrs = flt(app.alto_hours)
 			else:
 				hrs = override_hours.get(day, standard_hours)
@@ -142,6 +139,8 @@ def calculate_ut_hours(doc) -> None:
 		doc.utilization_fulfillment = 100 * (
 			1 + (total_utilized - total_utilization_plan) / total_utilization_plan
 		)
+	else:
+		doc.utilization_fulfillment = 0.0
 
 	doc.total_hours_to_work = max(0, doc.total_hours_schedule - doc.total_hours_util_leave)
 

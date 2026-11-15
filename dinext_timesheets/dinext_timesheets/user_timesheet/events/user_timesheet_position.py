@@ -5,7 +5,8 @@ from __future__ import annotations
 import frappe
 from frappe import _
 
-from dinext_timesheets.timesheet_status import POSITION_EDITING
+from dinext_timesheets.empty_timesheet_workflow import has_positions
+from dinext_timesheets.timesheet_status import APPROVED_TIMESHEET_STATUSES, POSITION_EDITING
 
 from ..permissions import (
 	assert_can_edit_timesheet,
@@ -26,8 +27,10 @@ from .workflow_tasks import (
 
 
 def before_insert(doc, method=None):
+	parent = frappe.get_doc("User Timesheet", doc.user_timesheet, for_update=True)
+	if parent.ut_status in APPROVED_TIMESHEET_STATUSES and not has_positions(parent.name, for_update=True):
+		frappe.throw(_("Return the empty timesheet to editing before adding positions"))
 	if not doc.flags.ignore_permissions:
-		parent = frappe.get_doc("User Timesheet", doc.user_timesheet)
 		assert_can_edit_timesheet(parent)
 		if doc.user and doc.user != parent.timesheet_from:
 			frappe.throw(_("The position must belong to the timesheet worker"), frappe.PermissionError)

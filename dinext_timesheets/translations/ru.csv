@@ -282,3 +282,9 @@ Chart Metric,Показатель графика
 Submission,Отправка
 Approval,Согласование
 No observations,Нет наблюдений
+"{0}: Approved absence does not cover the full workday","{0}: Согласованное отсутствие не покрывает рабочий день",""
+"This action is only available for a timesheet without positions","Действие доступно только для ТШ без позиций",""
+"The action is not available for the current timesheet status","Действие недоступно в текущем статусе ТШ",""
+"Return the empty timesheet to editing before adding positions","Верните пустую ТШ на редактирование, чтобы добавить позиции",""
+"Invalid timesheet action scope","Неизвестный тип действия ТШ",""
+"Use Workflow to change the approval status of an empty timesheet","Измените статус согласования пустой ТШ через меню Workflow",""

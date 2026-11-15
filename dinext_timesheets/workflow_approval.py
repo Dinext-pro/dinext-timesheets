@@ -977,9 +977,11 @@ def _position_action_items(doc) -> list[dict]:
 
 @frappe.whitelist()
 def get_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
-	"""Workflow actions the caller can apply to this timesheet's positions."""
-	from dinext_timesheets import workflow_scenario_actions
+	"""Workflow actions available on the timesheet card."""
+	from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
 
+	if not empty_timesheet_workflow.has_positions(timesheet_name):
+		return {"actions": empty_timesheet_workflow.get_actions(timesheet_name)}
 	if workflow_scenario_actions.is_active():
 		return workflow_scenario_actions.get_timesheet_position_actions(timesheet_name)
 	return _legacy_timesheet_position_actions(timesheet_name)
@@ -1062,10 +1064,15 @@ def apply_timesheet_position_action(
 	request_id: str | None = None,
 	track_progress: bool = False,
 	targets: object = None,
+	scope: str | None = None,
 ) -> dict[str, object]:
-	"""Apply one workflow action to every position that offers it, then roll the timesheet up."""
-	from dinext_timesheets import workflow_scenario_actions
+	"""Apply a direct timesheet action or an action on its positions."""
+	from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
 
+	if scope == empty_timesheet_workflow.SCOPE:
+		return empty_timesheet_workflow.apply_action(timesheet_name, action, request_id)
+	if scope is not None:
+		raise frappe.ValidationError(_("Invalid timesheet action scope"))
 	if workflow_scenario_actions.is_active():
 		return workflow_scenario_actions.apply_timesheet_position_action(
 			timesheet_name, action, comment, request_id, track_progress, targets
@@ -1077,7 +1084,10 @@ def _legacy_apply_timesheet_position_action(timesheet_name, action, comment, req
 	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
 	parent.check_permission("read")
 	available = get_timesheet_position_actions(parent.name)
-	chosen = next((row for row in available["actions"] if row["action"] == action), None)
+	chosen = next(
+		(row for row in available["actions"] if row["action"] == action and not row.get("scope")),
+		None,
+	)
 	if not chosen:
 		frappe.throw(_("The action is not available for the timesheet positions"))
 	if chosen["runs_timesheet_checks"]:

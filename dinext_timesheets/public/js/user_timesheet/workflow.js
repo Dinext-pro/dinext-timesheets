@@ -91,6 +91,7 @@ function applyTimesheetAction(frm, transition) {
 					comment,
 					request_id: id,
 					track_progress: count > 1,
+					...(transition.scope ? { scope: transition.scope } : {}),
 					...(transition.targets ? { targets: transition.targets } : {}),
 				});
 				if (!outcome) {

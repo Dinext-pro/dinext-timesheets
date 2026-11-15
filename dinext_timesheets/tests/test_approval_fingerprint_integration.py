@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 import frappe
-from dinext_common.workflow_approval import engine
+from dinext_common.workflow_approval import engine, permissions
 from frappe.tests.utils import FrappeTestCase
 
 
@@ -22,6 +22,9 @@ class TestPositionApprovalReuse(FrappeTestCase):
 		self.jobs = patch.object(frappe, "enqueue")
 		self.jobs.start()
 		self.addCleanup(self.jobs.stop)
+		# App-specific source permissions are tested separately from approval reuse.
+		self.enterContext(patch.object(engine, "_has_source_read_permission", return_value=True))
+		self.enterContext(patch.object(permissions, "_has_source_read_permission", return_value=True))
 		# Parent calendar/accounting setup is independent of position approval content.
 		parent_events = "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet"
 		self.enterContext(patch(parent_events + ".calculate_ut_hours"))
@@ -56,6 +59,11 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				ignore_permissions=True
 			)
 			self.actions[action] = name
+		frappe.db.set_value(
+			"Workflow", {"document_type": "User Timesheet Position", "is_active": 1}, "is_active", 0,
+			update_modified=False,
+		)
+		frappe.clear_cache(doctype="User Timesheet Position")
 		self.workflow = frappe.get_doc(
 			{
 				"doctype": "Workflow",
@@ -200,6 +208,66 @@ class TestPositionApprovalReuse(FrappeTestCase):
 				reason="Resubmit unchanged work",
 				actor=self.users[0],
 			)
+
+	def test_renaming_open_edit_transition_keeps_the_prior_approval(self):
+		from dinext_timesheets.setup import utp_edit_action
+
+		self.workflow.append("states", {
+			"state": "Editing", "doc_status": "0", "allow_edit": "System Manager",
+		})
+		retiring = self.workflow.append("transitions", {
+			"state": "Pending Approval", "action": "Stop Workflow", "next_state": "Editing",
+			"allowed": self.role, "allow_self_approval": 1,
+			"custom_parallel_approval_policy": "Any", "custom_transition_uuid": "edit-" + self.token,
+			"custom_deadline_value": 3, "send_email_to_creator": 1,
+		})
+		self.workflow.custom_email_profile_version = 1
+		self.workflow.save(ignore_permissions=True)
+		position = self.positions[0]
+		engine.reconcile_source(position, apply_automatic=False)
+		prior = self.vote(position, self.users[0], "Approve")
+		self.assertEqual(prior.status, "Completed")
+		self.assertEqual(prior.round_status, "Open")
+
+		from dinext_common.workflow_approval.scenarios.metadata import next_selection_order
+		from frappe.modules.import_file import import_doc
+
+		frappe.set_user("Administrator")
+		peer = frappe.copy_doc(self.workflow)
+		peer.workflow_name = "_Test FP peer " + self.token
+		peer.custom_activation_condition = "False"
+		peer.custom_selection_order = next_selection_order(peer.document_type)
+		peer.insert(ignore_permissions=True)
+		incoming = self.workflow.as_dict()
+		incoming["transitions"][-1].update(
+			action="Edit", custom_transition_uuid="fixture-edit-id",
+			custom_deadline_value=0, send_email_to_creator=0,
+		)
+		with (
+			patch.object(utp_edit_action, "WORKFLOW", self.workflow.name),
+			patch.dict(frappe.flags, {"in_fixtures": True, "in_migrate": True}),
+			patch.object(engine, "get_workflow_name", return_value=peer.name),
+			patch.object(engine, "get_workflow", return_value=peer),
+		):
+			utp_edit_action.guard_open_rounds()
+			imported = import_doc(incoming)
+			self.assertEqual(imported.transitions[-1].custom_transition_uuid, retiring.custom_transition_uuid)
+			self.assertEqual(imported.transitions[-1].custom_deadline_value, 3)
+			self.assertEqual(imported.transitions[-1].send_email_to_creator, 1)
+			utp_edit_action.reconcile_open_rounds()
+			utp_edit_action.reconcile_open_rounds()
+
+		working = self.task(position, self.users[1])
+		self.assertEqual(working.approval_round_id, prior.approval_round_id)
+		self.assertIn("Edit", {row.action for row in working.available_workflow_transitions})
+		self.assertNotIn("Stop Workflow", {row.action for row in working.available_workflow_transitions})
+		self.assertEqual(prior.reload().status, "Completed")
+		next_vote = self.vote(position, self.users[1], "Approve")
+		self.assertEqual(next_vote.status, "Completed")
+		self.assertEqual(
+			next_vote.round_status, "Transitioned",
+			str(frappe.flags.workflow_finalization_errors or next_vote.failure_metadata),
+		)
 
 	def test_unchanged_resubmission_reuses_approval_and_waits_for_all(self):
 		approvals = self.reject_after_approval()

@@ -15,10 +15,12 @@ function cleanTimesheet() {
 	cy.call(`${helper}.cleanup_ut_workflow_stop`);
 }
 
-function openTimesheet(positionCount = 1) {
+function openTimesheet(positionCount = 1, partiallyRejected = 0) {
 	cy.login();
 	cy.openDesk("/app");
-	cy.call(`${helper}.seed_ut_workflow_stop`, { position_count: positionCount }).then((res) => {
+	cy.call(`${helper}.seed_ut_workflow_stop`, {
+		position_count: positionCount, partially_rejected: partiallyRejected,
+	}).then((res) => {
 		fixture = res.body.message;
 		cy.login(fixture.user, fixture.password);
 		cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.name)}`);
@@ -34,7 +36,7 @@ context("User Timesheet workflow event refresh", () => {
 	after(cleanTimesheet);
 	beforeEach(() => openTimesheet());
 
-	it("restores the editing Workflow menu after stopping without a browser reload", () => {
+	it("restores the editing Workflow menu without a browser reload", () => {
 		let releaseDashboard;
 		let dashboardPending = false;
 		let holdNext = true;
@@ -223,5 +225,33 @@ context("User Timesheet progress for two positions", () => {
 		cy.window().should((win) => expect(win.cur_dialog?.display).to.eq(true));
 		cy.get(".modal:visible .modal-header button.btn-modal-close").click();
 		cy.get("#freeze, .modal-backdrop").should("not.exist");
+	});
+});
+
+
+describe("Partially rejected User Timesheet", () => {
+	after(cleanTimesheet);
+
+	it("returns both positions to editing through one Workflow action", () => {
+		openTimesheet(2, 1);
+		cy.then(() => {
+			cy.call(actionsMethod, { timesheet_name: fixture.name }).its("body.message.actions").then((rows) => {
+				expect(rows.map((row) => row.action)).to.deep.eq(["Edit"]);
+				expect(rows[0].positions.map((row) => row.name)).to.have.members(fixture.positions);
+			});
+		});
+		cy.intercept("POST", `**/api/method/${applyMethod}`).as("editPositions");
+		cy.window().then((win) => {
+			const group = workflowGroup(win);
+			group.find("button").first().click();
+			const entries = group.find(".dropdown-menu a");
+			expect(entries.toArray().map((entry) => entry.textContent.trim())).to.deep.eq([win.__("Edit")]);
+			cy.wrap(entries).click();
+		});
+		cy.wait("@editPositions").its("response.statusCode").should("eq", 200);
+		cy.window().should((win) => {
+			expect(win.cur_frm.doc.ut_status).to.eq("Rework");
+			expect(win.cur_frm.ts_positions.map((position) => position.status)).to.deep.eq(["Editing", "Editing"]);
+		});
 	});
 });

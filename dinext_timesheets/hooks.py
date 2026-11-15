@@ -238,7 +238,10 @@ doctype_list_js = {
 
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
-before_migrate = ["dinext_timesheets.workflow_email.ensure_approval_email_templates"]
+before_migrate = [
+    "dinext_timesheets.setup.utp_edit_action.guard_open_rounds",
+    "dinext_timesheets.workflow_email.ensure_approval_email_templates",
+]
 after_migrate = "dinext_timesheets.install.after_migrate"
 after_sync = [
     "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
@@ -302,6 +305,9 @@ permission_query_conditions = {
 # Canon bodies: demodev Server Scripts — disable matching SS on site after cutover.
 
 doc_events = {
+	"Workflow": {
+		"before_import": "dinext_timesheets.setup.utp_edit_action.prepare_workflow_import",
+	},
 	"User Timesheet": {
 		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_insert",
 		"before_save": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_save",

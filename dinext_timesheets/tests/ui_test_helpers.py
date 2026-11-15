@@ -258,12 +258,12 @@ def cleanup_ut_workflow_stop():
 
 
 @whitelist_for_tests
-def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0):
+def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0, partially_rejected: int = 0):
 	"""Own user and position using the installed stop/edit workflow, without changing it."""
 	from dinext_timesheets.workflow_approval import get_timesheet_position_actions
 
 	cleanup_ut_workflow_stop()
-	fixture = _seed_ut_workflow_card(_worker(), position_count)
+	fixture = _seed_ut_workflow_card(_worker(), 2 if partially_rejected else position_count)
 	previous = frappe.session.user
 	stop = None
 	try:
@@ -272,11 +272,13 @@ def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0):
 		if not editing:
 			frappe.throw("Seeded timesheet owner has no action in Editing")
 		if not editing_only:
-			for name in fixture["positions"]:
+			for index, name in enumerate(fixture["positions"]):
+				state = "Rejected" if partially_rejected and index == 1 else "Pending Approval"
 				frappe.db.set_value("User Timesheet Position", name, {
-					"status": "Pending Approval", "workflow_state": "Pending Approval",
+					"status": state, "workflow_state": state,
 				}, update_modified=False)
-			frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", "Pending Approval", update_modified=False)
+			parent_status = "Rejected" if partially_rejected else "Pending Approval"
+			frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", parent_status, update_modified=False)
 			pending = get_timesheet_position_actions(fixture["name"])["actions"]
 			stop = next(
 				(row for row in pending if all(p["next_state"] == "Editing" for p in row["positions"])),

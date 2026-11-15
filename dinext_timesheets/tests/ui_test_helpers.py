@@ -339,6 +339,7 @@ def _seed_ut_workflow_card(calendar, position_count: int, *, name: str | None = 
 BATCH_FAILURE_WORKFLOW = "_Cypress Timesheet Position Batch"
 BATCH_FAILURE_ACTION = "_Cypress Review Positions"
 BATCH_FAILURE_FOLLOW_UP = "_Cypress Review Again"
+BATCH_FAILURE_PROJECT_ROLE = "Аналитик Cypress"
 
 
 @whitelist_for_tests
@@ -356,6 +357,10 @@ def cleanup_ut_position_batch():
 		frappe.delete_doc_if_exists("Workflow Action Master", action, force=True)
 	for doctype in ("Timesheet Template", "Working Hours On Date", "Holiday List"):
 		frappe.delete_doc_if_exists(doctype, BATCH_FAILURE_WORKFLOW, force=True)
+	frappe.db.delete("Project Team Details", {"parent": BATCH_FAILURE_WORKFLOW})
+	frappe.db.delete("Task", {"project": BATCH_FAILURE_WORKFLOW})
+	frappe.db.delete("Project", {"name": BATCH_FAILURE_WORKFLOW})
+	frappe.db.delete("Project Role", {"name": BATCH_FAILURE_PROJECT_ROLE})
 
 
 def _position_batch_calendar():
@@ -379,6 +384,32 @@ def _position_batch_calendar():
 	return frappe._dict(period=(start, end), wtimesheet_template=template.name, wholiday_list=calendar.name)
 
 
+def _position_batch_labels(fixture, period):
+	project = BATCH_FAILURE_WORKFLOW
+	title = "Обновление портала"
+	start, end = period
+	frappe.get_doc({"doctype": "Project", "name": project, "project_name": title,
+		"status": "Open", "is_active": "Yes"}).db_insert()
+	frappe.get_doc({"doctype": "Project Role", "name": BATCH_FAILURE_PROJECT_ROLE}).db_insert()
+	frappe.get_doc({"doctype": "Project Team Details", "name": project, "parent": project,
+		"parenttype": "Project", "parentfield": "custom_project_team", "pt_participant_type": "User",
+		"pt_participant": fixture["user"], "pt_role": BATCH_FAILURE_PROJECT_ROLE}).db_insert()
+	subjects = []
+	for index, position in enumerate(fixture["positions"], start=1):
+		task = f"{project} Task {index}"
+		subject = f"Настроить согласование {index}"
+		frappe.get_doc({"doctype": "Task", "name": task, "subject": subject, "project": project,
+			"status": "Open", "custom_include": 1, "exp_start_date": start, "exp_end_date": end}).db_insert()
+		frappe.get_doc({"doctype": "DocShare", "name": task, "user": fixture["user"], "share_doctype": "Task",
+			"share_name": task, "read": 1}).db_insert()
+		frappe.db.set_value("User Timesheet Position", position, {
+			"project": project, "document_type": "Task", "document_name": task,
+			"project_role": BATCH_FAILURE_PROJECT_ROLE,
+		})
+		subjects.append(subject)
+	return {"project": title, "tasks": subjects, "role": BATCH_FAILURE_PROJECT_ROLE}
+
+
 @whitelist_for_tests
 def seed_ut_position_batch(block_one: int = 1):
 	"""Two positions with a real vote and an optional empty successor cohort."""
@@ -390,9 +421,11 @@ def seed_ut_position_batch(block_one: int = 1):
 	from dinext_common.workflow_approval.scenarios.metadata import next_selection_order
 
 	cleanup_ut_position_batch()
+	calendar = _position_batch_calendar()
 	fixture = _seed_ut_workflow_card(
-		_position_batch_calendar(), position_count=2, name=f"{WORKFLOW_MARKER}-{frappe.generate_hash(length=8)}"
+		calendar, position_count=2, name=f"{WORKFLOW_MARKER}-{frappe.generate_hash(length=8)}"
 	)
+	labels = _position_batch_labels(fixture, calendar.period)
 	for doctype in ("Workflow Task", "Comment"):
 		_ensure_read_perm(doctype, WORKFLOW_EVENT_ROLE)
 		frappe.clear_cache(doctype=doctype)
@@ -422,7 +455,7 @@ def seed_ut_position_batch(block_one: int = 1):
 				"condition": "doc.custom_data != 'blocked'", "custom_parallel_approval_policy": "Any"},
 		],
 	}).insert(ignore_permissions=True)
-	blocked = fixture["positions"][0] if block_one else None
+	blocked = fixture["positions"][1] if block_one else None
 	frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", "Pending Approval")
 	for name in fixture["positions"]:
 		frappe.db.set_value(position_doctype, name, {
@@ -435,5 +468,5 @@ def seed_ut_position_batch(block_one: int = 1):
 			context = service.ensure_context(position, persist_state=True)
 		service.pin_process(position, context["process_id"])
 		engine.reconcile_source(position)
-	return {**fixture, "blocked": blocked, "action": BATCH_FAILURE_ACTION,
+	return {**fixture, "labels": labels, "blocked": blocked, "action": BATCH_FAILURE_ACTION,
 		"workflow": workflow.name, "follow_up": BATCH_FAILURE_FOLLOW_UP}

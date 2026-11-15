@@ -123,9 +123,19 @@ function applyTimesheetAction(frm, transition) {
 		const escape = frappe.utils.escape_html;
 		const messageHtml = messages.map((message) => escape(message)).join("<br>");
 		if (failures.length) {
+			const positions = (frm.ut?.rows || []).filter((row) => row.rowType === "position");
+			const byName = new Map(positions.map((row, index) => [row.id, { row, number: index + 1 }]));
 			const rows = failures.map(({ name, error }) => {
-				const label = name ? `<strong>${escape(name)}</strong><br>` : "";
-				return `<li>${label}${escape(error)}</li>`;
+				const position = byName.get(name);
+				const label = position ? [
+					__("Position {0}", [position.number]),
+					position.row.project_label,
+					position.row.document_label,
+					position.row.project_role,
+				].filter(Boolean).join(" · ") : "";
+				const reason = name ? error.replaceAll(name, String(position?.number ?? "")) : error;
+				const heading = label ? `<strong>${escape(label)}</strong><br>` : "";
+				return `<li>${heading}${escape(reason)}</li>`;
 			});
 			const summary = results.length
 				? `<p>${escape(__("Successfully processed positions: {0} of {1}", [

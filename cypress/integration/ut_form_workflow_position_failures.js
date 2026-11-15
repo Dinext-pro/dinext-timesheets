@@ -102,11 +102,16 @@ context("User Timesheet position batch result", () => {
 			expect($dialogs).to.have.length(1);
 			expect($dialogs.text()).to.include("Не удалось обработать позиции таймшита");
 			expect($dialogs.text()).to.include("Успешно обработано позиций: 1 из 2");
-			expect($dialogs.text()).to.include(failure.name);
-			expect($dialogs.text()).to.include(failure.error);
+			expect($dialogs.find("li strong").text()).to.eq(
+				`Позиция 2 · ${fixture.labels.project} · ${fixture.labels.tasks[1]} · ${fixture.labels.role}`
+			);
+			expect($dialogs.text()).to.include("Нет согласующих для переходов");
+			expect($dialogs.text()).to.include(fixture.follow_up);
+			expect($dialogs.text()).not.to.include(failure.name);
 		});
 		cy.get(".modal:visible .progress, #freeze").should("not.exist");
 		cy.window().should((win) => expect(win.cur_frm.page.wrapper[0].inert).to.eq(false));
+		cy.screenshot("timesheet-position-workflow-error", { capture: "viewport" });
 	});
 
 	it("ends progress without a result dialog when every position succeeds", () => {

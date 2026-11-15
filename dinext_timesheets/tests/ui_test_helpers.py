@@ -336,6 +336,8 @@ def _seed_ut_workflow_card(calendar, position_count: int, *, name: str | None = 
 
 
 BATCH_FAILURE_WORKFLOW = "_Cypress Timesheet Position Batch"
+BATCH_BLOCKED_WORKFLOW = "_Cypress Position Batch Without Approvers"
+BATCH_UNASSIGNED_ROLE = "_Cypress Position Batch Unassigned"
 BATCH_FAILURE_ACTION = "_Cypress Review Positions"
 BATCH_FAILURE_FOLLOW_UP = "_Cypress Review Again"
 BATCH_FAILURE_PROJECT_ROLE = "Аналитик Cypress"
@@ -346,12 +348,15 @@ def cleanup_ut_position_batch():
 	cleanup_ut_workflow_stop()
 	from dinext_common.workflow_approval.scenarios import service
 
-	processes = frappe.get_all(service.PROCESS, filters={"workflow": BATCH_FAILURE_WORKFLOW},
+	workflows = (BATCH_FAILURE_WORKFLOW, BATCH_BLOCKED_WORKFLOW)
+	processes = frappe.get_all(service.PROCESS, filters={"workflow": ("in", workflows)},
 		fields=["name", "source_key"])
 	for process in processes:
 		frappe.db.delete(service.CONTEXT, {"name": process.source_key})
 		frappe.db.delete(service.PROCESS, {"name": process.name})
-	frappe.delete_doc_if_exists("Workflow", BATCH_FAILURE_WORKFLOW, force=True)
+	for workflow in workflows:
+		frappe.delete_doc_if_exists("Workflow", workflow, force=True)
+	frappe.delete_doc_if_exists("Role", BATCH_UNASSIGNED_ROLE, force=True)
 	for action in (BATCH_FAILURE_ACTION, BATCH_FAILURE_FOLLOW_UP):
 		frappe.delete_doc_if_exists("Workflow Action Master", action, force=True)
 	for doctype in ("Timesheet Template", "Working Hours On Date", "Holiday List"):
@@ -409,6 +414,33 @@ def _position_batch_labels(fixture, period):
 	return {"project": title, "tasks": subjects, "role": BATCH_FAILURE_PROJECT_ROLE}
 
 
+def _position_batch_workflow(name, activation, successor_role):
+	from dinext_common.workflow_approval.scenarios.metadata import next_selection_order
+
+	position_doctype = "User Timesheet Position"
+	return frappe.get_doc({
+		"doctype": "Workflow",
+		"workflow_name": name,
+		"document_type": position_doctype,
+		"workflow_state_field": "status",
+		"custom_selection_order": next_selection_order(position_doctype),
+		"custom_activation_condition": activation,
+		"is_active": 1,
+		"send_email_alert": 0,
+		"states": [
+			{"state": state, "doc_status": "0", "allow_edit": WORKFLOW_EVENT_ROLE}
+			for state in ("Pending Approval", "Rejected", "Editing")
+		],
+		"transitions": [
+			{"state": "Pending Approval", "action": BATCH_FAILURE_ACTION, "next_state": "Rejected",
+				"allowed": WORKFLOW_EVENT_ROLE, "allow_self_approval": 1,
+				"custom_parallel_approval_policy": "Any"},
+			{"state": "Rejected", "action": BATCH_FAILURE_FOLLOW_UP, "next_state": "Editing",
+				"allowed": successor_role, "allow_self_approval": 1, "custom_parallel_approval_policy": "Any"},
+		],
+	}).insert(ignore_permissions=True)
+
+
 @whitelist_for_tests
 def seed_ut_position_batch(block_one: int = 1):
 	"""Two positions with a real vote and an optional empty successor cohort."""
@@ -417,7 +449,6 @@ def seed_ut_position_batch(block_one: int = 1):
 	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
 	from dinext_common.workflow_approval import engine
 	from dinext_common.workflow_approval.scenarios import service
-	from dinext_common.workflow_approval.scenarios.metadata import next_selection_order
 
 	cleanup_ut_position_batch()
 	calendar = _position_batch_calendar()
@@ -428,44 +459,31 @@ def seed_ut_position_batch(block_one: int = 1):
 	for doctype in ("Workflow Task", "Comment"):
 		_ensure_read_perm(doctype, WORKFLOW_EVENT_ROLE)
 		frappe.clear_cache(doctype=doctype)
-	position_doctype = "User Timesheet Position"
 	for action in (BATCH_FAILURE_ACTION, BATCH_FAILURE_FOLLOW_UP):
 		frappe.get_doc({"doctype": "Workflow Action Master", "workflow_action_name": action}).insert()
-	workflow = frappe.get_doc({
-		"doctype": "Workflow",
-		"workflow_name": BATCH_FAILURE_WORKFLOW,
-		"document_type": position_doctype,
-		"workflow_state_field": "status",
-		"custom_selection_order": next_selection_order(position_doctype),
-		"custom_activation_condition": f"doc.user_timesheet == {fixture['name']!r}",
-		"is_active": 1,
-		"send_email_alert": 0,
-		"states": [
-			{"state": state, "doc_status": "0", "allow_edit": WORKFLOW_EVENT_ROLE,
-				"update_field": "status", "update_value": state}
-			for state in ("Pending Approval", "Rejected", "Editing")
-		],
-		"transitions": [
-			{"state": "Pending Approval", "action": BATCH_FAILURE_ACTION, "next_state": "Rejected",
-				"allowed": WORKFLOW_EVENT_ROLE, "allow_self_approval": 1,
-				"custom_parallel_approval_policy": "Any"},
-			{"state": "Rejected", "action": BATCH_FAILURE_FOLLOW_UP, "next_state": "Editing",
-				"allowed": WORKFLOW_EVENT_ROLE, "allow_self_approval": 1,
-				"condition": "doc.custom_data != 'blocked'", "custom_parallel_approval_policy": "Any"},
-		],
-	}).insert(ignore_permissions=True)
+
 	blocked = fixture["positions"][1] if block_one else None
+	activation = f"doc.user_timesheet == {fixture['name']!r}"
+	ready_workflow = _position_batch_workflow(
+		BATCH_FAILURE_WORKFLOW, f"{activation} and doc.name != {blocked!r}", WORKFLOW_EVENT_ROLE,
+	)
+	blocked_workflow = None
+	if blocked:
+		frappe.get_doc({"doctype": "Role", "role_name": BATCH_UNASSIGNED_ROLE}).insert()
+		blocked_workflow = _position_batch_workflow(
+			BATCH_BLOCKED_WORKFLOW, f"doc.name == {blocked!r}", BATCH_UNASSIGNED_ROLE,
+		)
+
 	frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", "Pending Approval")
+	position_doctype = "User Timesheet Position"
 	for name in fixture["positions"]:
-		frappe.db.set_value(position_doctype, name, {
-			"status": "Pending Approval",
-			"custom_data": "blocked" if name == blocked else "ready",
-		})
+		frappe.db.set_value(position_doctype, name, "status", "Pending Approval")
 		position = frappe.get_doc(position_doctype, name)
 		# Prepare and pin the test's own Workflow without altering existing definitions.
+		workflow = blocked_workflow if name == blocked else ready_workflow
 		with patch.object(service, "select_workflow", return_value=workflow):
 			context = service.ensure_context(position, persist_state=True)
 		service.pin_process(position, context["process_id"])
 		engine.reconcile_source(position)
 	return {**fixture, "labels": labels, "blocked": blocked, "action": BATCH_FAILURE_ACTION,
-		"workflow": workflow.name, "follow_up": BATCH_FAILURE_FOLLOW_UP}
+		"workflow": (blocked_workflow or ready_workflow).name, "follow_up": BATCH_FAILURE_FOLLOW_UP}

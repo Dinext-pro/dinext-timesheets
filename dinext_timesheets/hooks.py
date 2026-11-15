@@ -12,6 +12,10 @@ app_license = "GNU General Public License (v3)"
 
 fixtures = [
     {
+        "doctype": "Email Template",
+        "filters": [["name", "=", "Dinext Timesheet Workflow Correction"]],
+    },
+    {
         "doctype": "List View Settings",
         "filters": [["name", "=", "User Timesheet Position"]],
     },

@@ -17,6 +17,8 @@ from dinext_common.workflow_approval import engine, request_receipts
 from dinext_common.workflow_approval.scenarios import service
 
 POSITION = "User Timesheet Position"
+_NO_ELIGIBLE_APPROVERS = getattr(engine, "NoEligibleApproversError", None)
+_MISSING_APPROVER_ERRORS = (_NO_ELIGIBLE_APPROVERS,) if _NO_ELIGIBLE_APPROVERS else ()
 
 
 class TimesheetTransitionError(getattr(engine, "WorkflowDomainRollbackError", frappe.ValidationError)):
@@ -24,23 +26,30 @@ class TimesheetTransitionError(getattr(engine, "WorkflowDomainRollbackError", fr
 
 
 @contextmanager
-def atomic_timesheet_transition():
-	"""Restore DB and pending callbacks if a timesheet transition must be reversed."""
+def atomic_timesheet_transition(also_rollback: tuple[type[Exception], ...] = ()):
+	"""Restore pending side effects when a timesheet transition rolls back."""
 	savepoint = f"timesheet_transition_{frappe.generate_hash(length=12)}"
 	cascade = deepcopy(getattr(frappe.local, "workflow_scenario_cascade", None))
 	managers = (frappe.db.before_commit, frappe.db.after_commit,
 		frappe.db.before_rollback, frappe.db.after_rollback)
 	callbacks = [(manager, tuple(manager._functions)) for manager in managers]
+	realtime_log = getattr(frappe.local, "_realtime_log", None)
+	realtime_count = len(realtime_log or [])
 	frappe.db.savepoint(savepoint)
 	try:
 		yield
-	except TimesheetTransitionError:
+	except (TimesheetTransitionError, *also_rollback):
 		frappe.db.rollback(save_point=savepoint)
 		for manager, previous in callbacks:
 			manager.reset()
 			for callback in previous:
 				manager.add(callback)
 		frappe.local.workflow_scenario_cascade = cascade
+		if realtime_log is not None:
+			del realtime_log[realtime_count:]
+			frappe.local._realtime_log = realtime_log
+		elif hasattr(frappe.local, "_realtime_log"):
+			del frappe.local._realtime_log
 		raise
 	finally:
 		frappe.db.release_savepoint(savepoint)
@@ -96,12 +105,52 @@ class TimesheetDomainResult(TypedDict):
 	transitioned: bool
 
 
+class TimesheetPositionFailure(TypedDict):
+	name: str | None
+	error: str
+	error_type: str
+	workflow_error: engine.WorkflowRoundError | None
+
+
+class _MandatoryCascadeError(TimesheetTransitionError):
+	def __init__(self, failure: TimesheetPositionFailure):
+		super().__init__(failure["error"])
+		self.failure = failure
+
+
+def _position_failure(
+	name: str | None, cause: engine.NoEligibleApproversError, message: str | None = None,
+) -> TimesheetPositionFailure:
+	return {
+		"name": name,
+		"error": message if message is not None else str(cause),
+		"error_type": type(cause).__name__,
+		"workflow_error": cause.details if name else None,
+	}
+
+
+def _cascade_failure(position, cause: engine.NoEligibleApproversError, required: bool) -> TimesheetPositionFailure:
+	if not position.has_permission("read"):
+		message = (
+			_("The timesheet status and position transitions were rolled back. "
+			  "A related position could not open its next approval round.")
+			if required else _("A related position could not open its next approval round.")
+		)
+		return _position_failure(None, cause, message)
+	message = _(
+		"The timesheet status and position transitions were rolled back. "
+		"Could not update related position {0}. {1}"
+	).format(position.name, cause) if required else str(cause)
+	return _position_failure(position.name, cause, message)
+
+
 class TimesheetActionResponse(TypedDict):
 	timesheet: str
 	results: list[engine.VoteResult | TimesheetDomainResult]
 	messages: list[str]
 	processed: int
 	total: int
+	failed: NotRequired[list[TimesheetPositionFailure]]
 
 
 def _producer():
@@ -306,7 +355,9 @@ def validate_position_vote(source, next_state: str) -> None:
 	_validate_filling(parent, _locked_positions(parent.name, source))
 
 
-def recalculate_parent(parent, changed_position, old_status: str | None) -> None:
+def recalculate_parent(
+	parent, changed_position, old_status: str | None, *, failed: list[TimesheetPositionFailure] | None = None,
+) -> None:
 	"""Apply the winning Position Rules row to the locked aggregate."""
 	matching_position_rule, get_check_rule = _rollup_settings()
 	positions = _locked_positions(parent.name, changed_position)
@@ -345,10 +396,27 @@ def recalculate_parent(parent, changed_position, old_status: str | None) -> None
 						raise TimesheetTransitionError(message) from cause
 			except TimesheetTransitionError as error:
 				del frappe.local.message_log[message_count:]
+				if isinstance(error.__cause__, _MISSING_APPROVER_ERRORS):
+					failure = _cascade_failure(position, error.__cause__, required)
+					if required:
+						raise _MandatoryCascadeError(failure) from (error if failure["name"] else None)
+					if failed is None:
+						producer._note_timesheet_transition_message(failure["error"])
+					else:
+						failed.append(failure)
+					continue
+				message = str(error)
+				if not position.has_permission("read"):
+					message = _("Could not update a related timesheet position")
+					if required:
+						raise TimesheetTransitionError(_(
+							"The timesheet status and position transitions were rolled back. "
+							"A related position could not be updated."
+						)) from None
 				if required:
-					frappe.throw(str(error), exc=error)
+					frappe.throw(message, exc=error)
 				frappe.log_error(title=f"Timesheet sibling transition failed: {position.name}")
-				producer._note_timesheet_transition_message(str(error))
+				producer._note_timesheet_transition_message(message)
 	finally:
 		frappe.flags.in_timesheet_approval_cascade = previous
 
@@ -467,7 +535,7 @@ def get_timesheet_position_actions(timesheet_name: str) -> TimesheetActionsRespo
 
 def apply_timesheet_position_action(
 	timesheet_name: str, action: str, comment: object = None, request_id: str | None = None,
-	track_progress: bool = False, targets: object = None,
+	track_progress: bool = False, targets: list[TimesheetPositionTarget] | str | None = None,
 ) -> TimesheetActionResponse:
 	"""Apply exact position decisions under the existing aggregate parent lock and rollup boundary."""
 	from dinext_common.workflow_approval.api import _require_post
@@ -504,8 +572,52 @@ def apply_timesheet_position_action(
 				return request_receipts.replay(receipt, parameters)
 		response = _apply_position_actions(parent, chosen["positions"], action, comment, request_id, track_progress)
 		if receipt:
+			_include_related_receipt_targets(receipt.name, scopes, response.get("failed", []))
 			request_receipts.finish(receipt.name, response)
 		return response
+
+
+def _include_related_receipt_targets(
+	key: str, scopes: list[request_receipts.ReceiptTarget], failed: list[TimesheetPositionFailure],
+) -> None:
+	selected = {row["name"] for row in scopes if row["doctype"] == POSITION}
+	related_names = dict.fromkeys(row["name"] for row in failed if row["name"] and row["name"] not in selected)
+	if related_names:
+		scopes.extend(request_receipts.target(frappe.get_doc(POSITION, name)) for name in related_names)
+		frappe.db.set_value(request_receipts.DOCTYPE, key, "targets", json.dumps(scopes))
+
+
+@contextmanager
+def _defer_timesheet_rollup():
+	previous = frappe.flags.defer_timesheet_rollup
+	frappe.flags.defer_timesheet_rollup = True
+	try:
+		yield
+	finally:
+		frappe.flags.defer_timesheet_rollup = previous
+
+
+def _apply_position_action(
+	position: TimesheetPositionCommand, action: str, comment: str, request_id: str | None,
+) -> engine.VoteResult | TimesheetDomainResult:
+	source = frappe.get_doc(POSITION, position["name"], for_update=True)
+	source.check_permission("read")
+	live = service.get_context(source)
+	if live["workflow"] != position["workflow"] or live["process_id"] != position["process_id"]:
+		raise engine.WorkflowApprovalConflictError(_("The source workflow state has changed"))
+	if position["mode"] == "domain":
+		return {
+			"name": source.name,
+			"transitioned": _move_position(
+				source, live, position["next_state"], _("Timesheet action {0}").format(action)
+			),
+		}
+	if _producer()._task_no_longer_matches_source(position["task"]):
+		raise engine.WorkflowApprovalConflictError(_("The source workflow state has changed"))
+	return engine.cast_vote(
+		position["task"], action=action, transition_uuid=position["transition_uuid"],
+		comment=comment, completion_source="Bulk", request_id=request_id, receipt_managed=bool(request_id),
+	)
 
 
 def _apply_position_actions(
@@ -514,62 +626,64 @@ def _apply_position_actions(
 ) -> TimesheetActionResponse:
 	from dinext_common.workflow_approval.api import publish_workflow_progress
 
-	producer = _producer()
 	frappe.flags.timesheet_transition_messages = []
 	frappe.flags.workflow_finalization_errors = []
 	total = len(positions)
 	report_progress = total > 1 and bool(request_id) and str(track_progress).lower() in {"1", "true"}
 	results: list[engine.VoteResult | TimesheetDomainResult] = []
+	failed: list[TimesheetPositionFailure] = []
+	accepted_votes: list[tuple[TimesheetPositionCommand, str | None]] = []
 	last_transition = None
-	previous_defer = getattr(frappe.flags, "defer_timesheet_rollup", None)
-	frappe.flags.defer_timesheet_rollup = True
 	try:
-		for processed, position in enumerate(positions, start=1):
-			try:
-				source = frappe.get_doc(POSITION, position["name"], for_update=True)
-				source.check_permission("read")
-				live = service.get_context(source)
-				if live["workflow"] != position["workflow"] or live["process_id"] != position["process_id"]:
-					raise engine.WorkflowApprovalConflictError(_("The source workflow state has changed"))
-				if position["mode"] == "domain":
-					result = TimesheetDomainResult(
-						name=position["name"],
-						transitioned=_move_position(
-							source, live, position["next_state"], _("Timesheet action {0}").format(action)
-						),
-					)
-				elif not producer._task_no_longer_matches_source(position["task"]):
-					result = engine.cast_vote(
-						position["task"], action=action, transition_uuid=position["transition_uuid"],
-						comment=comment, completion_source="Bulk",
-						request_id=f"{request_id}:{processed - 1}" if request_id else None,
-						receipt_managed=bool(request_id),
-					)
-				else:
-					raise engine.WorkflowApprovalConflictError(_("The source workflow state has changed"))
-				results.append(result)
-				if result["transitioned"]:
-					last_transition = source.name
-			except engine.WorkflowApprovalConflictError as caught:
-				if last_transition is None:
-					raise
-				producer._note_timesheet_transition_message(str(caught))
-			if report_progress:
-				publish_workflow_progress(request_id, processed, total)
-	finally:
-		frappe.flags.defer_timesheet_rollup = previous_defer
-	if last_transition:
-		parent.reload()
-		recalculate_parent(parent, frappe.get_doc(POSITION, last_transition, for_update=True), None)
+		with atomic_timesheet_transition():
+			with _defer_timesheet_rollup():
+				for attempt, position in enumerate(positions, start=1):
+					position_request_id = f"{request_id}:{attempt - 1}" if request_id else None
+					message_count = len(frappe.local.message_log or [])
+					try:
+						with atomic_timesheet_transition(_MISSING_APPROVER_ERRORS):
+							result = _apply_position_action(position, action, comment, position_request_id)
+					except _MISSING_APPROVER_ERRORS as error:
+						if frappe.local.message_log:
+							del frappe.local.message_log[message_count:]
+						failed.append(_position_failure(position["name"], error))
+					except engine.WorkflowApprovalConflictError as error:
+						if last_transition is None:
+							raise
+						_producer()._note_timesheet_transition_message(str(error))
+					else:
+						results.append(result)
+						if result["transitioned"]:
+							last_transition = position["name"]
+						elif result.get("status") == "Completed" and result.get("round_status") in {"Open", "Stalled"}:
+							accepted_votes.append((position, position_request_id))
+					if report_progress:
+						publish_workflow_progress(request_id, attempt, total)
+			if last_transition:
+				parent.reload()
+				recalculate_parent(
+					parent, frappe.get_doc(POSITION, last_transition, for_update=True), None, failed=failed,
+				)
+	except _MandatoryCascadeError as error:
+		failed.append(error.failure)
+		frappe.flags.workflow_finalization_errors = []
+		# Restore votes that did not change position state after the aggregate rollback.
+		# The parent lock and any reserved receipt predate the savepoint.
+		with _defer_timesheet_rollup():
+			results = [
+				_apply_position_action(position, action, comment, position_request_id)
+				for position, position_request_id in accepted_votes
+			]
 	return {
 		"timesheet": parent.name,
 		"results": results,
 		"messages": [
-			*(getattr(frappe.flags, "workflow_finalization_errors", None) or []),
-			*(getattr(frappe.flags, "timesheet_transition_messages", None) or []),
+			*(frappe.flags.workflow_finalization_errors or []),
+			*(frappe.flags.timesheet_transition_messages or []),
 		],
 		"processed": total,
 		"total": total,
+		"failed": failed,
 	}
 
 

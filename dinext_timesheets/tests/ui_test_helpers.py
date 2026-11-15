@@ -260,16 +260,43 @@ def cleanup_ut_workflow_stop():
 @whitelist_for_tests
 def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0):
 	"""Own user and position using the installed stop/edit workflow, without changing it."""
-	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
-	from frappe.utils.password import update_password
-
 	from dinext_timesheets.workflow_approval import get_timesheet_position_actions
 
 	cleanup_ut_workflow_stop()
+	fixture = _seed_ut_workflow_card(_worker(), position_count)
+	previous = frappe.session.user
+	stop = None
+	try:
+		frappe.set_user(fixture["user"])
+		editing = get_timesheet_position_actions(fixture["name"])["actions"]
+		if not editing:
+			frappe.throw("Seeded timesheet owner has no action in Editing")
+		if not editing_only:
+			for name in fixture["positions"]:
+				frappe.db.set_value("User Timesheet Position", name, {
+					"status": "Pending Approval", "workflow_state": "Pending Approval",
+				}, update_modified=False)
+			frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", "Pending Approval", update_modified=False)
+			pending = get_timesheet_position_actions(fixture["name"])["actions"]
+			stop = next(
+				(row for row in pending if all(p["next_state"] == "Editing" for p in row["positions"])),
+				None,
+			)
+			if not stop:
+				frappe.throw("Seeded timesheet owner has no action to return to Editing")
+	finally:
+		frappe.set_user(previous)
+	return {**fixture, "stop_action": stop["action"] if stop else None,
+		"editing_actions": [row["action"] for row in editing]}
+
+
+def _seed_ut_workflow_card(calendar, position_count: int, *, name: str | None = None):
+	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
+	from frappe.utils.password import update_password
+
 	frappe.get_doc({"doctype": "Role", "role_name": WORKFLOW_EVENT_ROLE}).insert(ignore_permissions=True)
 	for doctype in ("Kanban Board", "Report", "Support Settings"):
 		_ensure_read_perm(doctype, WORKFLOW_EVENT_ROLE)
-	calendar = _worker()
 	start, end = calendar.period
 	password = "cypress-ut-workflow-events"
 	user = frappe.get_doc({
@@ -294,7 +321,7 @@ def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0):
 		"doctype": "User Timesheet", "timesheet_from": user.name,
 		"timesheet_from_name": WORKFLOW_MARKER,
 		"ts_valid_from": start, "ts_valid_for": end, "ut_status": "Draft",
-	}).insert(ignore_permissions=True)
+	}).insert(ignore_permissions=True, set_name=name)
 	positions = []
 	with _pause_approval_engine():
 		for _index in range(position_count):
@@ -303,28 +330,108 @@ def seed_ut_workflow_stop(position_count: int = 1, editing_only: int = 0):
 				"user": user.name, "status": "Editing", "workflow_state": "Editing",
 			}).insert(ignore_permissions=True)
 			positions.append(position.name)
-	previous = frappe.session.user
-	stop = None
-	try:
-		frappe.set_user(user.name)
-		editing = get_timesheet_position_actions(doc.name)["actions"]
-		if not editing:
-			frappe.throw("Seeded timesheet owner has no action in Editing")
-		if not editing_only:
-			for name in positions:
-				frappe.db.set_value("User Timesheet Position", name, {
-					"status": "Pending Approval", "workflow_state": "Pending Approval",
-				}, update_modified=False)
-			frappe.db.set_value("User Timesheet", doc.name, "ut_status", "Pending Approval", update_modified=False)
-			pending = get_timesheet_position_actions(doc.name)["actions"]
-			stop = next(
-				(row for row in pending if all(p["next_state"] == "Editing" for p in row["positions"])),
-				None,
-			)
-			if not stop:
-				frappe.throw("Seeded timesheet owner has no action to return to Editing")
-	finally:
-		frappe.set_user(previous)
 	return {"name": doc.name, "position": positions[0], "positions": positions, "user": user.name,
-		"password": password, "stop_action": stop["action"] if stop else None,
-		"editing_actions": [row["action"] for row in editing]}
+		"password": password}
+
+
+BATCH_FAILURE_WORKFLOW = "_Cypress Timesheet Position Batch"
+BATCH_FAILURE_ACTION = "_Cypress Review Positions"
+BATCH_FAILURE_FOLLOW_UP = "_Cypress Review Again"
+
+
+@whitelist_for_tests
+def cleanup_ut_position_batch():
+	cleanup_ut_workflow_stop()
+	from dinext_common.workflow_approval.scenarios import service
+
+	processes = frappe.get_all(service.PROCESS, filters={"workflow": BATCH_FAILURE_WORKFLOW},
+		fields=["name", "source_key"])
+	for process in processes:
+		frappe.db.delete(service.CONTEXT, {"name": process.source_key})
+		frappe.db.delete(service.PROCESS, {"name": process.name})
+	frappe.delete_doc_if_exists("Workflow", BATCH_FAILURE_WORKFLOW, force=True)
+	for action in (BATCH_FAILURE_ACTION, BATCH_FAILURE_FOLLOW_UP):
+		frappe.delete_doc_if_exists("Workflow Action Master", action, force=True)
+	for doctype in ("Timesheet Template", "Working Hours On Date", "Holiday List"):
+		frappe.delete_doc_if_exists(doctype, BATCH_FAILURE_WORKFLOW, force=True)
+
+
+def _position_batch_calendar():
+	today = getdate()
+	start = add_days(today, -today.weekday())
+	end = add_days(start, 6)
+	calendar = frappe.get_doc({
+		"doctype": "Holiday List", "holiday_list_name": BATCH_FAILURE_WORKFLOW,
+		"from_date": start, "to_date": add_days(end, 30),
+	}).insert(ignore_permissions=True, set_name=BATCH_FAILURE_WORKFLOW)
+	hours = frappe.get_doc({
+		"doctype": "Working Hours On Date",
+		"hod_from_date": start, "hod_to_date": end,
+	}).insert(ignore_permissions=True, set_name=BATCH_FAILURE_WORKFLOW)
+	template = frappe.get_doc({
+		"doctype": "Timesheet Template", "ttsubject": BATCH_FAILURE_WORKFLOW,
+		"enabled": 1, "ttreporting_period": "Недельный",
+		"tt_working_hours_on_date": hours.name, "doctype_for_timesheet": [{"dtdoctype": "Task"}],
+		"hours_on_date": 8, "minimum_hours": 0, "maximum_hours": 8, "working_days": 1,
+	}).insert(ignore_permissions=True, set_name=BATCH_FAILURE_WORKFLOW)
+	return frappe._dict(period=(start, end), wtimesheet_template=template.name, wholiday_list=calendar.name)
+
+
+@whitelist_for_tests
+def seed_ut_position_batch(block_one: int = 1):
+	"""Two positions with a real vote and an optional empty successor cohort."""
+	from unittest.mock import patch
+
+	from dinext_common.tests.ui_test_helpers import _ensure_read_perm
+	from dinext_common.workflow_approval import engine
+	from dinext_common.workflow_approval.scenarios import service
+	from dinext_common.workflow_approval.scenarios.metadata import next_selection_order
+
+	cleanup_ut_position_batch()
+	fixture = _seed_ut_workflow_card(
+		_position_batch_calendar(), position_count=2, name=f"{WORKFLOW_MARKER}-{frappe.generate_hash(length=8)}"
+	)
+	for doctype in ("Workflow Task", "Comment"):
+		_ensure_read_perm(doctype, WORKFLOW_EVENT_ROLE)
+		frappe.clear_cache(doctype=doctype)
+	position_doctype = "User Timesheet Position"
+	for action in (BATCH_FAILURE_ACTION, BATCH_FAILURE_FOLLOW_UP):
+		frappe.get_doc({"doctype": "Workflow Action Master", "workflow_action_name": action}).insert()
+	workflow = frappe.get_doc({
+		"doctype": "Workflow",
+		"workflow_name": BATCH_FAILURE_WORKFLOW,
+		"document_type": position_doctype,
+		"workflow_state_field": "workflow_state",
+		"custom_selection_order": next_selection_order(position_doctype),
+		"custom_activation_condition": f"doc.user_timesheet == {fixture['name']!r}",
+		"is_active": 1,
+		"send_email_alert": 0,
+		"states": [
+			{"state": state, "doc_status": "0", "allow_edit": WORKFLOW_EVENT_ROLE,
+				"update_field": "status", "update_value": state}
+			for state in ("Pending Approval", "Rejected", "Editing")
+		],
+		"transitions": [
+			{"state": "Pending Approval", "action": BATCH_FAILURE_ACTION, "next_state": "Rejected",
+				"allowed": WORKFLOW_EVENT_ROLE, "allow_self_approval": 1,
+				"custom_parallel_approval_policy": "Any"},
+			{"state": "Rejected", "action": BATCH_FAILURE_FOLLOW_UP, "next_state": "Editing",
+				"allowed": WORKFLOW_EVENT_ROLE, "allow_self_approval": 1,
+				"condition": "doc.custom_data != 'blocked'", "custom_parallel_approval_policy": "Any"},
+		],
+	}).insert(ignore_permissions=True)
+	blocked = fixture["positions"][0] if block_one else None
+	frappe.db.set_value("User Timesheet", fixture["name"], "ut_status", "Pending Approval")
+	for name in fixture["positions"]:
+		frappe.db.set_value(position_doctype, name, {
+			"workflow_state": "Pending Approval", "status": "Pending Approval",
+			"custom_data": "blocked" if name == blocked else "ready",
+		})
+		position = frappe.get_doc(position_doctype, name)
+		# Prepare and pin the test's own Workflow without altering existing definitions.
+		with patch.object(service, "select_workflow", return_value=workflow):
+			context = service.ensure_context(position, persist_state=True)
+		service.pin_process(position, context["process_id"])
+		engine.reconcile_source(position)
+	return {**fixture, "blocked": blocked, "action": BATCH_FAILURE_ACTION,
+		"workflow": workflow.name, "follow_up": BATCH_FAILURE_FOLLOW_UP}

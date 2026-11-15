@@ -107,9 +107,10 @@ function applyTimesheetAction(frm, transition) {
 				requestId: id,
 			});
 		} catch (error) {
-			reportTimesheetError(frm, error);
+			if (target.isCurrent()) reportTimesheetError(frm, error);
 			return;
 		}
+		if (!target.isCurrent()) return;
 		if (validationMessage) {
 			frappe.msgprint(validationMessage);
 		}
@@ -117,15 +118,32 @@ function applyTimesheetAction(frm, transition) {
 
 		const results = result.results || [];
 		const messages = result.messages || [];
+		const failures = result.failed || [];
+		const escape = frappe.utils.escape_html;
+		const messageHtml = messages.map((message) => escape(message)).join("<br>");
+		if (failures.length) {
+			const rows = failures.map(({ name, error }) => {
+				const label = name ? `<strong>${escape(name)}</strong><br>` : "";
+				return `<li>${label}${escape(error)}</li>`;
+			});
+			const summary = results.length
+				? `<p>${escape(__("Successfully processed positions: {0} of {1}", [
+					results.length, result.total,
+				]))}</p>`
+				: "";
+			frappe.msgprint({
+				title: __("Could not process timesheet positions"),
+				indicator: "red",
+				message: `${summary}<ul>${rows.join("")}</ul>${messageHtml}`,
+			});
+			return;
+		}
 		const transitioned = results.some((row) => row.transitioned);
 		const failed = results.some(
 			(row) =>
 				!row.transitioned &&
 				["Conflicted", "Stalled"].includes(row.round_status)
 		);
-		const messageHtml = messages
-			.map((message) => frappe.utils.escape_html(message))
-			.join("<br>");
 		if (!transitioned && (failed || messages.length)) {
 			frappe.msgprint({
 				title: __("Workflow action was not applied"),

@@ -42,7 +42,7 @@ class MigrationPlan:
 		))
 
 
-def rewrite_condition(condition, previous_field, retired_fields):
+def rewrite_condition(condition, previous_field, retired_fields, *, reject_existing_status=False):
 	"""Replace only direct field references and retain the surrounding expression."""
 	if not condition or not condition.strip() or not retired_fields:
 		return condition
@@ -51,12 +51,16 @@ def rewrite_condition(condition, previous_field, retired_fields):
 	parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
 	replacements = []
 	claimed = set()
+	reads_status = False
 	lines = expression.encode().splitlines(keepends=True)
 	offsets = [0]
 	for line in lines:
 		offsets.append(offsets[-1] + len(line))
 
 	def replace(node, fieldname, value):
+		nonlocal reads_status
+		if fieldname == STATUS:
+			reads_status = True
 		if fieldname not in retired_fields:
 			return
 		if fieldname != previous_field:
@@ -87,6 +91,9 @@ def rewrite_condition(condition, previous_field, retired_fields):
 		if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
 			raise ValueError("condition accesses the document through a dynamic field or operation")
 		replace(key, key.value, repr(STATUS).encode())
+
+	if reads_status and (replacements or reject_existing_status):
+		raise ValueError("condition depends on the existing status separately from the old Workflow state")
 
 	for node in ast.walk(tree):
 		if node in claimed:
@@ -266,6 +273,21 @@ def _project(source, state, retired_fields):
 
 def _check_round_identity(source, before, after, projected_source, plan, tasks):
 	from dinext_common.workflow_approval.engine import get_content_fingerprint
+
+	if before.workflow_state_field != STATUS and source.get(STATUS) != projected_source.status:
+		conditions = [(before.name, before.get(ACTIVATION)), *(
+			(row.name, row.condition) for row in before.transitions if row.state == projected_source.status
+		)]
+		for owner, condition in conditions:
+			try:
+				rewrite_condition(
+					condition, before.workflow_state_field, plan.retired_fields, reject_existing_status=True,
+				)
+			except ValueError as error:
+				raise MigrationBlocked(
+					_("Review the condition on {0} for timesheet position {1} before migration. {2}")
+					.format(owner, source.name, error)
+				) from error
 
 	meta = {"fields": [row for row in source.meta.fields if row.fieldname not in plan.retired_fields]}
 	projected_source.meta = meta

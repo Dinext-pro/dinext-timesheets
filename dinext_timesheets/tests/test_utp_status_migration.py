@@ -38,6 +38,29 @@ class TestPositionStatusMigration(TestCase):
 			with self.subTest(condition=condition), self.assertRaises(ValueError):
 				migration.rewrite_condition(condition, "workflow_state", {"workflow_state", "custom_other_state"})
 
+	def test_refuses_to_merge_conditions_reading_the_two_statuses_separately(self):
+		migration = self.migration()
+		for canonical in ("doc.status", "doc.get('status')", "doc['status']"):
+			with self.subTest(canonical=canonical), self.assertRaises(ValueError):
+				migration.rewrite_condition(
+					f"doc.workflow_state == 'Pending Approval' and {canonical} == 'Editing'",
+					"workflow_state", {"workflow_state"},
+				)
+
+	def test_live_round_refuses_condition_using_the_stale_status_mirror(self):
+		migration = self.migration()
+		workflow = frappe._dict(
+			workflow_state_field="workflow_state",
+			states=[],
+			transitions=[frappe._dict(state="Pending Approval", condition="doc.status == 'Editing'")],
+		)
+		source = frappe._dict(name="UTP-STALE", status="Editing", workflow_state="Pending Approval",
+			meta=frappe._dict(fields=[]))
+		projected = frappe._dict(status="Pending Approval")
+		plan = migration.MigrationPlan(retired_fields={"workflow_state"})
+		with self.assertRaises(migration.MigrationBlocked):
+			migration._check_round_identity(source, workflow, workflow, projected, plan, [])
+
 	def test_accepts_stored_state_from_the_pinned_scheme_over_a_stale_status_mirror(self):
 		migration = self.migration()
 		workflow = frappe._dict(

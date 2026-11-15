@@ -76,6 +76,7 @@ class TestDelegatedTimesheetWorkflow(FrappeTestCase):
 		self.addCleanup(frappe.clear_document_cache, "Server Script")
 		self.addCleanup(frappe.db.rollback, save_point="delegated_timesheet")
 		self.addCleanup(frappe.set_user, caller)
+		self.enterContext(patch.dict(frappe.flags, {"mute_emails": True, "suppress_workflow_mail": True}))
 		fixture = seed()
 		payload = {
 			"doctype": "User Timesheet",
@@ -155,17 +156,23 @@ class TestDelegatedTimesheetWorkflow(FrappeTestCase):
 		self.assertNotIn(fixture["actions"]["approve"], [row["action"] for row in available])
 		with self.assertRaises(frappe.ValidationError):
 			apply_timesheet_position_action(parent.name, fixture["actions"]["approve"])
+		pending_rounds = frappe.get_all("Workflow Task", filters={
+			"reference_doctype": "User Timesheet Position",
+			"reference_name": ("in", [row.name for row in positions]),
+			"workflow_state": "Pending Approval",
+			"round_status": "Open",
+		}, pluck="approval_round_id")
+		self.assertTrue(pending_rounds)
 		apply_timesheet_position_action(parent.name, fixture["actions"]["withdraw"])
 		self.assertEqual(parent.reload().ut_status, "Rework")
 		self.assertFalse(frappe.db.exists("Workflow Task", {
-			"reference_doctype": "User Timesheet Position",
-			"reference_name": ("in", [row.name for row in positions]),
+			"approval_round_id": ("in", pending_rounds),
 			"round_status": "Open",
 		}))
 		apply_timesheet_position_action(parent.name, fixture["actions"]["submit"])
 		frappe.set_user(fixture["approver"])
-		apply_timesheet_position_action(parent.name, fixture["actions"]["reject"], comment="Needs detail")
-		self.assertEqual(parent.reload().ut_status, "Rejected")
+		result = apply_timesheet_position_action(parent.name, fixture["actions"]["reject"], comment="Needs detail")
+		self.assertEqual(parent.reload().ut_status, "Rejected", result)
 
 		frappe.set_user(fixture["lead"])
 		self.assertTrue(any(row.reload().reject_reason == "Needs detail" for row in positions))

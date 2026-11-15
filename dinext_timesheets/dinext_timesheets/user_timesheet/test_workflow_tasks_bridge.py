@@ -70,7 +70,12 @@ class TestWorkflowTasksBridge(FrappeTestCase):
 	def test_legacy_document_result_skips_identity_and_child_tables(self):
 		doc = self.position()
 		source = frappe.get_doc({"doctype": "User Timesheet Position", "name": "WRONG", "owner": "WRONG", "workflow_state": "Подтверждено", "all_hours": 3, "table": [{"date": "2026-10-09", "hours": 3}]})
-		with patch.object(bridge, "is_engine_enabled", return_value=False), patch.object(bridge, "call_whitelisted_function", return_value={"doc": source}):
+		legacy_fields = {**source.as_dict(), "workflow_state": "Подтверждено"}
+		with (
+			patch.object(source, "as_dict", return_value=legacy_fields),
+			patch.object(bridge, "is_engine_enabled", return_value=False),
+			patch.object(bridge, "call_whitelisted_function", return_value={"doc": source}),
+		):
 			bridge.process_workflow_tasks_before_save(doc)
 		self.assertEqual(doc.name, "TEST-UTP-BRIDGE")
 		self.assertEqual(doc.status, "Подтверждено")

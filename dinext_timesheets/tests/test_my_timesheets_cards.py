@@ -91,9 +91,9 @@ class TestMyTimesheetsCards(FrappeTestCase):
 		name = self.fixture["expected"]["Заявки на отсутствие согласованные мной-1"][0]
 		frappe.db.set_value("Application For Leave", name, "status", "Редактирование")
 		frappe.set_user(self.fixture["user"])
-		from dinext_common.workflow_approval.api import get_legacy_number_card_result
+		from dinext_timesheets.workflow_approval import get_approval_number_card_result
 
-		result = get_legacy_number_card_result(
+		result = get_approval_number_card_result(
 			{"doc": "Application For Leave", "state": "Согласовано", "route": "application-for-leave"}
 		)
 		self.assertEqual(result["value"], 0)
@@ -106,12 +106,12 @@ class TestMyTimesheetsCards(FrappeTestCase):
 		task = frappe.db.get_value(
 			"Workflow Task", {"reference_doctype": "Application For Leave", "reference_name": name}, "name"
 		)
-		from dinext_common.workflow_approval.api import get_legacy_number_card_result
+		from dinext_timesheets.workflow_approval import get_approval_number_card_result
 
 		frappe.set_user(self.fixture["user"])
 		for status in ("Stalled", "Conflicted", "Cancelled", "Finalizing", "Transitioned"):
 			frappe.db.set_value("Workflow Task", task, "round_status", status)
-			result = get_legacy_number_card_result(
+			result = get_approval_number_card_result(
 				{"doc": "Application For Leave", "state": "На согласовании", "route": "application-for-leave"}
 			)
 			self.assertEqual(result["value"], 0, status)
@@ -156,18 +156,16 @@ class TestMyTimesheetsCards(FrappeTestCase):
 			"Workflow Task", {"reference_doctype": "Application For Leave", "reference_name": name}
 		)
 		frappe.set_user(self.fixture["user"])
-		from dinext_common.workflow_approval.api import get_legacy_number_card_result
+		from dinext_timesheets.workflow_approval import get_approval_number_card_result
 
 		self.assertEqual(
-			get_legacy_number_card_result(
+			get_approval_number_card_result(
 				{"doc": "Application For Leave", "state": "На согласовании", "route": "application-for-leave"}
 			)["value"],
 			0,
 		)
 
 	def test_pending_approvals_require_a_mandatory_target_regardless_of_ownership(self):
-		from dinext_common.workflow_approval.api import get_legacy_number_card_result
-
 		frappe.set_user(self.fixture["user"])
 		for name in (
 			"ТШ у меня на согласовании-2",
@@ -175,8 +173,8 @@ class TestMyTimesheetsCards(FrappeTestCase):
 			"Заявок EC у меня на согласовании",
 		):
 			with self.subTest(card=name):
-				filters = frappe.db.get_value("Number Card", name, "filters_json")
-				result = get_legacy_number_card_result(filters)
+				card = frappe.get_doc("Number Card", name)
+				result = frappe.get_attr(card.method)(card.filters_json)
 				expected = self.fixture["expected"][name]
 				self.assertEqual(result["value"], len(expected))
 				self.assertCountEqual(result["route_options"]["name"][1], expected)
@@ -307,10 +305,10 @@ class TestMyTimesheetsCards(FrappeTestCase):
 		name = self.fixture["expected"]["Заявки на отсутствие согласованные мной-1"][0]
 		frappe.db.set_value("Application For Leave", name, "workflow_state", "Редактирование")
 		frappe.set_user(self.fixture["user"])
-		from dinext_common.workflow_approval.api import get_legacy_number_card_result
+		from dinext_timesheets.workflow_approval import get_approval_number_card_result
 
 		self.assertEqual(
-			get_legacy_number_card_result(
+			get_approval_number_card_result(
 				{"doc": "Application For Leave", "state": "Согласовано", "route": "application-for-leave"}
 			)["value"],
 			0,

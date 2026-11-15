@@ -64,7 +64,7 @@ Most behavior is defined by Frappe metadata (fixtures: client and server scripts
 
 ### Workspace, cards and notifications
 
-- **My Timesheets** combines Number Cards, reports and the AFL calendar. Approval cards use `dinext_common.workflow_approval.api.get_legacy_number_card_result`; the deadline-control section adds discipline cards and charts.
+- **My Timesheets** combines Number Cards, reports and the AFL calendar. Timesheet and leave approval cards use `dinext_timesheets.workflow_approval.get_approval_number_card_result`. The deadline-control section adds discipline cards and charts.
 - Retained Notifications for unsubmitted timesheets and task limits are disabled (`enabled=0`). The legacy approval Notification was removed; approval mail uses `dinext_common` templates.
 
 ### Automations and extensions

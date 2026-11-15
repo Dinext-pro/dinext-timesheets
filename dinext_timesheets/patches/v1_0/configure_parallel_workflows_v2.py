@@ -97,7 +97,7 @@ def execute() -> None:
 				"Number Card",
 				card_name,
 				"method",
-				"dinext_common.workflow_approval.api.get_legacy_number_card_result",
+				"dinext_timesheets.workflow_approval.get_approval_number_card_result",
 				update_modified=False,
 			)
 	_ensure_workflow_task_permissions()

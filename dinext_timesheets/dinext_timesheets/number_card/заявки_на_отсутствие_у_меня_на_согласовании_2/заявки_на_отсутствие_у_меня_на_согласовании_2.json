@@ -13,7 +13,7 @@
  "is_public": 1,
  "is_standard": 1,
  "label": "Leave Applications Awaiting My Approval",
- "method": "dinext_common.workflow_approval.api.get_legacy_number_card_result",
+ "method": "dinext_timesheets.workflow_approval.get_approval_number_card_result",
  "modified": "2026-07-30 02:39:05.144053",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",

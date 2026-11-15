@@ -6,7 +6,7 @@ import json
 from collections import defaultdict
 from datetime import timedelta
 from importlib.util import find_spec
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 import frappe
 from frappe import _
@@ -59,6 +59,20 @@ class TimesheetRebuildRoundResponse(TypedDict):
 	label: str
 	configuration_change: dict[str, object] | None
 	can_reset: bool
+
+
+@frappe.whitelist()
+def get_approval_number_card_result(filters: str | dict[str, Any]) -> dict[str, Any]:
+	from dinext_common.workflow_approval import api
+
+	values = frappe.parse_json(filters) if isinstance(filters, str) else filters
+	if not isinstance(values, dict) or values.get("doc") not in ("User Timesheet Position", "Application For Leave"):
+		raise frappe.ValidationError(_("Invalid DocType"))
+
+	calculate = getattr(api, "calculate_approval_number_card", None)
+	if calculate is None:
+		return api.get_legacy_number_card_result(values)
+	return calculate(values, source_state_field="status")
 
 
 def _has_workflow_engine() -> bool:

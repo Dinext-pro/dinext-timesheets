@@ -289,3 +289,4 @@ No observations,Нет наблюдений
 "Invalid timesheet action scope","Неизвестный тип действия ТШ",""
 "Use Workflow to change the approval status of an empty timesheet","Измените статус согласования пустой ТШ через меню Workflow",""
 Timesheets Overdue for Submission,ТШ с просроченной отправкой,
+Invalid DocType,Недопустимый тип документа,

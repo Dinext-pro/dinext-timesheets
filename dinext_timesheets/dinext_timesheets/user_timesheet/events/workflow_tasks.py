@@ -19,6 +19,13 @@ from dinext_common.workflow_approval.lifecycle import is_engine_enabled
 
 
 def sync_status_from_workflow_state(doc) -> None:
+	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
+
+	if uses_local_scenarios():
+		from dinext_common.workflow_approval.scenarios import service
+
+		if service.get_context(doc).get("state_field") != "workflow_state":
+			return
 	doc.status = doc.workflow_state
 
 

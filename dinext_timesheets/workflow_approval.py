@@ -978,6 +978,14 @@ def _position_action_items(doc) -> list[dict]:
 @frappe.whitelist()
 def get_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
 	"""Workflow actions the caller can apply to this timesheet's positions."""
+	from dinext_timesheets import workflow_scenario_actions
+
+	if workflow_scenario_actions.is_active():
+		return workflow_scenario_actions.get_timesheet_position_actions(timesheet_name)
+	return _legacy_timesheet_position_actions(timesheet_name)
+
+
+def _legacy_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
 	parent = frappe.get_doc("User Timesheet", timesheet_name)
 	parent.check_permission("read")
 	position_names = frappe.get_all(
@@ -1053,8 +1061,19 @@ def apply_timesheet_position_action(
 	comment: object = None,
 	request_id: str | None = None,
 	track_progress: bool = False,
+	targets: object = None,
 ) -> dict[str, object]:
 	"""Apply one workflow action to every position that offers it, then roll the timesheet up."""
+	from dinext_timesheets import workflow_scenario_actions
+
+	if workflow_scenario_actions.is_active():
+		return workflow_scenario_actions.apply_timesheet_position_action(
+			timesheet_name, action, comment, request_id, track_progress, targets
+		)
+	return _legacy_apply_timesheet_position_action(timesheet_name, action, comment, request_id, track_progress)
+
+
+def _legacy_apply_timesheet_position_action(timesheet_name, action, comment, request_id, track_progress):
 	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
 	parent.check_permission("read")
 	available = get_timesheet_position_actions(parent.name)
@@ -1185,6 +1204,13 @@ def orchestrate_timesheet(
 
 
 def on_utp_update(doc, method=None) -> None:
+	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
+
+	if uses_local_scenarios():
+		from dinext_timesheets.workflow_scenario_positions import handle_selected_state_update
+
+		if handle_selected_state_update(doc):
+			return
 	if not _enabled():
 		return
 	old = doc.get_doc_before_save()
@@ -1213,6 +1239,12 @@ def on_utp_update(doc, method=None) -> None:
 
 
 def _task_no_longer_matches_source(task_name: str) -> bool:
+	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
+
+	if uses_local_scenarios():
+		from dinext_timesheets.workflow_scenario_positions import task_no_longer_matches_source
+
+		return task_no_longer_matches_source(task_name)
 	task = frappe.db.get_value(
 		"Workflow Task",
 		task_name,
@@ -1265,6 +1297,10 @@ def _validate_saved_positions(parent) -> None:
 
 
 def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
+	from dinext_timesheets import workflow_scenario_actions
+
+	if workflow_scenario_actions.is_active():
+		return workflow_scenario_actions.recalculate_parent(parent, changed_position, old_status)
 	del old_status
 	from dinext_timesheets.timesheet_settings import (
 		matching_position_rule,

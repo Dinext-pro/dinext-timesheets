@@ -91,6 +91,7 @@ function applyTimesheetAction(frm, transition) {
 					comment,
 					request_id: id,
 					track_progress: count > 1,
+					...(transition.targets ? { targets: transition.targets } : {}),
 				});
 				if (!outcome) {
 					throw new Error(__("The workflow result could not be confirmed"));

@@ -41,6 +41,16 @@ def before_insert(doc, method=None):
 
 
 def before_save(doc, method=None):
+	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
+
+	if uses_local_scenarios():
+		from dinext_timesheets.workflow_scenario_positions import before_position_save
+
+		return before_position_save(_before_save, doc, method)
+	return _before_save(doc, method)
+
+
+def _before_save(doc, method=None):
 	before = doc.get_doc_before_save()
 	if before and not doc.flags.ignore_permissions:
 		if any(doc.get(key) != before.get(key) for key in ("user_timesheet", "user", "user_group")):

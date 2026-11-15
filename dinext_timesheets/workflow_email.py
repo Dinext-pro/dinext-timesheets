@@ -1,7 +1,69 @@
-"""Human-readable Timesheet email rows in the canonical card order."""
+"""Timesheet email defaults and rows in the canonical card order."""
+
+import json
+from functools import lru_cache
+from pathlib import Path
 
 import frappe
 from frappe.utils import get_url_to_form
+
+
+DIGEST = "Dinext Timesheet Workflow Digest"
+DEADLINE = "Dinext Timesheet Workflow Deadline Digest"
+
+
+@lru_cache(maxsize=1)
+def _template_fixture():
+	fixture = Path(__file__).with_name("fixtures") / "email_template.json"
+	return json.loads(fixture.read_text(encoding="utf-8"))
+
+
+def ensure_approval_email_templates():
+	"""Supply missing links needed by old patches before fixtures are synchronized."""
+	for row in _template_fixture():
+		if not frappe.db.exists("Email Template", row["name"]):
+			frappe.get_doc(row.copy()).insert(ignore_permissions=True)
+
+
+@lru_cache(maxsize=1)
+def approval_email_templates():
+	"""Load standard bodies from the same fixture installed into Email Template."""
+	templates = {
+		row["name"]: {"current": {field: row[field] for field in ("subject", "response_html")}}
+		for row in _template_fixture()
+		if row["name"] in (DIGEST, DEADLINE)
+	}
+	templates[DIGEST]["previous"] = (
+		{
+			"subject": '{{ _("Timesheets awaiting approval") }}',
+			"response_html": (
+				'<p>{{ _("Timesheets awaiting approval") }}</p><ul>'
+				'{% for row in rows %}<li><a href="{{ row.link|e }}">{{ row.title|e }}</a>'
+				' — {{ row.count }} {{ _("position(s)") }}</li>{% endfor %}</ul>'
+			),
+		},
+		{
+			"subject": "Timesheets awaiting approval",
+			"response_html": (
+				"<p>Timesheets awaiting approval:</p><ul>"
+				'{% for row in rows %}<li><a href="{{ row.link }}">'
+				"{{ row.title }}</a> — {{ row.count }} position(s)</li>{% endfor %}</ul>"
+			),
+		},
+	)
+	return templates
+
+
+def approval_email_profiles():
+	return {
+		"User Timesheet Position": {
+			"workflow": "UTP Workflow",
+			"approval_states": ("Pending Approval",),
+			"digest_template": DIGEST,
+			"deadline_template": DEADLINE,
+			"correction_template": "Dinext Timesheet Workflow Correction",
+		},
+	}
 
 
 def can_receive(task, source, recipient):

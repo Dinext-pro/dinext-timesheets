@@ -13,7 +13,11 @@ app_license = "GNU General Public License (v3)"
 fixtures = [
     {
         "doctype": "Email Template",
-        "filters": [["name", "=", "Dinext Timesheet Workflow Correction"]],
+        "filters": [["name", "in", [
+            "Dinext Timesheet Workflow Correction",
+            "Dinext Timesheet Workflow Digest",
+            "Dinext Timesheet Workflow Deadline Digest",
+        ]]],
     },
     {
         "doctype": "List View Settings",
@@ -234,6 +238,7 @@ doctype_list_js = {
 
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
+before_migrate = ["dinext_timesheets.workflow_email.ensure_approval_email_templates"]
 after_migrate = "dinext_timesheets.install.after_migrate"
 after_sync = [
     "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
@@ -435,5 +440,23 @@ doctype_list_js["User Timesheet"].append("public/js/card_route_filters.js")
 
 workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_context"]
 workflow_approval_email_permission = ["dinext_timesheets.workflow_email.can_receive"]
+workflow_approval_email_template_providers = ["dinext_timesheets.workflow_email.approval_email_templates"]
+workflow_approval_email_profile_providers = ["dinext_timesheets.workflow_email.approval_email_profiles"]
 
 has_permission = {"Number Card": "dinext_timesheets.number_card_permissions.has_permission"}
+
+workflow_approval_domain_handlers = {
+    "User Timesheet Position": {
+        "vote_context": "dinext_timesheets.workflow_scenario_actions.atomic_timesheet_transition",
+        "validate_vote": "dinext_timesheets.workflow_scenario_actions.validate_position_vote",
+        "use_authorized_transition": "dinext_timesheets.workflow_scenario_actions.use_authorized_domain_transition",
+    },
+}
+
+workflow_approval_form_references = {
+    "User Timesheet": "dinext_timesheets.workflow_form_references.timesheet_positions",
+}
+
+workflow_approval_localization = {
+    "UTP Workflow": "dinext_timesheets.workflow_localization.label_rules",
+}

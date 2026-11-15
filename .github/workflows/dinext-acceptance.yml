@@ -31,7 +31,7 @@ jobs:
       DINEXT_NOTIFICATIONS_ENABLED: 'false'
       DINEXT_DOCS_AGENT_ENABLED: '0'
       DINEXT_WIKI_PUBLISH_ENABLED: '0'
-      WORKFLOW_COMMON_SHA: fcb43c7fb2a55f9caaa57269f122bdd34f404d33
+      WORKFLOW_COMMON_SHA: 6d57eca35dea19a50fadc0bde5217feebefad383
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

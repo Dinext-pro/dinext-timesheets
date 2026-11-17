@@ -16,3 +16,8 @@ class TestWorkflowEmailLabels(unittest.TestCase):
 			position_label(5, "Внедрение ERP", "Настроить согласование", "Разработчик"),
 			"№ 5 — Внедрение ERP — Настроить согласование — Разработчик",
 		)
+
+	def test_position_without_public_ordinal_keeps_its_description(self):
+		from dinext_timesheets.workflow_email import position_label
+
+		self.assertEqual(position_label(None, "Внедрение ERP", None, "Разработчик"), "Внедрение ERP — — — Разработчик")

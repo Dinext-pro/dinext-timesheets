@@ -27,11 +27,13 @@
  "fields": [
   {
    "fetch_from": "alworker.wuser",
+   "fetch_if_empty": 1,
    "fieldname": "lauser",
    "fieldtype": "Link",
    "hidden": 1,
    "label": "User",
-   "options": "User"
+   "options": "User",
+   "search_index": 1
   },
   {
    "fieldname": "alworker",
@@ -39,7 +41,8 @@
    "in_list_view": 1,
    "label": "Worker",
    "options": "Worker",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fetch_from": "alworker.wfullname",

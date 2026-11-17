@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from copy import deepcopy
 from typing import Literal, NotRequired, TypedDict
 
@@ -37,21 +37,27 @@ def atomic_timesheet_transition(also_rollback: tuple[type[Exception], ...] = ())
 	realtime_count = len(realtime_log or [])
 	frappe.db.savepoint(savepoint)
 	try:
-		yield
-	except (TimesheetTransitionError, *also_rollback):
-		frappe.db.rollback(save_point=savepoint)
-		for manager, previous in callbacks:
-			manager.reset()
-			for callback in previous:
-				manager.add(callback)
-		frappe.local.workflow_scenario_cascade = cascade
-		if realtime_log is not None:
-			del realtime_log[realtime_count:]
-			frappe.local._realtime_log = realtime_log
-		elif hasattr(frappe.local, "_realtime_log"):
-			del frappe.local._realtime_log
+		try:
+			yield
+		except (TimesheetTransitionError, *also_rollback):
+			frappe.db.rollback(save_point=savepoint)
+			for manager, previous in callbacks:
+				manager.reset()
+				for callback in previous:
+					manager.add(callback)
+			frappe.local.workflow_scenario_cascade = cascade
+			if realtime_log is not None:
+				del realtime_log[realtime_count:]
+				frappe.local._realtime_log = realtime_log
+			elif hasattr(frappe.local, "_realtime_log"):
+				del frappe.local._realtime_log
+			raise
+	except Exception:
+		# A deadlock can invalidate every savepoint in the transaction.
+		with suppress(Exception):
+			frappe.db.release_savepoint(savepoint)
 		raise
-	finally:
+	else:
 		frappe.db.release_savepoint(savepoint)
 
 
@@ -352,10 +358,24 @@ def _validate_filling(parent, positions) -> None:
 		raise error from cause
 
 
+def _validate_open_projects(positions) -> None:
+	names = sorted({position.project for position in positions if position.project})
+	if not names:
+		return
+	projects = frappe.db.get_values(
+		"Project", {"name": ("in", names)}, ["name", "status", "is_active"],
+		as_dict=True, for_update=True, order_by="name asc",
+	)
+	if {row.name for row in projects if row.status == "Open" and row.is_active == "Yes"} != set(names):
+		raise TimesheetTransitionError(_("This timesheet has a position in a closed or inactive project."))
+
+
 def validate_position_vote(source, next_state: str) -> None:
 	"""Validate the saved timesheet for a new vote into the checked position status."""
 	if not source.user_timesheet:
 		return
+	if next_state == "Approved":
+		_validate_open_projects([source])
 	rule = _filling_check_rule()
 	if not rule or rule["position_status"] != next_state:
 		return
@@ -373,6 +393,8 @@ def recalculate_parent(parent, changed_position, old_status: str | None) -> None
 	if not rule or parent.ut_status == rule["timesheet_status"]:
 		return
 	new_status = rule["timesheet_status"]
+	if new_status == "Approved":
+		_validate_open_projects(positions)
 	check_rule = get_check_rule()
 	if check_rule and new_status == check_rule["timesheet_status"]:
 		_validate_filling(parent, positions)
@@ -495,6 +517,8 @@ def _mark_checks(
 
 def get_timesheet_position_actions(timesheet_name: str) -> TimesheetActionsResponse:
 	"""Describe actionable child positions while retaining each selected process identity."""
+	from dinext_common.workflow_approval.permissions import _quiet_permission_checks
+
 	parent = frappe.get_doc("User Timesheet", timesheet_name)
 	parent.check_permission("read")
 	current: dict[str, str] = {}
@@ -502,7 +526,8 @@ def get_timesheet_position_actions(timesheet_name: str) -> TimesheetActionsRespo
 	for name in frappe.get_all(POSITION, filters={"user_timesheet": parent.name}, pluck="name", order_by="name asc"):
 		doc = frappe.get_doc(POSITION, name)
 		try:
-			doc.check_permission("read")
+			with _quiet_permission_checks():
+				doc.check_permission("read")
 		except frappe.PermissionError:
 			# Hidden positions still count toward All without disclosing their state.
 			current[name] = ""
@@ -523,6 +548,7 @@ def apply_timesheet_position_action(
 	from dinext_common.workflow_approval.api import _require_post
 
 	_require_post()
+	engine._lock_domain_dependencies("User Timesheet", timesheet_name)
 	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
 	parent.check_permission("read")
 	parameters = _request_parameters(parent, action, comment, targets)

@@ -365,6 +365,24 @@ def _validate_position_links(parent: object, position: object, template: object)
 	return errors
 
 
+def _leave_period_filters(parent: object) -> dict:
+	return {
+		"lauser": _value(parent, "timesheet_from"),
+		"alfrom_date": ("<=", getdate(_value(parent, "ts_valid_for"))),
+		"alto_date": (">=", getdate(_value(parent, "ts_valid_from"))),
+	}
+
+
+def approved_leave_for_period(parent: object) -> list:
+	return frappe.db.get_values(
+		"Application For Leave",
+		{**_leave_period_filters(parent), "status": POSITION_APPROVED},
+		["alfrom_date", "alto_date", "alfrom_hours", "alto_hours", "altype_of_leave"],
+		as_dict=True,
+		for_update=bool(getattr(getattr(parent, "flags", None), "for_update", False)),
+	)
+
+
 def _calendar_context(parent: object) -> tuple[object, set[object], dict[object, float], dict[object, float]]:
 	worker_name = frappe.db.get_value(
 		"Worker",
@@ -444,16 +462,7 @@ def _calendar_context(parent: object) -> tuple[object, set[object], dict[object,
 			)
 		}
 	leave_hours: dict[object, float] = defaultdict(float)
-	leave_rows = frappe.get_all(
-		"Application For Leave",
-		filters={
-			"lauser": _value(parent, "timesheet_from"),
-			"status": POSITION_APPROVED,
-			"alfrom_date": ("<=", getdate(_value(parent, "ts_valid_for"))),
-			"alto_date": (">=", getdate(_value(parent, "ts_valid_from"))),
-		},
-		fields=["alfrom_date", "alto_date", "alfrom_hours", "alto_hours"],
-	)
+	leave_rows = approved_leave_for_period(parent)
 	for leave in leave_rows:
 		start = getdate(leave.alfrom_date)
 		end = getdate(leave.alto_date)
@@ -795,10 +804,32 @@ def _validate_positions(parent: object, positions: list[object]) -> None:
 
 
 def lock_dependencies(doctype: str, name: str) -> list[tuple[str, str]]:
-	if doctype != "User Timesheet Position":
+	dependencies = []
+	if doctype == "User Timesheet Position":
+		parent = frappe.db.get_value(doctype, name, "user_timesheet")
+		if not parent:
+			return []
+		dependencies.append(("User Timesheet", parent))
+	elif doctype == "User Timesheet":
+		parent = name
+	else:
 		return []
-	parent = frappe.db.get_value("User Timesheet Position", name, "user_timesheet")
-	return [("User Timesheet", parent)] if parent else []
+	period = frappe.db.get_value(
+		"User Timesheet", parent, ["timesheet_from", "ts_valid_from", "ts_valid_for"], as_dict=True
+	)
+	if period and all(period.values()):
+		# Leave updates take the same order: leave rows before the timesheet.
+		frappe.db.get_values(
+			"Application For Leave", _leave_period_filters(period), "name",
+			for_update=True, order_by="name asc",
+		)
+	projects = frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": parent, "project": ("is", "set")},
+		distinct=True,
+		pluck="project",
+	)
+	return [*dependencies, *(("Project", project) for project in projects)]
 
 
 @frappe.whitelist()
@@ -806,9 +837,14 @@ def get_timesheet_rebuild_rounds(timesheet_name: str) -> list[TimesheetRebuildRo
 	"""Stalled position rounds for a timesheet card, labeled by project and role."""
 	parent = frappe.get_doc("User Timesheet", timesheet_name)
 	parent.check_permission("read")
+	from dinext_timesheets.workflow_form_references import timesheet_positions
+
+	position_doctype, readable_names = timesheet_positions(parent)
+	if not readable_names:
+		return []
 	positions = frappe.get_all(
-		"User Timesheet Position",
-		filters={"user_timesheet": parent.name},
+		position_doctype,
+		filters={"name": ("in", readable_names)},
 		fields=["name", "project", "project_role"],
 	)
 	if not positions:
@@ -816,7 +852,7 @@ def get_timesheet_rebuild_rounds(timesheet_name: str) -> list[TimesheetRebuildRo
 	from dinext_common.workflow_approval.api import describe_rebuild_rounds
 
 	positions_by_name = {row.name: row for row in positions}
-	rounds = describe_rebuild_rounds("User Timesheet Position", list(positions_by_name))
+	rounds = describe_rebuild_rounds(position_doctype, list(positions_by_name))
 	labeled: list[TimesheetRebuildRoundResponse] = []
 	for item in rounds:
 		position = positions_by_name[item["reference_name"]]
@@ -838,16 +874,14 @@ def pending_approvers(doctype: str, name: str):
 	"""Aggregate active child-position approvers for a parent timesheet."""
 	if doctype != "User Timesheet":
 		return None
-	position_names = frappe.get_all(
-		"User Timesheet Position",
-		filters={"user_timesheet": name},
-		pluck="name",
-	)
+	from dinext_timesheets.workflow_form_references import timesheet_positions
+
+	position_doctype, position_names = timesheet_positions(frappe.get_doc(doctype, name))
 	if not position_names:
 		return []
 	from dinext_common.workflow_approval.pending import get_required_state_pending_tasks
 
-	return get_required_state_pending_tasks("User Timesheet Position", position_names)
+	return get_required_state_pending_tasks(position_doctype, position_names)
 
 
 def digest_item(task):
@@ -1108,9 +1142,12 @@ def apply_timesheet_position_action(
 		if scope == empty_timesheet_workflow.SCOPE:
 			return empty_timesheet_workflow.apply_action(timesheet_name, action, request_id)
 		if scope is None and workflow_scenario_actions.is_active():
-			return workflow_scenario_actions.apply_timesheet_position_action(
-				timesheet_name, action, comment, request_id, track_progress, targets
-			)
+			from dinext_common.workflow_approval.api import _round_error_response
+
+			with _round_error_response():
+				return workflow_scenario_actions.apply_timesheet_position_action(
+					timesheet_name, action, comment, request_id, track_progress, targets
+				)
 	if scope is not None:
 		raise frappe.ValidationError(_("Invalid timesheet action scope"))
 	return _legacy_apply_timesheet_position_action(timesheet_name, action, comment, request_id, track_progress)
@@ -1234,9 +1271,13 @@ def orchestrate_timesheet(
 	"""Compatibility endpoint for saving an editable grid."""
 	from dinext_timesheets.dinext_timesheets.user_timesheet.permissions import assert_can_edit_timesheet
 
-	parent = frappe.get_doc("User Timesheet", ts_name, for_update=True)
 	if operation != "Start":
 		frappe.throw(_("Use the position Workflow to change the timesheet status"), frappe.PermissionError)
+	if _has_workflow_engine():
+		from dinext_common.workflow_approval.engine import _lock_domain_dependencies
+
+		_lock_domain_dependencies("User Timesheet", ts_name)
+	parent = frappe.get_doc("User Timesheet", ts_name, for_update=True)
 	assert_can_edit_timesheet(parent)
 	position_docs, deleted_docs = _prepare_positions(parent, _parse_positions(positions), _parse_names(deleted_positions))
 	for doc in sorted(deleted_docs, key=lambda row: row.name):

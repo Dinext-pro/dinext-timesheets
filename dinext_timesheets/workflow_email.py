@@ -76,63 +76,114 @@ def can_receive(task, source, recipient):
 	return _has_source_read_permission(frappe.get_doc("User Timesheet", source.user_timesheet), recipient)
 
 
+def email_dependencies(source):
+	if source.doctype == "User Timesheet Position":
+		linked = [
+			(doctype, name)
+			for doctype, name in (
+				("User Timesheet", source.user_timesheet),
+				("Project", source.project),
+				(source.document_type, source.document_name),
+				("Project Role", source.project_role),
+			)
+			if doctype and name
+		]
+		for position in _positions(source):
+			if position.name == source.name:
+				break
+			linked.append((source.doctype, position.name))
+		return linked
+	return []
+
+
 def position_ordinals(rows):
 	return {row["name"]: number for number, row in enumerate(rows, start=1)}
 
 
 def position_label(number, project, task, role):
-	return f"№ {number} — {project or '—'} — {task or '—'} — {role or '—'}"
+	description = f"{project or '—'} — {task or '—'} — {role or '—'}"
+	return f"№ {number} — {description}" if number else description
 
 
-def _title(doctype, name):
+def _title(doctype, name, recipient=None):
 	if not name or not doctype:
 		return ""
 	meta = frappe.get_meta(doctype)
 	title_field = meta.title_field
-	return (frappe.db.get_value(doctype, name, title_field) if title_field else name) or name
+	if not title_field or title_field == "name":
+		return name
+	if not recipient:
+		return frappe.db.get_value(doctype, name, title_field) or name
+	from dinext_common.workflow_approval.email_access import visible_document
+	from dinext_common.workflow_approval.engine import _has_source_read_permission
+
+	try:
+		doc = frappe.get_doc(doctype, name)
+	except frappe.DoesNotExistError:
+		return name
+	if not _has_source_read_permission(doc, recipient):
+		return name
+	return visible_document(doc, recipient).get(title_field) or name
 
 
-def _position(source):
-	parent = frappe.get_doc("User Timesheet", source.user_timesheet)
-	ordered = frappe.get_all(
-		"User Timesheet Position",
-		filters={"user_timesheet": parent.name},
+def _positions(source):
+	return frappe.get_all(
+		"User Timesheet Position", filters={"user_timesheet": source.get("user_timesheet")},
 		fields=["name"],
 		order_by="creation asc, name asc",
 	)
+
+
+def _position(source, recipient=None):
+	if not source.get("user_timesheet"):
+		return None
+	parent = frappe.get_doc("User Timesheet", source.user_timesheet)
+	ordered = _positions(source)
 	ordinal = position_ordinals(ordered).get(source.name)
+	if recipient:
+		from dinext_common.workflow_approval.email_access import recipient_user, visible_document
+		from dinext_timesheets.workflow_form_references import timesheet_positions
+
+		if recipient != "Administrator" and ordinal and ordinal > 1:
+			with recipient_user(recipient):
+				_, allowed = timesheet_positions(parent)
+			if not {row.name for row in ordered[:ordinal - 1]}.issubset(allowed):
+				ordinal = None
+		parent = visible_document(parent, recipient)
 	label = position_label(
 		ordinal,
-		_title("Project", source.project),
-		_title(source.document_type, source.document_name),
-		_title("Project Role", source.project_role),
+		_title("Project", source.get("project"), recipient),
+		_title(source.get("document_type"), source.get("document_name"), recipient),
+		_title("Project Role", source.get("project_role"), recipient),
 	)
 	return dict(
 		timesheet_name=parent.name,
-		author=parent.timesheet_from,
-		period_from=parent.ts_valid_from,
-		period_to=parent.ts_valid_for,
+		author=parent.get("timesheet_from"),
+		period_from=parent.get("ts_valid_from"),
+		period_to=parent.get("ts_valid_for"),
 		position_name=source.name,
 		ordinal=ordinal,
 		position_label=label,
-		hours=float(source.all_hours or 0),
+		hours=float(source.get("all_hours") or 0),
 		hours_details=[
-			dict(hours=float(row.hours or 0), description=row.description or "")
+			dict(hours=float(row.get("hours") or 0), description=row.get("description") or "")
 			for row in source.get("table") or []
-			if float(row.hours or 0) != 0
+			if float(row.get("hours") or 0) != 0
 		],
 		link=get_url_to_form("User Timesheet", parent.name),
 	)
 
 
-def digest_item(task):
+def digest_item(task, *, source=None, recipient=None):
 	if task.reference_doctype == "Application For Leave":
-		source = frappe.get_doc(task.reference_doctype, task.reference_name)
+		source = source if source is not None else frappe.get_doc(task.reference_doctype, task.reference_name)
 		return dict(group_key=task.reference_doctype + ":" + source.name, title=leave_title(source))
 	if task.reference_doctype != "User Timesheet Position":
 		return None
-	source = frappe.get_doc("User Timesheet Position", task.reference_name)
-	row = _position(source)
+	source = source if source is not None else frappe.get_doc("User Timesheet Position", task.reference_name)
+	row = _position(source, recipient)
+	if row is None:
+		return {"group_key": f"User Timesheet Position:{source.name}"}
 	return {**row, "group_key": "User Timesheet Position:" + source.name, "title": row["position_label"]}
 
 
@@ -141,7 +192,9 @@ def email_context(task, source):
 		return dict(document_title=leave_title(source))
 	if source.doctype != "User Timesheet Position":
 		return None
-	row = _position(source)
+	row = _position(source, frappe.session.user)
+	if row is None:
+		return None
 	return dict(
 		timesheet_title=row["timesheet_name"],
 		timesheet_link=row["link"],
@@ -158,4 +211,5 @@ def email_context(task, source):
 def leave_title(source):
 	from dinext_common.workflow_approval.email_presentation import full_name
 
-	return source.name.replace(source.lauser, full_name(source.lauser)) if source.lauser else source.name
+	user = source.get("lauser")
+	return source.name.replace(user, full_name(user)) if user else source.name

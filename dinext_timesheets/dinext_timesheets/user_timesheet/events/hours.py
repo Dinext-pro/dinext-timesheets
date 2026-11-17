@@ -69,17 +69,9 @@ def calculate_ut_hours(doc) -> None:
 		for r in wod.get("hod_working_hours_table", [])
 	}
 
-	leave_apps = frappe.get_all(
-		"Application For Leave",
-		filters={"lauser": doc.timesheet_from, "status": "Approved"},
-		fields=[
-			"alfrom_date",
-			"alto_date",
-			"alfrom_hours",
-			"alto_hours",
-			"altype_of_leave",
-		],
-	)
+	from dinext_timesheets.workflow_approval import approved_leave_for_period
+
+	leave_apps = approved_leave_for_period(doc)
 
 	total_leave = 0.0
 	total_util_leave = 0.0

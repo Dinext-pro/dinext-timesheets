@@ -306,6 +306,12 @@ permission_query_conditions = {
 # Canon bodies: demodev Server Scripts — disable matching SS on site after cutover.
 
 doc_events = {
+	"Application For Leave": {
+		"on_change": "dinext_timesheets.manual_review.review_changed_leave",
+	},
+	"Project": {
+		"on_change": "dinext_timesheets.manual_review.review_closed_project",
+	},
 	"Workflow": {
 		"before_import": "dinext_timesheets.setup.utp_edit_action.prepare_workflow_import",
 		"validate": "dinext_timesheets.setup.utp_edit_action.validate_position_state_field",
@@ -348,6 +354,8 @@ workflow_approval_vote_completed = [
 workflow_approval_digest_item = [
 	"dinext_timesheets.workflow_approval.digest_item",
 ]
+workflow_approval_scoped_digest_item = ["dinext_timesheets.workflow_email.digest_item"]
+workflow_approval_email_dependencies = ["dinext_timesheets.workflow_email.email_dependencies"]
 
 # Scheduled Tasks
 # ---------------
@@ -450,6 +458,8 @@ workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_co
 workflow_approval_email_permission = ["dinext_timesheets.workflow_email.can_receive"]
 workflow_approval_email_template_providers = ["dinext_timesheets.workflow_email.approval_email_templates"]
 workflow_approval_email_profile_providers = ["dinext_timesheets.workflow_email.approval_email_profiles"]
+
+workflow_scenario_final_states = {"AFL Workflow": ["Approved"]}
 
 has_permission = {"Number Card": "dinext_timesheets.number_card_permissions.has_permission"}
 

@@ -68,6 +68,7 @@ class TestDelegatedTimesheetWorkflow(FrappeTestCase):
 		from dinext_timesheets.workflow_approval import (
 			apply_timesheet_position_action,
 			get_timesheet_position_actions,
+			orchestrate_timesheet,
 		)
 
 		caller = frappe.session.user
@@ -145,6 +146,25 @@ class TestDelegatedTimesheetWorkflow(FrappeTestCase):
 		frappe.set_user(fixture["lead"])
 		self.assertTrue(frappe.has_permission(parent, "read"))
 		self.assertEqual(len(frappe.get_list("User Timesheet Position", filters={"user_timesheet": parent.name})), 2)
+		frappe.db.set_value("User Timesheet", parent.name, "user_group", "Stale group")
+		payload = [
+			{
+				"name": row.name,
+				"project": row.project,
+				"project_role": row.project_role,
+				"document_type": row.document_type,
+				"document_name": row.document_name,
+				"table": [
+					{"date": detail.date, "hours": detail.hours, "description": detail.description}
+					for detail in row.table
+				],
+			}
+			for row in positions
+		]
+		saved = orchestrate_timesheet(parent.name, "Start", positions=payload)
+		self.assertEqual(saved["processed"], 2)
+		worker_group = permissions.worker_group(fixture["worker"])
+		self.assertTrue(all(row.reload().user_group == worker_group for row in positions))
 		apply_timesheet_position_action(parent.name, fixture["actions"]["submit"])
 		self.assertEqual(parent.reload().ut_status, "Pending Approval")
 		locked = positions[0].reload()

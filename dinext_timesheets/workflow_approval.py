@@ -690,7 +690,6 @@ def _materialize_position(parent: object, payload: TimesheetPositionInput, exist
 	values = {
 		"user_timesheet": _value(parent, "name"),
 		"user": _value(parent, "timesheet_from"),
-		"user_group": _value(parent, "user_group"),
 		"project": payload.get("project"),
 		"document_type": payload.get("document_type"),
 		"document_name": payload.get("document_name"),

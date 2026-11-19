@@ -54,8 +54,21 @@ def approval_email_templates():
 	return templates
 
 
+def previous_approval_email_templates():
+	"""Recognize the shared defaults shipped before the layout moved here."""
+	previous_shared_template = {
+		"subject": '{{ header_title }}: {{ timesheet_title if is_timesheet else document_title|truncate(100) }}',
+		"response_html": '{% include "templates/emails/dinext_workflow.html" %}',
+	}
+	return {name: (previous_shared_template,) for name in ("Dinext Workflow Action", "Dinext Workflow Correction")}
+
+
 def approval_email_profiles():
 	return {
+		"Application For Leave": {
+			"workflow": "AFL Workflow",
+			"approval_states": ("Pending Approval",),
+		},
 		"User Timesheet Position": {
 			"workflow": "UTP Workflow",
 			"approval_states": ("Pending Approval",),

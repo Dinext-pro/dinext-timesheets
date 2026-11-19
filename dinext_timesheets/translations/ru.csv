@@ -293,3 +293,5 @@ Invalid DocType,Недопустимый тип документа,
 "Review this approved timesheet because approved leave changed.","Проверьте согласованный табель. Изменилось согласованное отсутствие.",""
 "Review this approved timesheet because a project was closed.","Проверьте согласованный табель. Связанный проект закрыт.",""
 "This timesheet has a position in a closed or inactive project.","В табеле есть строка по закрытому или неактивному проекту.",""
+Hours awaiting approval,Часы на согласовании
+h,ч.,WorkflowTimesheetHours

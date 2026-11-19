@@ -243,7 +243,10 @@ before_migrate = [
     "dinext_timesheets.patches.v1_0.unify_utp_workflow_status.guard_parallel_migration",
     "dinext_timesheets.workflow_email.ensure_approval_email_templates",
 ]
-after_migrate = "dinext_timesheets.install.after_migrate"
+after_migrate = [
+    "dinext_timesheets.install.after_migrate",
+    "dinext_timesheets.workflow_permissions.restore_workflow_task_base_read",
+]
 after_sync = [
     "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
     "dinext_timesheets.setup.workflow_deadlines.configure_utp_deadlines",
@@ -477,8 +480,22 @@ workflow_approval_form_references = {
 
 workflow_approval_localization = {
     "UTP Workflow": "dinext_timesheets.workflow_localization.label_rules",
+    "AFL Workflow": "dinext_timesheets.workflow_localization.leave_label_rules",
 }
 
 workflow_approval_round_opened = [
 	"dinext_timesheets.dinext_timesheets.user_timesheet.events.limits_notify.schedule_limit_notice",
 ]
+
+workflow_approval_cutover_providers = ["dinext_timesheets.workflow_cutover.configuration"]
+
+workflow_approval_email_presentation_providers = ["dinext_timesheets.workflow_email_presentation.present_email"]
+workflow_approval_previous_email_template_providers = ["dinext_timesheets.workflow_email.previous_approval_email_templates"]
+workflow_approval_email_choice_fields = ["custom_timesheet_management_action"]
+
+override_whitelisted_methods = {
+    "dinext_common.workflow_approval.scenarios.timesheet_actions.get_timesheet_position_actions":
+        "dinext_timesheets.workflow_approval.get_timesheet_position_actions",
+    "dinext_common.workflow_approval.scenarios.timesheet_actions.apply_timesheet_position_action":
+        "dinext_timesheets.workflow_approval.apply_timesheet_position_action",
+}

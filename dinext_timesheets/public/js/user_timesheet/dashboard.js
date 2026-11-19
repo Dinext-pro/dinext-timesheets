@@ -24,7 +24,7 @@ export async function showTimesheetDashboard(frm) {
 		route: frappe.get_route_str(),
 		generation: (frm._ut_dash_gen = (frm._ut_dash_gen || 0) + 1),
 	};
-	const comments = frappe.dinext.refreshWorkflowComments(frm);
+	const comments = frappe.dinext.refreshWorkflowComments(frm, { showReferences: true });
 	frappe.dinext.paintPendingApprovers(frm, []);
 	applyPositionApproverTitles(frm, []);
 	paintDeadline(frm);

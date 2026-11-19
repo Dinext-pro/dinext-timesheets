@@ -81,3 +81,26 @@ def recover_legacy_transition(row, current, evidence):
 	if row.get("threshold") != threshold or any(child.threshold != threshold for child in evidence.values()):
 		return None
 	return {**_labels("UTP Workflow", row), "transition_semantic_hash": current["transition_semantic_hash"]}
+
+
+_REVIEW_STATES = {
+	"На согласовании": "Pending Approval",
+	"Согласовано": "Approved",
+	"Отклонено": "Rejected",
+}
+_EDITING_STATES = {"Редактирование": "Editing", **_REVIEW_STATES}
+
+
+def leave_label_rules():
+	return {
+		"states": _EDITING_STATES,
+		"additional_state_fields": ("status",),
+		"card_states": _REVIEW_STATES,
+		"cards": (
+			"Моих Заявок на согласовании",
+			"Моих Заявок Согласовано",
+			"Моих Заявок Отклонено",
+			"Заявки на отсутствие у меня на согласовании-2",
+			"Заявки на отсутствие согласованные мной-1",
+		),
+	}

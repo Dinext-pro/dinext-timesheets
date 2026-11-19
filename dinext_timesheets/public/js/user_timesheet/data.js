@@ -128,13 +128,19 @@ async function loadPositions(frm) {
 		order_by: "creation asc, name asc",
 	});
 
+	const contexts = list?.length && await frappe.dinext?.loadWorkflowContexts?.(
+		"User Timesheet Position",
+		list.map((item) => item.name),
+	);
 	const positions = [];
 	for (const item of list) {
 		const doc = await frappe.db.get_doc("User Timesheet Position", item.name);
 		const details = (doc.table || []).filter(
 			(d) => d.date >= frm.doc.ts_valid_from && d.date <= frm.doc.ts_valid_for
 		);
-		const status = (item.status || (legacyStatus && item.workflow_state) || "").trim();
+		const context = contexts?.[item.name]?.context;
+		const positionStatus = context?.workflow ? context.state : item.status;
+		const status = (positionStatus || (legacyStatus && item.workflow_state) || "").trim();
 		let reject_reason = "";
 		if (status === "Rejected") {
 			reject_reason = String(doc.reject_reason || "").trim();

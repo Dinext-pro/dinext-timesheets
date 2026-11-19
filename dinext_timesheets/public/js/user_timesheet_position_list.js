@@ -353,6 +353,9 @@
 			user: (value, _df, doc) => doc.custom_username || value,
 		},
 		get_form_link: (doc) => frappe.utils.get_form_link("User Timesheet", doc.user_timesheet),
+		project_workflow_status(position, context) {
+			if (context?.workflow) position.status = context.state;
+		},
 		refresh(listview) {
 			listview._dinext_workflow_render_promise = renderRows(listview).catch((error) => {
 				console.error("[User Timesheet Position] refresh", error);

@@ -245,6 +245,7 @@ before_migrate = [
 ]
 after_migrate = "dinext_timesheets.install.after_migrate"
 after_sync = [
+    "dinext_timesheets.timesheet_settings.seed_installation_rules",
     "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
     "dinext_timesheets.setup.workflow_deadlines.configure_utp_deadlines",
     "dinext_timesheets.patches.v1_0.grant_timesheet_approver_report_permission.execute",

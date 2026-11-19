@@ -154,6 +154,14 @@ def validate_timesheet_settings(doc) -> None:
 	doc.position_list_visibility_migrated = 1
 
 
+def seed_installation_rules() -> None:
+	"""Initialize a fresh policy after the Workflow State fixtures have been synced."""
+	settings = _settings_doc()
+	if settings and (settings.position_rules or settings.visible_list_statuses):
+		return
+	seed_default_rules()
+
+
 def seed_default_rules() -> None:
 	"""Fill an empty singleton. A saved empty table stays empty."""
 	if frappe.db.exists("Timesheet Settings", "Timesheet Settings"):

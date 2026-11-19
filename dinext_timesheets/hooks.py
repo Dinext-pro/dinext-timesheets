@@ -499,3 +499,5 @@ override_whitelisted_methods = {
     "dinext_common.workflow_approval.scenarios.timesheet_actions.apply_timesheet_position_action":
         "dinext_timesheets.workflow_approval.apply_timesheet_position_action",
 }
+
+workflow_approval_number_card_state_fields = {"User Timesheet Position": "status"}

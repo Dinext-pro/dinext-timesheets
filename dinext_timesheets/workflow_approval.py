@@ -763,6 +763,15 @@ def _prepare_positions(
 	return docs, [locked[name] for name in deleted_names]
 
 
+def _duplicate_position_lines(positions: list[object]) -> list[list[int]]:
+	lines: dict[tuple, list[int]] = defaultdict(list)
+	for idx, row in enumerate(positions, 1):
+		key = tuple(_value(row, field) for field in ("project", "document_type", "document_name", "project_role"))
+		if all(key):
+			lines[key].append(idx)
+	return [group for group in lines.values() if len(group) > 1]
+
+
 def _validate_positions(parent: object, positions: list[object]) -> None:
 	errors = _validate_parent_period(parent)
 	if errors:
@@ -793,7 +802,21 @@ def _validate_positions(parent: object, positions: list[object]) -> None:
 			leave_hours,
 		)
 	)
+	for group in _duplicate_position_lines(positions):
+		errors.append(_("Duplicate rows {0}: same project, task, and role").format(", ".join(map(str, group))))
 	errors.extend(_validate_planned_limits(parent, positions))
+	if not errors:
+		from project_workload_assignment.api import calculate_timesheet_limits_for
+
+		payload = [
+			{field: _value(row, field) for field in
+			 ("name", "project", "document_name", "project_role", "status", "all_hours", "custom_username")}
+			for row in positions
+		]
+		for result in calculate_timesheet_limits_for(payload, _value(parent, "name")):
+			if result["status"] == "block":
+				errors.append(_("Task {0} exceeds the blocking planned-hours limit for role {1}").format(
+					result["document_name"], result["role"]))
 	if errors:
 		frappe.throw(
 			"<br>".join(frappe.utils.escape_html(error) for error in dict.fromkeys(errors)),

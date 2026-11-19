@@ -482,3 +482,5 @@ workflow_approval_localization = {
 workflow_approval_round_opened = [
 	"dinext_timesheets.dinext_timesheets.user_timesheet.events.limits_notify.schedule_limit_notice",
 ]
+
+dinext_demo_generators = ["dinext_demo.generators.effort.TIMESHEETS_PROVIDER"]

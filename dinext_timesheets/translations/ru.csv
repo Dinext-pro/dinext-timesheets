@@ -295,3 +295,15 @@ Invalid DocType,Недопустимый тип документа,
 "This timesheet has a position in a closed or inactive project.","В табеле есть строка по закрытому или неактивному проекту.",""
 Hours awaiting approval,Часы на согласовании
 h,ч.,WorkflowTimesheetHours
+"Start and end dates are required.","Даты начала и окончания обязательны.",""
+"Start date cannot be after end date.","Дата начала не может быть позже даты окончания.",""
+"Leave hours cannot be negative.","Часы отсутствия не могут быть отрицательными.",""
+"This Worker already has a leave application that overlaps the selected dates.","У исполнителя уже есть заявка на отсутствие, которая пересекается с указанными датами.",""
+"End date cannot be earlier than start date","Дата окончания не может быть раньше даты начала",""
+"Worker is required.","Исполнитель обязателен.",""
+"Worker {0} has no user.","У исполнителя {0} не указан пользователь.",""
+"User must match the selected Worker's user.","Укажите пользователя, привязанного к выбранному исполнителю.",""
+"Worker {0} has no Holiday List.","У исполнителя {0} не указан календарь праздников.",""
+"Worker {0} has no Timesheet Template.","У исполнителя {0} не указан шаблон таймшита.",""
+"Timesheet Template {0} has no Working Hours On Date.","В шаблоне таймшита {0} не указан справочник дат исключений.",""
+"{0} {1} does not cover the leave period.","{0} {1} не покрывает период отсутствия.",""

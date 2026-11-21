@@ -62,6 +62,7 @@ fixtures = [
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],
             ["disabled", "=", 0],
+            ["name", "not in", ["AFL_Calculate_Hours", "AFL_Projects"]],
         ]
     },
     {
@@ -239,6 +240,7 @@ doctype_list_js = {
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
 before_migrate = [
+    "dinext_timesheets.setup.application_for_leave.disable_superseded_server_scripts",
     "dinext_timesheets.setup.utp_edit_action.guard_open_rounds",
     "dinext_timesheets.patches.v1_0.unify_utp_workflow_status.guard_parallel_migration",
     "dinext_timesheets.workflow_email.ensure_approval_email_templates",
@@ -248,6 +250,7 @@ after_migrate = [
     "dinext_timesheets.workflow_permissions.restore_workflow_task_base_read",
 ]
 after_sync = [
+    "dinext_timesheets.setup.application_for_leave.disable_superseded_server_scripts",
     "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
     "dinext_timesheets.setup.workflow_deadlines.configure_utp_deadlines",
     "dinext_timesheets.patches.v1_0.grant_timesheet_approver_report_permission.execute",
@@ -467,6 +470,9 @@ workflow_scenario_final_states = {"AFL Workflow": ["Approved"]}
 has_permission = {"Number Card": "dinext_timesheets.number_card_permissions.has_permission"}
 
 workflow_approval_domain_handlers = {
+    "Application For Leave": {
+        "validate_vote": "dinext_timesheets.application_for_leave.validate_workflow_vote",
+    },
     "User Timesheet Position": {
         "vote_context": "dinext_timesheets.workflow_scenario_actions.atomic_timesheet_transition",
         "validate_vote": "dinext_timesheets.workflow_scenario_actions.validate_position_vote",
@@ -500,4 +506,7 @@ override_whitelisted_methods = {
         "dinext_timesheets.workflow_approval.apply_timesheet_position_action",
 }
 
-workflow_approval_number_card_state_fields = {"User Timesheet Position": "status"}
+workflow_approval_number_card_state_fields = {
+    "Application For Leave": "status",
+    "User Timesheet Position": "status",
+}

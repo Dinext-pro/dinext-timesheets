@@ -59,6 +59,7 @@ class TestWorkflowScenarioTimesheets(unittest.TestCase):
 			patch.object(adapter.request_receipts, "get", return_value=None),
 			patch.object(adapter, "_producer", return_value=SimpleNamespace()),
 			patch.object(frappe, "cache", SimpleNamespace(get_value=lambda key: None)),
+			patch.object(frappe, "get_hooks", return_value=[]),
 			patch.object(frappe, "get_doc", side_effect=lambda doctype, *args, **kwargs: parent if doctype == "User Timesheet" else source),
 			patch.object(frappe, "get_all", side_effect=lambda doctype, **kwargs: ["A"] if doctype == adapter.POSITION else [task]),
 			patch.object(frappe, "session", frappe._dict(user="approver@example.com")),

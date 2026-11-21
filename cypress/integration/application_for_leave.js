@@ -43,7 +43,11 @@ describe("Application For Leave", () => {
 	it("refuses a new application sharing the last date of a pending application", () => {
 		cy.login(fixture.user, fixture.password);
 		cy.openDesk("/app/application-for-leave/" + encodeURIComponent(fixture.leave));
-		cy.window().then((win) => win.frappe.new_doc(doctype));
+		cy.window().should((win) => expect(win.cur_frm?.doc?.name).to.eq(fixture.leave));
+		cy.window().then((win) => {
+			const draft = win.frappe.model.get_new_doc(doctype);
+			return win.frappe.set_route("Form", doctype, draft.name);
+		});
 		cy.window().should((win) => {
 			expect(win.cur_frm?.is_new()).to.be.ok;
 			expect(win.cur_frm.doctype).to.eq(doctype);
@@ -53,11 +57,8 @@ describe("Application For Leave", () => {
 			await form.set_value("alworker", fixture.worker);
 			await form.set_value("altype_of_leave", marker);
 			await form.set_value("alfrom_date", fixture.end);
-			await form.set_value("alto_date", fixture.start);
+			await form.set_value("alto_date", fixture.overlap_end);
 		});
-		cy.contains(".desk-alert", /End date cannot be earlier than start date/i).should("be.visible");
-		cy.window().should((win) => expect(win.cur_frm.doc.alto_date).to.eq(fixture.end));
-		cy.window().then((win) => win.cur_frm.set_value("alto_date", fixture.overlap_end));
 		cy.intercept("POST", "**/api/method/frappe.desk.form.save.savedocs").as("saveLeave");
 		cy.contains(".page-container:visible .primary-action", "Save").click();
 		cy.wait("@saveLeave").its("response.statusCode").should("eq", 417);

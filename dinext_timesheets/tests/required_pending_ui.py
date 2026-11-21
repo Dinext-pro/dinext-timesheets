@@ -38,7 +38,8 @@ def cleanup_required_pending_cypress():
 	finally:
 		frappe.flags.in_workflow_task_retention = previous
 	for name in positions:
-		frappe.delete_doc_if_exists(POSITION, name, force=True)
+		# These test positions are inserted directly in Pending Approval.
+		frappe.delete_doc(POSITION, name, force=True, ignore_permissions=True, ignore_on_trash=True)
 	for doctype in (
 		"User Timesheet", "Workflow", "Worker", "User Group", "Timesheet Template",
 		"Working Hours On Date", "Holiday List",

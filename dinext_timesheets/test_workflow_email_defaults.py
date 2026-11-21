@@ -27,5 +27,5 @@ class TestWorkflowEmailDefaults(unittest.TestCase):
             self.assertEqual(row.get('custom_timesheet_management_action'),1)
             self.assertIn('timesheet_from',row['condition'])
             self.assertIn('date desc, idx desc',row['condition'])
-        stop=next(r for r in management if r['state']=='Pending Approval')
-        self.assertEqual(stop['action'],'Stop Workflow')
+        edit=next(r for r in management if r['state']=='Pending Approval')
+        self.assertEqual(edit['action'],'Edit')

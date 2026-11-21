@@ -13,6 +13,7 @@ from dinext_common.tests.ui_test_helpers import (
 	_ensure_role,
 	_ensure_user,
 )
+from dinext_common.workflow_approval.scenarios import service
 
 FIXTURE_KEY = "cypress_timesheet_required_pending"
 NAME = "Cypress Timesheet Required Pending"
@@ -37,6 +38,9 @@ def cleanup_required_pending_cypress():
 		_delete_tasks_for("User Timesheet", [NAME])
 	finally:
 		frappe.flags.in_workflow_task_retention = previous
+	if positions:
+		for doctype in (service.CONTEXT, service.PROCESS):
+			frappe.db.delete(doctype, {"reference_doctype": POSITION, "reference_name": ("in", positions)})
 	for name in positions:
 		# These test positions are inserted directly in Pending Approval.
 		frappe.delete_doc(POSITION, name, force=True, ignore_permissions=True, ignore_on_trash=True)
@@ -94,6 +98,7 @@ def seed_required_pending_cypress():
 			users=USERS, role=ROLE, second=bool(index))
 		positions.append(position.name)
 
+	_adopt_position_tasks(positions)
 	frappe.clear_cache()
 	frappe.cache.set_value(FIXTURE_KEY, positions)
 	return {
@@ -114,7 +119,10 @@ def set_required_pending_optional(optional: int):
 
 @whitelist_for_tests(methods=["POST"])
 def set_workflow_comments_cypress(mode: str):
-	return _set_workflow_comments(POSITION, _fixture_positions(), NAME, "Pending Approval", USERS, mode)
+	positions = _fixture_positions()
+	result = _set_workflow_comments(POSITION, positions, NAME, "Pending Approval", USERS, mode)
+	_adopt_position_tasks(positions)
+	return result
 
 
 def _fixture_positions():
@@ -123,3 +131,14 @@ def _fixture_positions():
 	if not positions or frappe.session.user not in (USERS[0], "Administrator"):
 		raise frappe.PermissionError("Only the fixture viewer may edit its display metadata")
 	return positions
+
+
+def _adopt_position_tasks(positions):
+	if not service.is_ready():
+		return
+	for name in positions:
+		source = frappe.get_doc(POSITION, name)
+		filters = {"reference_doctype": POSITION, "reference_name": name, "workflow": NAME}
+		frappe.db.set_value("Workflow Task", filters, "source_created_at", source.creation, update_modified=False)
+		tasks = frappe.get_all("Workflow Task", filters=filters, fields=["*"])
+		service.adopt_legacy_source(source, tasks)

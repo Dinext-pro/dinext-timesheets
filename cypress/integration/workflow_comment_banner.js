@@ -33,6 +33,8 @@ context("Required Workflow comments on timesheet forms", () => {
 		cy.get(banner).should("be.visible").and("contain", fixture.required).and("contain", fixture.mixed)
 			.and("contain", fixture.positions[0]).and("contain", fixture.positions[1]);
 		cy.get(`${banner} .dinext-workflow-comment-row`).should("have.length", 4);
+		cy.get(banner).scrollIntoView();
+		cy.screenshot("timesheet-workflow-comments", { capture: "viewport" });
 	});
 
 	it("clears comments superseded by newer rounds without removing pending approvers", () => {

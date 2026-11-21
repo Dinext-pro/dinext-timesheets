@@ -90,3 +90,12 @@ Cypress.Commands.add("clickWorkflowAction", (action) => {
 			.click();
 	});
 });
+
+Cypress.Commands.add("noPermissionDialog", () => {
+	cy.get("body").should(($body) => {
+		const text = $body[0].innerText;
+		expect(text.includes("Нет разрешения"), "Russian permission error").to.eq(false);
+		expect(text.includes("Not permitted"), "permission error").to.eq(false);
+		expect(/no permission/i.test(text), "permission error").to.eq(false);
+	});
+});

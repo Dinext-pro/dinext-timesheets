@@ -1,10 +1,10 @@
 Cypress.removeAllListeners("uncaught:exception");
-const helper = "dinext_common.tests.required_pending_ui";
+const helper = "dinext_timesheets.tests.required_pending_ui";
 const banner = ".form-message.orange.dinext-workflow-comments";
 let fixture;
 
 function setComments(mode) {
-	cy.call(`${helper}.set_workflow_comments_cypress`, { mode, doctype: "User Timesheet Position" });
+	cy.call(`${helper}.set_workflow_comments_cypress`, { mode });
 	cy.window().then((win) => win.cur_frm.reload_doc());
 }
 
@@ -23,7 +23,7 @@ context("Required Workflow comments on timesheet forms", () => {
 	beforeEach(() => {
 		cy.login(fixture.viewer, fixture.password);
 		cy.openDesk("/app");
-		cy.call(`${helper}.set_workflow_comments_cypress`, { mode: "empty", doctype: "User Timesheet Position" });
+		cy.call(`${helper}.set_workflow_comments_cypress`, { mode: "empty" });
 		cy.openDesk(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}`);
 		cy.get(".dinext-pending-approvers").should("be.visible");
 	});

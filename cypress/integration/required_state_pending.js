@@ -1,12 +1,11 @@
 Cypress.removeAllListeners("uncaught:exception");
-const helper = "dinext_common.tests.required_pending_ui";
+const helper = "dinext_timesheets.tests.required_pending_ui";
 const pendingApi = "dinext_common.workflow_approval.api.get_pending_approvers";
 const banner = ".form-message.blue.dinext-pending-approvers";
 let fixture;
 
 function setOptional(value) {
 	return cy.call(`${helper}.set_required_pending_optional`, {
-		doctype: "User Timesheet Position",
 		optional: value,
 	});
 }

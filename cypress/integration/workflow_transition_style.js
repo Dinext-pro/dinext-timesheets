@@ -1,5 +1,5 @@
 Cypress.removeAllListeners("uncaught:exception");
-const api = "dinext_common.tests.workflow_style_ui";
+const api = "dinext_timesheets.tests.workflow_style_ui";
 const setTheme = (theme) =>
 	cy.window().then((win) => {
 		win.document.documentElement.dataset.theme = theme;
@@ -30,7 +30,7 @@ context(
 		before(() => {
 			cy.login();
 			cy.openDesk("/app");
-			cy.call(`${api}.seed_workflow_styles`, { include_timesheets: 1 }).then((res) => {
+			cy.call(`${api}.seed_workflow_styles`).then((res) => {
 				Cypress.env("style", res.body.message);
 			});
 		});
@@ -72,7 +72,7 @@ context(
 
 		it("Position list choices", () => {
 			cy.login();
-			cy.visit("/app/user-timesheet-position");
+			cy.visit("/app/user-timesheet-position?name=" + encodeURIComponent(Cypress.env("style").position));
 			cy.get(".dinext-utp-action-select").should("be.visible");
 			for (const theme of ["light", "dark"]) {
 				setTheme(theme);
@@ -98,7 +98,7 @@ context(
 			).should("be.visible");
 			cy.get(".page-container:visible .actions-btn-group > button").click();
 			// Exercise the legacy client renderer against the same synthetic transitions.
-			cy.intercept("GET", "/app/user-timesheet-position", (request) => {
+			cy.intercept("GET", "/app/user-timesheet-position?*", (request) => {
 				request.continue((response) => {
 					response.body = response.body.replace(
 						/"enable_parallel_workflow_approval"\s*:\s*true/,
@@ -106,7 +106,7 @@ context(
 					);
 				});
 			});
-			cy.visit("/app/user-timesheet-position");
+			cy.visit("/app/user-timesheet-position?name=" + encodeURIComponent(Cypress.env("style").position));
 			cy.window().its("frappe.boot.enable_parallel_workflow_approval").should("eq", false);
 			cy.get("select.action-dropdown").should("be.visible");
 			for (const theme of ["light", "dark"]) {

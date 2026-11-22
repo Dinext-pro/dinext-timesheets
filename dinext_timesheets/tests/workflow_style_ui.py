@@ -3,6 +3,7 @@
 import frappe
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 
+from dinext_common.workflow_approval.scenarios import service
 from dinext_common.tests.ui_test_helpers import _delete_tasks_for
 from dinext_common.tests.workflow_style_ui import _guard, _master, _task
 
@@ -10,9 +11,15 @@ PREFIX = "Cypress Timesheet Style "
 ACTIONS = ((PREFIX + "Approve", "Approved"), (PREFIX + "Reject", "Rejected"))
 
 
+def _guard_admin():
+	_guard()
+	if frappe.session.user != "Administrator":
+		raise frappe.PermissionError("Timesheet style fixtures require Administrator")
+
+
 @whitelist_for_tests(methods=["POST"])
 def cleanup_workflow_styles():
-	_guard()
+	_guard_admin()
 	previous = frappe.flags.in_workflow_task_retention
 	try:
 		_delete_tasks_for("User Timesheet Position", [PREFIX + "Position"])
@@ -23,7 +30,10 @@ def cleanup_workflow_styles():
 		("User Timesheet", PREFIX + "Timesheet"),
 		("Workflow", PREFIX + "Positions"),
 	):
-		frappe.delete_doc_if_exists(doctype, name, force=True)
+		if doctype != "Workflow":
+			for table in (service.CONTEXT, service.PROCESS):
+				frappe.db.delete(table, {"reference_doctype": doctype, "reference_name": name})
+		frappe.delete_doc(doctype, name, force=True, ignore_missing=True, ignore_on_trash=doctype != "Workflow")
 	for action, _ in ACTIONS:
 		frappe.delete_doc_if_exists("Workflow Action Master", action, force=True)
 	frappe.clear_cache()
@@ -31,7 +41,7 @@ def cleanup_workflow_styles():
 
 @whitelist_for_tests(methods=["POST"])
 def seed_workflow_styles():
-	_guard()
+	_guard_admin()
 	cleanup_workflow_styles()
 	for (action, state), icon, style in zip(ACTIONS, ("check", "close"), ("Success", "Danger"), strict=True):
 		_master("Workflow Action Master", action, workflow_action_name=action, custom_icon=icon)
@@ -89,5 +99,7 @@ def seed_workflow_styles():
 		}
 	).insert(ignore_permissions=True)
 	frappe.clear_cache(doctype=position.doctype)
-	_task(position, utp_workflow, utp_workflow.transitions, "position", prefix=PREFIX)
+	task = _task(position, utp_workflow, utp_workflow.transitions, "position", prefix=PREFIX)
+	if service.is_ready():
+		service.adopt_legacy_source(position, [frappe._dict(task.as_dict())])
 	return {"timesheet": parent.name, "position": position.name}

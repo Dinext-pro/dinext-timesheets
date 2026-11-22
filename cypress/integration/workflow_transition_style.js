@@ -1,5 +1,6 @@
 Cypress.removeAllListeners("uncaught:exception");
 const api = "dinext_timesheets.tests.workflow_style_ui";
+let fixture;
 const setTheme = (theme) =>
 	cy.window().then((win) => {
 		win.document.documentElement.dataset.theme = theme;
@@ -31,7 +32,9 @@ context(
 			cy.login();
 			cy.openDesk("/app");
 			cy.call(`${api}.seed_workflow_styles`).then((res) => {
-				Cypress.env("style", res.body.message);
+				fixture = res.body.message;
+				expect(fixture.timesheet).to.be.a("string");
+				expect(fixture.position).to.be.a("string");
 			});
 		});
 		after(() => {
@@ -42,7 +45,7 @@ context(
 
 		it("Timesheet form menu", () => {
 			cy.login();
-			cy.visit(`/app/user-timesheet/${encodeURIComponent(Cypress.env("style").timesheet)}`);
+			cy.visit(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}`);
 			for (const theme of ["light", "dark"]) {
 				setTheme(theme);
 				cy.get(
@@ -72,7 +75,7 @@ context(
 
 		it("Position list choices", () => {
 			cy.login();
-			cy.visit("/app/user-timesheet-position?name=" + encodeURIComponent(Cypress.env("style").position));
+			cy.visit("/app/user-timesheet-position?name=" + encodeURIComponent(fixture.position));
 			cy.get(".dinext-utp-action-select").should("be.visible");
 			for (const theme of ["light", "dark"]) {
 				setTheme(theme);
@@ -106,7 +109,7 @@ context(
 					);
 				});
 			});
-			cy.visit("/app/user-timesheet-position?name=" + encodeURIComponent(Cypress.env("style").position));
+			cy.visit("/app/user-timesheet-position?name=" + encodeURIComponent(fixture.position));
 			cy.window().its("frappe.boot.enable_parallel_workflow_approval").should("eq", false);
 			cy.get("select.action-dropdown").should("be.visible");
 			for (const theme of ["light", "dark"]) {

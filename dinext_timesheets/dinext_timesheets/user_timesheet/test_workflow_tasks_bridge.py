@@ -32,3 +32,12 @@ class TestWorkflowTasksBridge(TestCase):
 		with patch("dinext_common.workflow_approval.scenarios.service.get_context", return_value={"state_field": "status"}):
 			workflow_tasks.sync_status_from_workflow_state(self.position)
 		self.assertEqual(self.position.status, "Approved")
+
+	def test_legacy_schema_copies_only_the_selected_workflow_state(self):
+		self.scenarios.return_value = True
+		for field, expected in (("special_workflow_state", "Approved"), (None, "Approved"), ("workflow_state", "Editing")):
+			with self.subTest(field=field):
+				self.position.status = "Approved"
+				with patch("dinext_common.workflow_approval.scenarios.service.get_context", return_value={"state_field": field}):
+					workflow_tasks.sync_status_from_workflow_state(self.position)
+				self.assertEqual(self.position.status, expected)

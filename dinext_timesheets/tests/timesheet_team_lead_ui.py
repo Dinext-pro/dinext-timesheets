@@ -6,6 +6,7 @@ from textwrap import indent
 
 import frappe
 from dinext_common.tests.ui_test_helpers import _ensure_read_perm, _ensure_role
+from dinext_timesheets.tests.settings_fixture import restore_timesheet_settings_rows
 from dinext_timesheets.timesheet_status import DEFAULT_POSITION_RULES
 from frappe.model.workflow import get_workflow
 from frappe.tests.ui_test_helpers import whitelist_for_tests
@@ -45,7 +46,7 @@ def _restore_fixture_settings():
 		frappe.db.set_value("Server Script", name, "script", script, update_modified=False)
 		frappe.clear_document_cache("Server Script", name)
 	if "position_rules" in backup:
-		_set_position_rules(backup["position_rules"])
+		restore_timesheet_settings_rows(position_rules=backup["position_rules"])
 	frappe.cache.delete_value(FIXTURE_SETTINGS)
 
 

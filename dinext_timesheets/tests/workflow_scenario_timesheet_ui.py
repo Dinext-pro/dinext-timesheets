@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import frappe
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 from frappe.utils.password import update_password
+
+from dinext_timesheets.tests.settings_fixture import restore_timesheet_settings_rows
 
 CACHE = "workflow_scenario_timesheet_ui_fixture"
 POSITION = "User Timesheet Position"
@@ -21,19 +26,36 @@ def _guard():
 		raise frappe.PermissionError("Timesheet scenario fixtures require an Administrator on an isolated development test site")
 
 
-def _restore_rules(rows, visible_rows=None):
-	settings = frappe.get_single("Timesheet Settings")
-	settings.set("position_rules", rows)
-	settings.update_child_table("position_rules")
-	if visible_rows is not None:
-		settings.set("visible_list_statuses", visible_rows)
-		settings.update_child_table("visible_list_statuses")
+def _snapshot_path() -> Path:
+	return Path(frappe.get_site_path("private", CACHE + ".json"))
+
+
+def _read_snapshot():
+	path = _snapshot_path()
+	return frappe.parse_json(path.read_text(encoding="utf-8")) if path.exists() else frappe.cache.get_value(CACHE)
+
+
+def _save_snapshot(data):
+	path = _snapshot_path()
+	# Settings must survive an unrelated cache clear while the browser is open.
+	with NamedTemporaryFile(dir=path.parent, mode="w", encoding="utf-8", delete=False) as stream:
+		try:
+			stream.write(frappe.as_json(data))
+			stream.close()
+			Path(stream.name).replace(path)
+		finally:
+			Path(stream.name).unlink(missing_ok=True)
+
+
+def _discard_snapshot():
+	_snapshot_path().unlink(missing_ok=True)
+	frappe.cache.delete_value(CACHE)
 
 
 @whitelist_for_tests(methods=["POST"])
 def cleanup():
 	_guard()
-	data = frappe.cache.get_value(CACHE)
+	data = _read_snapshot()
 	if not data:
 		return {"cleaned": True}
 	from dinext_common.tests.ui_test_helpers import _delete_tasks_for
@@ -47,9 +69,10 @@ def cleanup():
 		_delete_tasks_for("User Timesheet", [data["parent"]])
 		for name in names:
 			if frappe.db.exists(POSITION, name):
-				frappe.delete_doc(POSITION, name, force=True, ignore_permissions=True)
+				frappe.delete_doc(POSITION, name, force=True, ignore_permissions=True, ignore_on_trash=True)
 		for doctype in ("Workflow Document Context", "Workflow Process"):
 			frappe.db.delete(doctype, {"reference_doctype": POSITION, "reference_name": ("in", names)})
+			frappe.db.delete(doctype, {"reference_doctype": "User Timesheet", "reference_name": data["parent"]})
 		if frappe.db.table_exists("Timesheet Submission Event"):
 			frappe.db.delete("Timesheet Submission Event", {"timesheet": data["parent"]})
 		if frappe.db.exists("User Timesheet", data["parent"]):
@@ -60,7 +83,9 @@ def cleanup():
 		for name, condition in data["previous_conditions"].items():
 			if frappe.db.exists("Workflow", name):
 				frappe.db.set_value("Workflow", name, "custom_activation_condition", condition, update_modified=False)
-		_restore_rules(data["previous_rules"], data.get("previous_visible_rules"))
+		restore_timesheet_settings_rows(
+			position_rules=data["previous_rules"], visible_list_statuses=data.get("previous_visible_rules"),
+		)
 		for doctype, name in data["dependencies"]:
 			if name and frappe.db.exists(doctype, name):
 				frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
@@ -74,8 +99,8 @@ def cleanup():
 		for action in data["actions"]:
 			if frappe.db.exists("Workflow Action Master", action):
 				frappe.delete_doc("Workflow Action Master", action, force=True, ignore_permissions=True)
-		frappe.cache.delete_value(CACHE)
 		frappe.db.commit()
+		_discard_snapshot()
 		for doctype in READ_DOCTYPES:
 			frappe.clear_cache(doctype=doctype)
 		return {"cleaned": True}
@@ -89,7 +114,7 @@ def set_check_status(status: str | None = None):
 	_guard()
 	if status not in {None, "Pending Approval", "Rejected"}:
 		raise frappe.ValidationError("Unknown status for the Timesheet Check fixture")
-	if not frappe.cache.get_value(CACHE):
+	if not _read_snapshot():
 		raise frappe.ValidationError("Create the Timesheet fixture before changing its rules")
 	settings = frappe.get_single("Timesheet Settings")
 	for row in settings.position_rules:
@@ -147,7 +172,7 @@ def seed():
 		frappe.db.after_commit.reset()
 		for callback in fixture.previous_after_commit:
 			frappe.db.after_commit.add(callback)
-		frappe.cache.set_value(CACHE, data)
+		_save_snapshot(data)
 		frappe.db.commit()
 		fixture._cleanups.clear()
 		return {
@@ -160,7 +185,7 @@ def seed():
 		}
 	except Exception:
 		frappe.db.rollback()
-		frappe.cache.delete_value(CACHE)
+		_discard_snapshot()
 		raise
 	finally:
 		if hasattr(fixture, "previous_engine"):

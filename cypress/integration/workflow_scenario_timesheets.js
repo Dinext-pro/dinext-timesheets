@@ -85,7 +85,7 @@ context("mixed Workflow scenarios in Timesheets", () => {
 				expect(response.body.message.context.state).to.equal(index ? data.target_state : data.initial_state);
 			});
 		}
-		cy.window().then(win => win.frappe.set_route("List", "User Timesheet Position", "List"));
+		cy.openDesk("/app/user-timesheet-position/view/list");
 		cy.window().should(win => expect(win.cur_list?.filter_area?.set).to.be.a("function"));
 		cy.window().then(async win => {
 			await win.cur_list.filter_area.clear(false);

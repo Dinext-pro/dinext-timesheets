@@ -6,7 +6,7 @@ import frappe
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 from frappe.utils import add_days, today
 
-from dinext_common.tests.ui_test_helpers import PASSWORD, _delete_tasks_for, _ensure_user
+from dinext_common.tests.ui_test_helpers import PASSWORD, _delete_tasks_for, _ensure_role, _ensure_user
 
 LEAVE = "Application For Leave"
 
@@ -36,6 +36,10 @@ def cleanup(marker: str) -> None:
 		"Holiday List", "Type Of Leave", "Project Role"):
 		frappe.delete_doc_if_exists(doctype, marker, force=True)
 	frappe.delete_doc_if_exists("User", email, force=True)
+	for table in ("DocPerm", "Custom DocPerm"):
+		frappe.db.delete(table, {"parent": "Kanban Board", "role": marker})
+	frappe.delete_doc_if_exists("Role", marker, force=True)
+	frappe.clear_cache(doctype="Kanban Board")
 
 
 @whitelist_for_tests(methods=["POST"])
@@ -55,7 +59,14 @@ def seed(marker: str) -> dict:
 	previous_mute = frappe.flags.get("mute_emails")
 	frappe.flags.mute_emails = True
 	try:
-		_ensure_user(email, marker, ["System Manager", "Dinext_Worker", "Dinext_UT_Full_Access"])
+		_ensure_role(marker)
+		layer = "Custom DocPerm" if frappe.db.exists("Custom DocPerm", {"parent": "Kanban Board"}) else "DocPerm"
+		frappe.get_doc({
+			"doctype": layer, "parent": "Kanban Board", "parenttype": "DocType", "parentfield": "permissions",
+			"role": marker, "read": 1, "permlevel": 0, "if_owner": 1,
+		}).db_insert()
+		frappe.clear_cache(doctype="Kanban Board")
+		_ensure_user(email, marker, ["System Manager", "Dinext_Worker", "Dinext_UT_Full_Access", marker])
 		create("Holiday List", holiday_list_name=marker, from_date=start, to_date=overlap_end,
 			holidays=[{"holiday_date": holiday, "description": "Synthetic holiday"}])
 		create("Working Hours On Date", hod_subject=marker, hod_from_date=start, hod_to_date=overlap_end)

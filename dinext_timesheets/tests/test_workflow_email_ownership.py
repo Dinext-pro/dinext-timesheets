@@ -88,14 +88,13 @@ class TestWorkflowEmailOwnership(unittest.TestCase):
         self.assertIsNone(domain_email_template(tasks[:1], "digest_template"))
 
     def test_common_can_resolve_its_own_templates_without_timesheets_installed(self):
-        from dinext_common.workflow_approval.email_migration import supported_workflow_names
-        from dinext_common.workflow_approval.email_templates import renderable_email_templates
+        from dinext_common.workflow_approval.email_templates import domain_email_profiles, renderable_email_templates
 
         with patch.object(frappe, "get_hooks", return_value=[]):
             templates = renderable_email_templates()
             self.assertIn("Dinext Workflow Digest", templates)
             self.assertNotIn(DIGEST, templates)
-            self.assertNotIn("UTP Workflow", supported_workflow_names())
+            self.assertNotIn("User Timesheet Position", domain_email_profiles())
 
     def test_installed_timesheets_supply_the_initial_utp_mail_profile(self):
         from dinext_common.workflow_approval.email_migration import configure_workflow

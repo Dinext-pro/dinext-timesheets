@@ -253,6 +253,7 @@ after_sync = [
     "dinext_timesheets.setup.application_for_leave.disable_superseded_server_scripts",
     "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
     "dinext_timesheets.setup.workflow_deadlines.configure_utp_deadlines",
+    "dinext_timesheets.timesheet_settings.seed_default_rules",
     "dinext_timesheets.patches.v1_0.grant_timesheet_approver_report_permission.execute",
 ]
 extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]

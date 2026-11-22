@@ -36,7 +36,10 @@ def after_install() -> None:
 
 def after_migrate() -> None:
 	from dinext_timesheets.submission_discipline import ensure_submission_tracking
+	from dinext_timesheets.timesheet_settings import seed_default_rules
+
 	ensure_submission_tracking()
+	seed_default_rules()
 	from dinext_timesheets.dinext_timesheets.user_timesheet._disable_cutover_scripts import (
 		run as disable_cutover_scripts,
 	)

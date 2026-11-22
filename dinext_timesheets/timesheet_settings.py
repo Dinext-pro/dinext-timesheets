@@ -158,7 +158,13 @@ def seed_default_rules() -> None:
 	"""Fill an empty singleton. A saved empty table stays empty."""
 	if frappe.db.exists("Timesheet Settings", "Timesheet Settings"):
 		doc = frappe.get_single("Timesheet Settings")
-		if doc.position_rules:
+		if (
+			doc.position_list_visibility_migrated
+			or doc.position_rules
+			or doc.parent_rules
+			or doc.visible_list_statuses
+			or doc.hidden_list_statuses
+		):
 			return
 	else:
 		doc = frappe.new_doc("Timesheet Settings")

@@ -1,13 +1,62 @@
 """Execute real permission-aware list SQL against owned transactional records."""
 
-from unittest.mock import patch
+from unittest import TestCase
+from unittest.mock import Mock, patch
 
 import frappe
 from dinext_timesheets.patches.v1_0.visible_position_list import execute as convert
-from dinext_timesheets.timesheet_settings import utp_list_conditions
+from dinext_timesheets.timesheet_settings import seed_default_rules, utp_list_conditions
 from frappe.tests.utils import FrappeTestCase
 
 MODULE = "dinext_timesheets.timesheet_settings"
+
+
+class TestSettingsBootstrap(TestCase):
+	def settings(self, **overrides):
+		values = {
+			"position_rules": [],
+			"parent_rules": [],
+			"visible_list_statuses": [],
+			"hidden_list_statuses": [],
+			"position_list_visibility_migrated": 0,
+		}
+		settings = Mock(**(values | overrides))
+		settings.append.side_effect = lambda field, row: getattr(settings, field).append(row)
+		return settings
+
+	def test_seeds_uninitialized_settings_once(self):
+		settings = self.settings()
+		with patch.object(frappe, "get_single", return_value=settings):
+			seed_default_rules()
+			seed_default_rules()
+
+		self.assertEqual(
+			settings.visible_list_statuses,
+			[
+				{"position_status": "Pending Approval", "open_wf_task": 1},
+				{"position_status": "Approved", "open_wf_task": 0},
+			],
+		)
+		self.assertTrue(settings.position_rules)
+		self.assertEqual(settings.position_list_visibility_migrated, 1)
+		settings.save.assert_called_once_with(ignore_permissions=True)
+
+	def test_keeps_saved_empty_settings_and_custom_rules(self):
+		for field, value in (
+			("position_list_visibility_migrated", 1),
+			("position_rules", [{"position_status": "Editing", "timesheet_status": "Draft"}]),
+			("parent_rules", [{"timesheet_status": "Rework", "position_status": "Editing"}]),
+			("visible_list_statuses", [{"position_status": "Rejected", "open_wf_task": 0}]),
+			("hidden_list_statuses", [{"position_status": "Draft"}]),
+		):
+			with self.subTest(field=field):
+				settings = self.settings(**{field: value})
+				with patch.object(frappe, "get_single", return_value=settings):
+					seed_default_rules()
+
+				self.assertEqual(getattr(settings, field), value)
+				settings.append.assert_not_called()
+				settings.save.assert_not_called()
 
 
 class TestPositionListVisibility(FrappeTestCase):

@@ -10,6 +10,7 @@ from frappe.utils import get_url_to_form
 
 DIGEST = "Dinext Timesheet Workflow Digest"
 DEADLINE = "Dinext Timesheet Workflow Deadline Digest"
+CORRECTION = "Dinext Timesheet Workflow Correction"
 
 
 @lru_cache(maxsize=1)
@@ -64,7 +65,7 @@ def previous_approval_email_templates():
 
 
 def approval_email_profiles():
-	return {
+	profiles = {
 		"Application For Leave": {
 			"workflow": "AFL Workflow",
 			"approval_states": ("Pending Approval",),
@@ -74,9 +75,35 @@ def approval_email_profiles():
 			"approval_states": ("Pending Approval",),
 			"digest_template": DIGEST,
 			"deadline_template": DEADLINE,
-			"correction_template": "Dinext Timesheet Workflow Correction",
+			"correction_template": CORRECTION,
 		},
 	}
+	rejection_states = ("Rejected", "Отклонено")
+	for profile in profiles.values():
+		profile["migration"] = {
+			"workflow_fields": {
+				"send_email_alert": 1,
+				"custom_group_workflow_action_emails": 1,
+				"custom_group_interval_unit": "Days",
+				"custom_group_interval_value": 1,
+				"custom_group_send_times": "08:00, 17:00",
+				"custom_group_send_time": "08:00:00",
+				"custom_group_email_template": profile.get("digest_template", "Dinext Workflow Digest"),
+				"custom_workflow_action_email_template": "Dinext Workflow Action",
+				"custom_attach_document_pdf": 0,
+			},
+			"enabled_states": profile["approval_states"] + rejection_states,
+			"state_overrides": {
+				state: {
+					"custom_group_workflow_action_emails": 0,
+					"next_action_email_template": profile.get("correction_template", "Dinext Workflow Correction"),
+				}
+				for state in rejection_states
+			},
+			"creator_notification_states": rejection_states,
+			"suppress_open_tasks_in_states": rejection_states,
+		}
+	return profiles
 
 
 def can_receive(task, source, recipient):

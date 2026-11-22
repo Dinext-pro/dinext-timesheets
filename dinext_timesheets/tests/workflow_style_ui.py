@@ -6,9 +6,13 @@ from frappe.tests.ui_test_helpers import whitelist_for_tests
 from dinext_common.workflow_approval.scenarios import service
 from dinext_common.tests.ui_test_helpers import _delete_tasks_for
 from dinext_common.tests.workflow_style_ui import _guard, _master, _task
+from dinext_timesheets.tests.settings_fixture import (
+	discard_snapshot_after_commit, read_snapshot, restore_timesheet_settings_rows, save_snapshot,
+)
 
 PREFIX = "Cypress Timesheet Style "
 ACTIONS = ((PREFIX + "Approve", "Approved"), (PREFIX + "Reject", "Rejected"))
+VISIBILITY_SNAPSHOT = "timesheet_workflow_style_visibility"
 
 
 def _guard_admin():
@@ -20,6 +24,10 @@ def _guard_admin():
 @whitelist_for_tests(methods=["POST"])
 def cleanup_workflow_styles():
 	_guard_admin()
+	visibility = read_snapshot(VISIBILITY_SNAPSHOT)
+	if visibility is not None:
+		restore_timesheet_settings_rows(visible_list_statuses=visibility)
+		discard_snapshot_after_commit(VISIBILITY_SNAPSHOT)
 	previous = frappe.flags.in_workflow_task_retention
 	try:
 		_delete_tasks_for("User Timesheet Position", [PREFIX + "Position"])
@@ -102,4 +110,9 @@ def seed_workflow_styles():
 	task = _task(position, utp_workflow, utp_workflow.transitions, "position", prefix=PREFIX)
 	if service.is_ready():
 		service.adopt_legacy_source(position, [frappe._dict(task.as_dict())])
+	settings = frappe.get_single("Timesheet Settings")
+	if not any(row.position_status == position.status for row in (settings.visible_list_statuses or [])):
+		save_snapshot(VISIBILITY_SNAPSHOT, [row.as_dict() for row in (settings.visible_list_statuses or [])])
+		settings.append("visible_list_statuses", {"position_status": position.status, "open_wf_task": 1})
+		settings.update_child_table("visible_list_statuses")
 	return {"timesheet": parent.name, "position": position.name}

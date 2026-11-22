@@ -7,7 +7,7 @@ from unittest.mock import patch
 import frappe
 from frappe.model.document import Document
 
-from dinext_common.tests import test_workflow_scenario_timesheet_integration as scenarios
+from dinext_timesheets.tests import test_workflow_scenario_timesheet_integration as scenarios
 from dinext_common.workflow_approval import api, engine, request_receipts
 from dinext_timesheets import workflow_approval, workflow_scenario_actions
 

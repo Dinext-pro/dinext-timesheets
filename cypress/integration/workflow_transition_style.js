@@ -48,11 +48,10 @@ context(
 			cy.visit(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}`);
 			for (const theme of ["light", "dark"]) {
 				setTheme(theme);
-				cy.get(
-					'.page-container:visible .inner-group-button[data-label="Workflow"] > button'
-				).then(($button) => {
+				const button = '.page-container:visible .inner-group-button[data-label="Workflow"] > button';
+				cy.get(button).then(($button) => {
 					if (!$button.parent().find(".dropdown-menu").is(":visible")) {
-						cy.wrap($button).click();
+						cy.get(button).click();
 					}
 				});
 				cy.get(".inner-group-button .dinext-workflow-transition").should("be.visible");

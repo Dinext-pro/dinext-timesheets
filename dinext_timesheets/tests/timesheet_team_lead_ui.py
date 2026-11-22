@@ -6,7 +6,9 @@ from textwrap import indent
 
 import frappe
 from dinext_common.tests.ui_test_helpers import _ensure_read_perm, _ensure_role
-from dinext_timesheets.tests.settings_fixture import restore_timesheet_settings_rows
+from dinext_timesheets.tests.settings_fixture import (
+	discard_snapshot_after_commit, read_snapshot, restore_timesheet_settings_rows, save_snapshot,
+)
 from dinext_timesheets.timesheet_status import DEFAULT_POSITION_RULES
 from frappe.model.workflow import get_workflow
 from frappe.tests.ui_test_helpers import whitelist_for_tests
@@ -36,7 +38,7 @@ def _set_position_rules(rows):
 
 
 def _restore_fixture_settings():
-	backup = frappe.cache.get_value(FIXTURE_SETTINGS)
+	backup = read_snapshot(FIXTURE_SETTINGS)
 	if not backup:
 		return
 	for name, condition in backup["conditions"].items():
@@ -47,7 +49,7 @@ def _restore_fixture_settings():
 		frappe.clear_document_cache("Server Script", name)
 	if "position_rules" in backup:
 		restore_timesheet_settings_rows(position_rules=backup["position_rules"])
-	frappe.cache.delete_value(FIXTURE_SETTINGS)
+	discard_snapshot_after_commit(FIXTURE_SETTINGS)
 
 
 def _scope_fixture_settings(workflow, project, transitions):
@@ -62,7 +64,7 @@ def _scope_fixture_settings(workflow, project, transitions):
 	)
 	if getattr(frappe.local, "request", None):
 		settings = frappe.get_single("Timesheet Settings")
-		frappe.cache.set_value(FIXTURE_SETTINGS, {
+		save_snapshot(FIXTURE_SETTINGS, {
 			"workflow": workflow.name,
 			"conditions": {row.name: row.condition for row in transitions},
 			"scripts": {row.name: row.script for row in scripts},

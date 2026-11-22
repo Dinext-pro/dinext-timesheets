@@ -21,7 +21,7 @@ def execute():
 	))
 	transitions = frappe.get_all(
 		"Workflow Transition",
-		fields=["parent", "name", "state", "action", "next_state", "allow_self_approval", FIELDNAME],
+		fields=["parent", "name", "state", "action", "next_state", "allowed", "allow_self_approval", FIELDNAME],
 		order_by="parent, idx",
 	)
 	mismatches = []

@@ -2,6 +2,8 @@
 
 import frappe
 
+from dinext_timesheets.patches.v1_0.utp_team_lead_condition import migrate_condition
+
 
 def execute() -> None:
 	if frappe.db.exists("Workflow", "UTP Workflow"):
@@ -44,11 +46,9 @@ def execute() -> None:
 		fields=["name", "action", "condition", "next_state"],
 	):
 		values = {}
-		if "Z_Dinord_Team_Lead" in (transition.condition or ""):
-			values["condition"] = transition.condition.replace(
-				"Z_Dinord_Team_Lead",
-				"Dinext_Team_Lead",
-			)
+		condition = migrate_condition(transition.condition)
+		if condition != transition.condition:
+			values["condition"] = condition
 		if transition.action == "Approve" and transition.next_state == "Approved":
 			values["custom_auto_complete_unchanged"] = 1
 		if values:

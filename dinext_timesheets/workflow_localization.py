@@ -22,6 +22,7 @@ _UTP_LEGACY_VOTES = {"Approve": "Согласовано", "Reject": "Не сог
 def label_rules() -> dict:
 	return {
 		"states": _STATE_NAMES,
+		"legacy_signed_action_aliases": (("Pending Approval", "Stop Workflow", "Edit", "Editing"),),
 		"collect_legacy_evidence": collect_legacy_evidence,
 		"recover_legacy_transition": recover_legacy_transition,
 	}

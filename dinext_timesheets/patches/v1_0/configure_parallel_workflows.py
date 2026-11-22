@@ -2,6 +2,8 @@
 
 import frappe
 
+from dinext_timesheets.patches.v1_0.utp_team_lead_condition import migrate_condition
+
 
 def execute() -> None:
 	if frappe.db.exists("Workflow", "UTP Workflow"):
@@ -25,12 +27,13 @@ def execute() -> None:
 		filters={"parent": "UTP Workflow"},
 		fields=["name", "condition"],
 	):
-		if "Z_Dinord_Team_Lead" in (transition.condition or ""):
+		condition = migrate_condition(transition.condition)
+		if condition != transition.condition:
 			frappe.db.set_value(
 				"Workflow Transition",
 				transition.name,
 				"condition",
-				transition.condition.replace("Z_Dinord_Team_Lead", "Dinext_Team_Lead"),
+				condition,
 				update_modified=False,
 			)
 	for workflow_name in ("UTP Workflow", "AFL Workflow"):

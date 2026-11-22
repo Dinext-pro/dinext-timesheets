@@ -58,11 +58,11 @@ class TestUserTimesheet(FrappeTestCase):
 		)
 		self.assertIn("paintRebuildRounds", dashboard_source)
 		self.assertNotIn("get_form_approval_banner", dashboard_source)
-		self.assertIn("Action expected from: {0}", dashboard_source)
+		self.assertIn("frappe.dinext.paintPendingApprovers", dashboard_source)
 		self.assertIn("reference_name", dashboard_source)
 		self.assertIn("approver_tooltip", dashboard_source)
 		self.assertIn(
-			"uniqueApproverNames(byPosition.get(String(gridRow.id)) || [], true)",
+			"frappe.dinext.getPendingApproverNames",
 			dashboard_source,
 		)
 		self.assertNotIn("get_pending_approver_names", dashboard_source)
@@ -350,8 +350,13 @@ class TestUserTimesheet(FrappeTestCase):
 			get_doc_before_save=lambda: SimpleNamespace(status=workflow_approval.EDITING),
 		)
 		with (
+			patch("dinext_timesheets.workflow_scenario_actions.uses_local_scenarios", return_value=True),
 			patch.object(workflow_approval, "_enabled", return_value=True),
 			patch.object(frappe, "get_doc") as get_doc,
+			patch(
+				"dinext_common.workflow_approval.scenarios.service.get_context",
+				return_value={"state_field": "status"},
+			),
 		):
 			workflow_approval.on_utp_update(doc)
 		get_doc.assert_not_called()
@@ -561,6 +566,7 @@ class TestUserTimesheet(FrappeTestCase):
 				round_status="Open",
 				reference_doctype="User Timesheet Position",
 				reference_name=position,
+				workflow="UTP Workflow",
 				workflow_state=workflow_approval.PENDING,
 			)
 
@@ -583,6 +589,7 @@ class TestUserTimesheet(FrappeTestCase):
 			}
 
 		with (
+			patch("dinext_timesheets.workflow_scenario_actions.uses_local_scenarios", return_value=True),
 			patch.object(frappe, "get_doc", return_value=parent),
 			patch.object(
 				workflow_approval,
@@ -594,8 +601,8 @@ class TestUserTimesheet(FrappeTestCase):
 			),
 			patch.object(frappe.db, "get_value", side_effect=get_value),
 			patch(
-				"frappe.model.workflow.get_workflow",
-				return_value=SimpleNamespace(workflow_state_field="workflow_state"),
+				"dinext_common.workflow_approval.scenarios.service.get_context",
+				return_value={"workflow": "UTP Workflow", "state": workflow_approval.PENDING},
 			),
 			patch(
 				"dinext_common.workflow_approval.engine.cast_vote",
@@ -619,6 +626,7 @@ class TestUserTimesheet(FrappeTestCase):
 					round_status="Open",
 					reference_doctype="User Timesheet Position",
 					reference_name="UTP-1",
+					workflow="UTP Workflow",
 					workflow_state=workflow_approval.PENDING,
 				)
 			return workflow_approval.PENDING
@@ -627,6 +635,7 @@ class TestUserTimesheet(FrappeTestCase):
 			raise WorkflowApprovalConflictError("The source workflow state has changed")
 
 		with (
+			patch("dinext_timesheets.workflow_scenario_actions.uses_local_scenarios", return_value=True),
 			patch.object(frappe, "get_doc", return_value=parent),
 			patch.object(
 				workflow_approval,
@@ -635,8 +644,8 @@ class TestUserTimesheet(FrappeTestCase):
 			),
 			patch.object(frappe.db, "get_value", side_effect=get_value),
 			patch(
-				"frappe.model.workflow.get_workflow",
-				return_value=SimpleNamespace(workflow_state_field="workflow_state"),
+				"dinext_common.workflow_approval.scenarios.service.get_context",
+				return_value={"workflow": "UTP Workflow", "state": workflow_approval.PENDING},
 			),
 			patch(
 				"dinext_common.workflow_approval.engine.cast_vote",
@@ -656,11 +665,13 @@ class TestUserTimesheet(FrappeTestCase):
 					round_status="Open",
 					reference_doctype="User Timesheet Position",
 					reference_name="UTP-1",
+					workflow="UTP Workflow",
 					workflow_state=workflow_approval.PENDING,
 				)
 			return workflow_approval.EDITING
 
 		with (
+			patch("dinext_timesheets.workflow_scenario_actions.uses_local_scenarios", return_value=True),
 			patch.object(frappe, "get_doc", return_value=parent),
 			patch.object(
 				workflow_approval,
@@ -669,8 +680,8 @@ class TestUserTimesheet(FrappeTestCase):
 			),
 			patch.object(frappe.db, "get_value", side_effect=get_value),
 			patch(
-				"frappe.model.workflow.get_workflow",
-				return_value=SimpleNamespace(workflow_state_field="workflow_state"),
+				"dinext_common.workflow_approval.scenarios.service.get_context",
+				return_value={"workflow": "UTP Workflow", "state": workflow_approval.EDITING},
 			),
 			patch("dinext_common.workflow_approval.engine.cast_vote") as vote,
 		):

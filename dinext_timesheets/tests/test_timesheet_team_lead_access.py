@@ -78,6 +78,7 @@ class TestDelegatedTimesheetWorkflow(FrappeTestCase):
 		self.addCleanup(frappe.db.rollback, save_point="delegated_timesheet")
 		self.addCleanup(frappe.set_user, caller)
 		self.enterContext(patch.dict(frappe.flags, {"mute_emails": True, "suppress_workflow_mail": True}))
+		self.enterContext(patch.dict(frappe.conf, {"enable_parallel_workflow_approval": True}))
 		fixture = seed()
 		payload = {
 			"doctype": "User Timesheet",

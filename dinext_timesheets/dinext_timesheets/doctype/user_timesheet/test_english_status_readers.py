@@ -19,39 +19,24 @@ from dinext_timesheets.timesheet_status import APPROVED_POSITION_STATUSES
 
 class TestEnglishStatusReaders(FrappeTestCase):
 	def test_fact_queries_include_approved_and_legacy_status(self):
-		apps = Path(frappe.get_app_path("dinext_timesheets")).parents[1]
-		progress = (
-			apps
-			/ "project_workload_assignment"
-			/ "project_workload_assignment"
-			/ "project_workload_assignment"
-			/ "work_efforts"
-			/ "work_efforts_progress.py"
-		).read_text()
-		burndown = (
-			apps / "dinext_project_tasks_gantt" / "dinext_project_tasks_gantt" / "burndown.py"
-		).read_text()
-		consolidated = (
-			apps
-			/ "project_workload_assignment"
-			/ "project_workload_assignment"
-			/ "project_workload_assignment"
-			/ "work_efforts"
-			/ "consolidated_data.py"
-		).read_text()
-		utilization = (
-			apps
-			/ "project_workload_assignment"
-			/ "project_workload_assignment"
-			/ "project_workload_assignment"
-			/ "project_workload"
-			/ "utilization"
-			/ "utp_actual.py"
-		).read_text()
-		self.assertIn("UTP.status.isin(APPROVED_POSITION_STATUSES)", progress)
-		self.assertIn("UTP.status.isin(APPROVED_POSITION_STATUSES)", consolidated)
-		self.assertEqual(utilization.count("utp.status.isin(APPROVED_POSITION_STATUSES)"), 2)
-		self.assertIn("utp.status.isin(APPROVED_POSITION_STATUSES)", burndown)
+		from dinext_project_tasks_gantt import burndown
+		from project_workload_assignment import approval_statuses
+		from project_workload_assignment.project_workload_assignment.project_workload.utilization import utp_actual
+		from project_workload_assignment.project_workload_assignment.work_efforts import (
+			consolidated_data,
+			work_efforts_progress,
+		)
+
+		for module, condition, count in (
+			(work_efforts_progress, "UTP.status.isin(APPROVED_STATUSES)", 1),
+			(consolidated_data, "UTP.status.isin(APPROVED_STATUSES)", 1),
+			(utp_actual, "utp.status.isin(APPROVED_STATUSES)", 2),
+			(burndown, "utp.status.isin(APPROVED_POSITION_STATUSES)", 2),
+		):
+			with self.subTest(module=module.__name__):
+				self.assertEqual(Path(module.__file__).read_text().count(condition), count)
+		self.assertEqual(approval_statuses.APPROVED_STATUSES, APPROVED_POSITION_STATUSES)
+		self.assertEqual(burndown.APPROVED_POSITION_STATUSES, APPROVED_POSITION_STATUSES)
 
 		utp = frappe.qb.DocType("User Timesheet Position")
 		sql = (

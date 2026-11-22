@@ -14,8 +14,7 @@ from dinext_common.tests.ui_test_helpers import (
 	_transition,
 )
 from frappe.tests.ui_test_helpers import whitelist_for_tests
-
-from dinext_timesheets.tests.ui_test_helpers import _worker
+from frappe.utils import add_days, get_first_day, nowdate
 
 PREFIX = "_Cypress UTP List"
 ROLE = PREFIX + " Reader"
@@ -28,6 +27,8 @@ WORKFLOW = PREFIX + " Workflow"
 PROJECT = PREFIX + " Project"
 PROJECT_ROLE = PREFIX + " Project Role"
 ACTION = PREFIX + " Approve"
+CALENDAR = PREFIX + " Calendar"
+TEMPLATE = PREFIX + " Template"
 
 
 @whitelist_for_tests
@@ -69,6 +70,8 @@ def cleanup_utp_list():
 			frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
 	for name in frappe.get_all("Worker", filters={"wuser": ("in", USERS)}, pluck="name"):
 		frappe.delete_doc("Worker", name, force=True, ignore_permissions=True)
+	frappe.delete_doc_if_exists("Timesheet Template", TEMPLATE, force=True)
+	frappe.delete_doc_if_exists("Holiday List", CALENDAR, force=True)
 	if frappe.db.exists("User Group", GROUP):
 		frappe.delete_doc("User Group", GROUP, force=True, ignore_permissions=True)
 	for user in USERS:
@@ -113,8 +116,20 @@ def seed_utp_list():
 		(VIEWER, "Cypress List Viewer"),
 	):
 		_ensure_user(email, title, [ROLE, "Desk User", "System Manager", "Dinext_Worker"])
-	calendar = _worker()
-	start, end = calendar.period
+	start = get_first_day(nowdate())
+	end = add_days(start, 6)
+	frappe.get_doc(
+		{"doctype": "Holiday List", "holiday_list_name": CALENDAR, "from_date": start, "to_date": end}
+	).insert(ignore_permissions=True)
+	frappe.get_doc({
+		"doctype": "Timesheet Template",
+		"ttsubject": TEMPLATE,
+		"ttreporting_period": "Недельный",
+		"hours_on_date": 0,
+		"minimum_hours": 0,
+		"maximum_hours": 24,
+		"enabled": 1,
+	}).insert(ignore_permissions=True)
 	frappe.get_doc({"doctype": "User Group", "name": GROUP, "user_group_members": [{"user": OWNER}]}).insert(
 		ignore_permissions=True
 	)
@@ -125,8 +140,8 @@ def seed_utp_list():
 			"wfullname": "Cypress List Owner",
 			"wuser_group": GROUP,
 			"wvalid_from": start,
-			"wtimesheet_template": calendar.wtimesheet_template,
-			"wholiday_list": calendar.wholiday_list,
+			"wtimesheet_template": TEMPLATE,
+			"wholiday_list": CALENDAR,
 		}
 	).insert(ignore_permissions=True)
 	# These are owned display references; insertion avoids unrelated project provisioning.

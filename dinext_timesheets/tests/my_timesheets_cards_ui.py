@@ -39,7 +39,10 @@ def identity(namespace):
 
 
 def guard():
-	if frappe.local.site not in {"localhost", "test_site"} or frappe.session.user != "Administrator":
+	allowed_site = frappe.local.site in {"localhost", "test_site"} or (
+		frappe.local.site == "ci.test" and frappe.flags.in_test
+	)
+	if not allowed_site or frappe.session.user != "Administrator":
 		raise frappe.PermissionError("Local test administrator required")
 	if not (frappe.flags.in_test or getattr(frappe.local, "dev_server", False)):
 		raise frappe.PermissionError("Development or test context required")

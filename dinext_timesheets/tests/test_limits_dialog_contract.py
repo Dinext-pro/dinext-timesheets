@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from unittest.mock import patch
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -19,6 +20,7 @@ from dinext_timesheets.tests.limits_dialog_ui import (
 class TestLimitsDialogContract(FrappeTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
+		self.enterContext(patch.dict(frappe.conf, {"enable_parallel_workflow_approval": True}))
 		self.fixture = seed_limits_dialog()
 		self.positions = calculation_inputs(self.fixture["timesheet"])
 

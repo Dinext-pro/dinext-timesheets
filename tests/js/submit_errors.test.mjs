@@ -105,7 +105,7 @@ test("unsaved positions ask to save before the error list", async () => {
 		form({ ts_positions: [{ name: "new_1", new: true }] }),
 	]) {
 		prints.length = 0;
-		assert.equal(await guardEditableTimesheet(frm, checks), false);
+		assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 		assert.deepEqual(prints, ["Save the timesheet first"]);
 	}
 });
@@ -122,7 +122,7 @@ test("a row missing project, task, role, and hours marks those cells", async () 
 		}),
 	];
 	frm.ut.holidays = [{ holiday_date: DATE }];
-	assert.equal(await guardEditableTimesheet(frm, checks), false);
+	assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 	assert.deepEqual(dialog(), [
 		"Select a project in row 1",
 		"Select a request or task in row 1",
@@ -148,7 +148,7 @@ test("a mandatory description is required on a filled day", async () => {
 	const frm = form();
 	frm.template_doc = { ...frm.template_doc, _is_mandatory: true };
 	frm.ut.rows = [row({ [`desc_${DATE}`]: "  " })];
-	assert.equal(await guardEditableTimesheet(frm, checks), false);
+	assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 	const message = "Description is not filled for 2026-09-03 on task Task One";
 	assert.deepEqual(dialog(), [message]);
 	assert.equal(frm.ut.invalidCells.get(`row-1::${DAY}`), message);
@@ -160,7 +160,7 @@ test("duplicate project, task, and role rows are rejected", async () => {
 		row({ id: "row-1", [DAY]: 4 }),
 		row({ id: "row-2", [DAY]: 4 }),
 	];
-	assert.equal(await guardEditableTimesheet(frm, checks), false);
+	assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 	const message = "Duplicate rows 1, 2: same project, task, and role";
 	assert.deepEqual(dialog(), [message]);
 	for (const id of ["row-1", "row-2"]) {
@@ -174,7 +174,7 @@ test("a working day without positions asks to add them", async () => {
 	const frm = form();
 	frm.ut.rows = [];
 	frm.ts_positions = [];
-	assert.equal(await guardEditableTimesheet(frm, checks), false);
+	assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 	assert.deepEqual(dialog(), ["Add positions for approval"]);
 	assert.equal(frm.ut.invalidCells.size, 0);
 });
@@ -182,7 +182,7 @@ test("a working day without positions asks to add them", async () => {
 test("a day below the minimum marks the total row", async () => {
 	const frm = form();
 	frm.ut.rows = [row({ [DAY]: 1 })];
-	assert.equal(await guardEditableTimesheet(frm, checks), false);
+	assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 	const message = "2026-09-03 cannot be less than 8 hours.";
 	assert.deepEqual(dialog(), [message]);
 	assert.equal(frm.ut.invalidCells.get(`ut_day_totals::${DAY}`), message);
@@ -191,7 +191,7 @@ test("a day below the minimum marks the total row", async () => {
 test("a day above the maximum marks the total row", async () => {
 	const frm = form();
 	frm.ut.rows = [row({ [DAY]: 12 })];
-	assert.equal(await guardEditableTimesheet(frm, checks), false);
+	assert.equal(await guardEditableTimesheet(frm, checks, frappe.msgprint), false);
 	const message = "2026-09-03 cannot be more than 8 hours.";
 	assert.deepEqual(dialog(), [message]);
 	assert.equal(frm.ut.invalidCells.get(`ut_day_totals::${DAY}`), message);
@@ -210,7 +210,7 @@ test("a blocking planned-hours limit is a submit error", async () => {
 			},
 		],
 	});
-	assert.equal(await guardEditableTimesheet(form(), checks), false);
+	assert.equal(await guardEditableTimesheet(form(), checks, frappe.msgprint), false);
 	assert.deepEqual(dialog(), [
 		'Work efforts for task "Subject" (role: Developer) exceeded the blocking limit (10 h.) by 2 hour(s).',
 	]);
@@ -227,7 +227,7 @@ test("missing mandatory planned hours are a submit error", async () => {
 			},
 		],
 	});
-	assert.equal(await guardEditableTimesheet(form(), checks), false);
+	assert.equal(await guardEditableTimesheet(form(), checks, frappe.msgprint), false);
 	assert.deepEqual(dialog(), [
 		'Mandatory planned work efforts are not defined for task "Subject" (role: Developer)',
 	]);
@@ -237,7 +237,7 @@ test("a failed limits call is reported as a submit error", async () => {
 	frappe.call = async () => {
 		throw new Error("boom");
 	};
-	assert.equal(await guardEditableTimesheet(form(), checks), false);
+	assert.equal(await guardEditableTimesheet(form(), checks, frappe.msgprint), false);
 	assert.deepEqual(dialog(), [
 		"Error checking planned work efforts and limits: boom",
 	]);
@@ -246,7 +246,7 @@ test("a failed limits call is reported as a submit error", async () => {
 test("actions that do not check the timesheet skip validation", async () => {
 	const frm = form();
 	frm.ut.rows = [row({ project: "" })];
-	assert.equal(await guardEditableTimesheet(frm, {}), true);
+	assert.equal(await guardEditableTimesheet(frm, {}, frappe.msgprint), true);
 	assert.deepEqual(prints, []);
 	assert.equal(frm.ut.invalidCells.size, 0);
 });

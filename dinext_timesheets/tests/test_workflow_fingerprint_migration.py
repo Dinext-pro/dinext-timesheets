@@ -20,7 +20,7 @@ class TestWorkflowFingerprintMigration(FrappeTestCase):
 				"doctype": "Workflow",
 				"workflow_name": "_Test exclusions " + frappe.generate_hash(length=8),
 				"document_type": "User Timesheet Position",
-				"workflow_state_field": "workflow_state",
+				"workflow_state_field": "status",
 				"is_active": 0,
 				"states": [{"state": "Editing", "doc_status": "0", "allow_edit": "System Manager"}],
 			}

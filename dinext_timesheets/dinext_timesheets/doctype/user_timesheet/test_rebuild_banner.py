@@ -38,8 +38,13 @@ class TestTimesheetRebuildRounds(unittest.TestCase):
 			patch.object(
 				workflow_approval.frappe,
 				"get_all",
-				return_value=positions,
+				side_effect=[["POS-1", "POS-2", "HIDDEN"], positions],
 			) as get_positions,
+			patch.object(
+				workflow_approval.frappe, "has_permission",
+				side_effect=lambda _doctype, _ptype, *, doc: doc != "HIDDEN",
+			),
+			patch("dinext_common.workflow_approval.permissions.prepare_source_permissions"),
 			patch(
 				"dinext_common.workflow_approval.api.describe_rebuild_rounds",
 				return_value=rounds,
@@ -48,9 +53,10 @@ class TestTimesheetRebuildRounds(unittest.TestCase):
 			result = workflow_approval.get_timesheet_rebuild_rounds("TS-1")
 
 		parent.check_permission.assert_called_once_with("read")
-		get_positions.assert_called_once_with(
+		self.assertEqual(get_positions.call_count, 2)
+		get_positions.assert_called_with(
 			"User Timesheet Position",
-			filters={"user_timesheet": "TS-1"},
+			filters={"name": ("in", ["POS-1", "POS-2"])},
 			fields=["name", "project", "project_role"],
 		)
 		describe.assert_called_once_with("User Timesheet Position", ["POS-1", "POS-2"])

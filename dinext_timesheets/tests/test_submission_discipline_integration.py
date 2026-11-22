@@ -4,6 +4,14 @@ from dinext_timesheets.tests.test_deadline_integration import TestDeadlineIntegr
 
 
 class TestSubmissionEvents(Base):
+	def setUp(self):
+		super().setUp()
+		from dinext_timesheets.submission_discipline import TRACKING_KEY
+
+		previous = frappe.db.get_default(TRACKING_KEY)
+		frappe.db.set_default(TRACKING_KEY, "2026-01-01 00:00:00")
+		self.addCleanup(frappe.db.set_default, TRACKING_KEY, previous)
+
 	def test_legacy_rework_submission_keeps_unknown_first_and_records_a_resubmission(self):
 		from dinext_timesheets.submission_discipline import submission_result
 

@@ -3,6 +3,30 @@ from unittest.mock import MagicMock, patch
 
 
 class TestWorkflowEmailDefaults(unittest.TestCase):
+    def test_migration_profiles_declare_application_mail_policy(self):
+        from dinext_timesheets.workflow_email import approval_email_profiles
+
+        profiles = approval_email_profiles()
+        for doctype, digest, correction in (
+            ("Application For Leave", "Dinext Workflow Digest", "Dinext Workflow Correction"),
+            (
+                "User Timesheet Position",
+                "Dinext Timesheet Workflow Digest",
+                "Dinext Timesheet Workflow Correction",
+            ),
+        ):
+            with self.subTest(doctype=doctype):
+                migration = profiles[doctype].get("migration")
+                self.assertIsNotNone(migration)
+                self.assertEqual(migration["workflow_fields"]["custom_group_send_times"], "08:00, 17:00")
+                self.assertEqual(migration["workflow_fields"]["custom_group_email_template"], digest)
+                self.assertEqual(migration["enabled_states"], ("Pending Approval", "Rejected", "Отклонено"))
+                for state in ("Rejected", "Отклонено"):
+                    overrides = migration["state_overrides"][state]
+                    self.assertEqual(overrides["next_action_email_template"], correction)
+                    self.assertIn(state, migration["creator_notification_states"])
+                    self.assertIn(state, migration["suppress_open_tasks_in_states"])
+
     def test_legacy_setup_preserves_migrated_email_profile(self):
         from dinext_timesheets.patches.v1_0 import configure_parallel_workflows_v2 as setup
         workflow=MagicMock()

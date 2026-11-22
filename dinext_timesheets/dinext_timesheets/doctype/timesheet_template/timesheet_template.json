@@ -111,9 +111,11 @@
    "label": "Deadlines for sending"
   },
   {
+   "description": "Working days after the timesheet period, using the Worker's Holiday List. Recalculated on every save in Draft or Rework.",
    "fieldname": "working_days",
    "fieldtype": "Int",
    "label": "Working Days",
+   "non_negative": 1,
    "reqd": 1
   }
  ],
@@ -125,7 +127,7 @@
    "link_fieldname": "wtimesheet_template"
   }
  ],
- "modified": "2026-07-30 00:12:56.108130",
+ "modified": "2026-11-05 02:59:43.854282",
  "modified_by": "Administrator",
  "module": "Dinext Timesheets",
  "name": "Timesheet Template",

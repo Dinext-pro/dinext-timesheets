@@ -28,11 +28,15 @@ def detach_owned_project_team_fields() -> None:
 
 
 def after_install() -> None:
+	from dinext_timesheets.submission_discipline import ensure_submission_tracking
+	ensure_submission_tracking()
 	detach_owned_project_team_fields()
 	register_dinext_hub_items()
 
 
 def after_migrate() -> None:
+	from dinext_timesheets.submission_discipline import ensure_submission_tracking
+	ensure_submission_tracking()
 	from dinext_timesheets.dinext_timesheets.user_timesheet._disable_cutover_scripts import (
 		run as disable_cutover_scripts,
 	)
@@ -41,3 +45,17 @@ def after_migrate() -> None:
 	# Fixtures still ship enabled=1 CS/SS; without this, migrate re-enables
 	# V10 / UT_Accept_WF / Set Timesheet Status and form RPC goes bare again.
 	disable_cutover_scripts()
+	from dinext_timesheets.setup.deadlines import configure_deadline_metadata
+
+	configure_deadline_metadata()
+	from dinext_timesheets.patches.v1_0.configure_parallel_workflows_v2 import (
+		execute as configure_parallel_workflows,
+	)
+
+	configure_parallel_workflows()
+	from dinext_timesheets.setup.workflow_deadlines import configure_utp_deadlines
+	configure_utp_deadlines()
+
+	from dinext_timesheets.setup.utp_edit_action import reconcile_open_rounds
+
+	reconcile_open_rounds()

@@ -165,7 +165,8 @@
   "doctype": "Workflow Action Master",
   "modified": "2023-09-13 13:39:44.489479",
   "name": "Не согласовано",
-  "workflow_action_name": "Не согласовано"
+  "workflow_action_name": "Не согласовано",
+  "custom_icon": "close"
  },
  {
   "docstatus": 0,
@@ -186,7 +187,8 @@
   "doctype": "Workflow Action Master",
   "modified": "2023-09-13 13:40:04.884016",
   "name": "Согласовано",
-  "workflow_action_name": "Согласовано"
+  "workflow_action_name": "Согласовано",
+  "custom_icon": "check"
  },
  {
   "docstatus": 0,
@@ -240,20 +242,6 @@
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-05-28 02:44:21.021316",
-  "name": "Submit for Approval",
-  "workflow_action_name": "Submit for Approval"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
-  "modified": "2023-02-21 18:24:43.349710",
-  "name": "Reject",
-  "workflow_action_name": "Reject"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
   "modified": "2026-04-11 20:07:57.726912",
   "name": "Submit for Review",
   "workflow_action_name": "Submit for Review"
@@ -278,13 +266,6 @@
   "modified": "2026-06-04 02:21:08.282024",
   "name": "Request Rework",
   "workflow_action_name": "Request Rework"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
-  "modified": "2023-02-21 18:24:43.347957",
-  "name": "Approve",
-  "workflow_action_name": "Approve"
  },
  {
   "docstatus": 0,

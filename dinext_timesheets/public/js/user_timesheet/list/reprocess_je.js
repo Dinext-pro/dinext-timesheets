@@ -13,7 +13,7 @@ function add_reprocces_button( listview ) {
         listview.page.add_action_item(__("Reprocess Journal Entries"), async () => {
             let uts = listview.get_checked_items( false );
             
-            const approved_uts = uts.filter(function(element, index) { return element.ut_status == "Согласован" });
+            const approved_uts = uts.filter(function(element, index) { return element.ut_status == "Approved" });
             
             if ( approved_uts && approved_uts.length ) {
                 let total = approved_uts.length ;

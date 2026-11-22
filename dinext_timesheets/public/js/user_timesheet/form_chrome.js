@@ -1,15 +1,14 @@
 /**
- * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly, dashboard).
+ * Form-level buttons / post-mount hooks (copy, WF, submit, limits, readonly).
  */
 import { canEdit, canReprocessJournalEntries } from "./model.js";
 import { setupCopyButtons, disableCopyButtons } from "./copy.js";
 import { processUTWorkflow, clearWorkflowButtons } from "./workflow.js";
 import { refreshLimits } from "./limits.js";
-import { setupSubmitButtons, clearSubmitButtons } from "./submit.js";
+import { clearSubmitButtons } from "./submit.js";
 import { resetTimesheetRuntime } from "./state.js";
 import { applyToolbarChrome } from "./toolbar.js";
 import { showTimesheetDashboard } from "./dashboard.js";
-import { resolveTeamLeadAccess } from "./team_lead.js";
 import { applyNewTimesheetDefaults } from "./new_doc.js";
 import { applyTimesheetSidebarHide } from "./sidebar.js";
 import { scheduleCascadeLayout } from "./column-layout.js";
@@ -47,7 +46,7 @@ function clearTimesheetButtons(frm) {
 /** V10 disableReprocessJournalEntries: only Согласован + UT import perm. */
 function applyReprocessJournalEntriesButton(frm) {
 	clearReprocessButton(frm);
-	if (frm.doc.ut_status !== "Согласован" || !canReprocessJournalEntries()) {
+	if (frm.doc.ut_status !== "Approved" || !canReprocessJournalEntries(frm)) {
 		return;
 	}
 	frm.add_custom_button(
@@ -87,14 +86,12 @@ export async function setupFormChrome(frm) {
 			});
 		}
 		try {
-			await resolveTeamLeadAccess(frm);
 			applyReadonlyChrome(frm);
 		} finally {
 			frm._ut_chrome_inflight = false;
 		}
 	}
 	setupCopyButtons(frm);
-	setupSubmitButtons(frm);
 	applyReprocessJournalEntriesButton(frm);
 	await processUTWorkflow(frm);
 	await showTimesheetDashboard(frm);

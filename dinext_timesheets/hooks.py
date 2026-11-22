@@ -11,9 +11,27 @@ app_license = "GNU General Public License (v3)"
 # ------------------
 
 fixtures = [
+    {
+        "doctype": "Email Template",
+        "filters": [["name", "in", [
+            "Dinext Timesheet Workflow Correction",
+            "Dinext Timesheet Workflow Digest",
+            "Dinext Timesheet Workflow Deadline Digest",
+        ]]],
+    },
+    {
+        "doctype": "List View Settings",
+        "filters": [["name", "=", "User Timesheet Position"]],
+    },
     "Type Of Leave",    
-    "Workflow State",
-    "Workflow Action Master",    
+    {
+        "doctype": "Workflow State",
+        "filters": [["name", "not in", ["Draft", "Editing", "Pending Approval", "Approved", "Rejected"]]],
+    },
+    {
+        "doctype": "Workflow Action Master",
+        "filters": [["name", "not in", ["Submit for Approval", "Approve", "Reject", "Stop Workflow", "Edit"]]],
+    },
     {
         "doctype": "Calendar View",
         "filters": [
@@ -36,12 +54,15 @@ fixtures = [
         "doctype": "Client Script",
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],
+            ["enabled", "=", 1],
         ]
     },
     {
         "doctype": "Server Script",
         "filters": [
             ["module", "in", ["Dinext Timesheets"]],
+            ["disabled", "=", 0],
+            ["name", "not in", ["AFL_Calculate_Hours", "AFL_Projects"]],
         ]
     },
     {
@@ -96,6 +117,7 @@ fixtures = [
                 "User Projects",
                 "Worker",
                 "Working Hours On Date",
+                "Workflow Task",
             ]]
         ]
     },    
@@ -153,8 +175,15 @@ required_apps = ["dinext_common", "dinext_projects", "dinext_projects_pl", "doct
 # include js in doctype views
 # User Timesheet UI → public/js/user_timesheet (ISS-2026-00926 try3)
 doctype_js = {
-	"User Timesheet": "public/js/user_timesheet/entry.js",
-	"User Timesheet Position": "public/js/user_timesheet_position/form/route.js",
+	"Task": "public/js/timesheet_deadline_reminder.js",
+	"Issue": "public/js/timesheet_deadline_reminder.js",
+	"User Timesheet": [
+		"public/js/user_timesheet/entry.js",
+	],
+	"User Timesheet Position": [
+		"public/js/user_timesheet_position_form.js",
+		"public/js/user_timesheet_position/form/route.js",
+	],
 }
 doctype_list_js = {
 	"User Timesheet": [
@@ -168,6 +197,7 @@ doctype_list_js = {
 		"public/js/user_timesheet_position/list/functions.js",
 		"public/js/user_timesheet_position/list/history.js",
 		"public/js/user_timesheet_position/list/custom_listview.js",
+		"public/js/user_timesheet_position_list.js",
 	],
 }
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -209,7 +239,22 @@ doctype_list_js = {
 
 # before_install = "dinext_timesheets.install.before_install"
 after_install = "dinext_timesheets.install.after_install"
-after_migrate = "dinext_timesheets.install.after_migrate"
+before_migrate = [
+    "dinext_timesheets.setup.application_for_leave.disable_superseded_server_scripts",
+    "dinext_timesheets.setup.utp_edit_action.guard_open_rounds",
+    "dinext_timesheets.patches.v1_0.unify_utp_workflow_status.guard_parallel_migration",
+    "dinext_timesheets.workflow_email.ensure_approval_email_templates",
+]
+after_migrate = [
+    "dinext_timesheets.install.after_migrate",
+    "dinext_timesheets.workflow_permissions.restore_workflow_task_base_read",
+]
+after_sync = [
+    "dinext_timesheets.setup.application_for_leave.disable_superseded_server_scripts",
+    "dinext_timesheets.setup.deadlines.configure_deadline_metadata",
+    "dinext_timesheets.setup.workflow_deadlines.configure_utp_deadlines",
+    "dinext_timesheets.patches.v1_0.grant_timesheet_approver_report_permission.execute",
+]
 extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 
 # Uninstallation
@@ -244,9 +289,9 @@ extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
+permission_query_conditions = {
+	"User Timesheet Position": "dinext_timesheets.timesheet_settings.utp_list_conditions",
+}
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
@@ -267,24 +312,56 @@ extend_bootinfo = ["dinext_timesheets.boot.extend_bootinfo"]
 # Canon bodies: demodev Server Scripts — disable matching SS on site after cutover.
 
 doc_events = {
+	"Application For Leave": {
+		"on_change": "dinext_timesheets.manual_review.review_changed_leave",
+	},
+	"Project": {
+		"on_change": "dinext_timesheets.manual_review.review_closed_project",
+	},
+	"Workflow": {
+		"before_import": "dinext_timesheets.setup.utp_edit_action.prepare_workflow_import",
+		"validate": "dinext_timesheets.setup.utp_edit_action.validate_position_state_field",
+	},
 	"User Timesheet": {
+		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_insert",
 		"before_save": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.before_save",
 		# Server Script "After Save" ≡ Document.on_update (JE create/cancel)
-		"on_update": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.on_update",
+		"on_update": ["dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet.on_update",
+			"dinext_timesheets.submission_discipline.on_timesheet_update"],
 	},
 	"User Timesheet Position": {
 		"before_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.before_insert",
 		"before_save": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.before_save",
 		# Server Script "After Save" ≡ Document.on_update
 		# Layer 3 ISS-2026-03288: UTP→UT rollup + Task act_* (SS UTP_UT_Status_V3 disabled local)
-		"on_update": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.on_update",
+		"on_update": [
+			"dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.on_update",
+			"dinext_timesheets.workflow_approval.on_utp_update",
+		],
 		"on_trash": "dinext_timesheets.dinext_timesheets.user_timesheet.events.user_timesheet_position.on_trash",
 	},
 	"Comment": {
 		# Server Script "After Insert" ≡ Document.after_insert
-		"after_insert": "dinext_timesheets.dinext_timesheets.user_timesheet.events.comment.transfer_utp_comment_to_ut",
+		"after_insert": [
+			"dinext_timesheets.dinext_timesheets.user_timesheet.events.comment.transfer_utp_comment_to_ut",
+		],
 	},
 }
+
+workflow_approval_lock_dependencies = [
+	"dinext_timesheets.workflow_approval.lock_dependencies",
+]
+workflow_approval_pending_approvers = [
+	"dinext_timesheets.workflow_approval.pending_approvers",
+]
+workflow_approval_vote_completed = [
+	"dinext_timesheets.workflow_approval.on_vote_completed",
+]
+workflow_approval_digest_item = [
+	"dinext_timesheets.workflow_approval.digest_item",
+]
+workflow_approval_scoped_digest_item = ["dinext_timesheets.workflow_email.digest_item"]
+workflow_approval_email_dependencies = ["dinext_timesheets.workflow_email.email_dependencies"]
 
 # Scheduled Tasks
 # ---------------
@@ -379,3 +456,57 @@ scheduler_events = {
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+
+# Allow read-only filtering of historical timesheet status values.
+doctype_list_js["User Timesheet"].append("public/js/card_route_filters.js")
+
+workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_context"]
+workflow_approval_email_permission = ["dinext_timesheets.workflow_email.can_receive"]
+workflow_approval_email_template_providers = ["dinext_timesheets.workflow_email.approval_email_templates"]
+workflow_approval_email_profile_providers = ["dinext_timesheets.workflow_email.approval_email_profiles"]
+
+workflow_scenario_final_states = {"AFL Workflow": ["Approved"]}
+
+has_permission = {"Number Card": "dinext_timesheets.number_card_permissions.has_permission"}
+
+workflow_approval_domain_handlers = {
+    "Application For Leave": {
+        "validate_vote": "dinext_timesheets.application_for_leave.validate_workflow_vote",
+    },
+    "User Timesheet Position": {
+        "vote_context": "dinext_timesheets.workflow_scenario_actions.atomic_timesheet_transition",
+        "validate_vote": "dinext_timesheets.workflow_scenario_actions.validate_position_vote",
+        "use_authorized_transition": "dinext_timesheets.workflow_scenario_actions.use_authorized_domain_transition",
+    },
+}
+
+workflow_approval_form_references = {
+    "User Timesheet": "dinext_timesheets.workflow_form_references.timesheet_positions",
+}
+
+workflow_approval_localization = {
+    "UTP Workflow": "dinext_timesheets.workflow_localization.label_rules",
+    "AFL Workflow": "dinext_timesheets.workflow_localization.leave_label_rules",
+}
+
+workflow_approval_round_opened = [
+	"dinext_timesheets.dinext_timesheets.user_timesheet.events.limits_notify.schedule_limit_notice",
+]
+
+workflow_approval_cutover_providers = ["dinext_timesheets.workflow_cutover.configuration"]
+
+workflow_approval_email_presentation_providers = ["dinext_timesheets.workflow_email_presentation.present_email"]
+workflow_approval_previous_email_template_providers = ["dinext_timesheets.workflow_email.previous_approval_email_templates"]
+workflow_approval_email_choice_fields = ["custom_timesheet_management_action"]
+
+override_whitelisted_methods = {
+    "dinext_common.workflow_approval.scenarios.timesheet_actions.get_timesheet_position_actions":
+        "dinext_timesheets.workflow_approval.get_timesheet_position_actions",
+    "dinext_common.workflow_approval.scenarios.timesheet_actions.apply_timesheet_position_action":
+        "dinext_timesheets.workflow_approval.apply_timesheet_position_action",
+}
+
+workflow_approval_number_card_state_fields = {
+    "Application For Leave": "status",
+    "User Timesheet Position": "status",
+}

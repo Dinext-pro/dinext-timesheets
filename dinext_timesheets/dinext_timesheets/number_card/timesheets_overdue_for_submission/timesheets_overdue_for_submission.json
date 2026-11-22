@@ -1,0 +1,18 @@
+{
+ "color": "#CB2929",
+ "doctype": "Number Card",
+ "document_type": "User Timesheet",
+ "dynamic_filters_json": "[]",
+ "filters_json": "[]",
+ "function": "Count",
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Timesheets Overdue for Submission",
+ "method": "dinext_timesheets.deadlines.get_overdue_submission_summary",
+ "modified": "2026-11-15 02:00:00.000000",
+ "module": "Dinext Timesheets",
+ "name": "Timesheets Overdue for Submission",
+ "show_full_number": 1,
+ "show_percentage_stats": 0,
+ "type": "Custom"
+}

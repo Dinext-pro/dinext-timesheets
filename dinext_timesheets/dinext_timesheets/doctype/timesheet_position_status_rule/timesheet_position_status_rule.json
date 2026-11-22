@@ -1,0 +1,68 @@
+{
+ "actions": [],
+ "creation": "2026-10-15 01:50:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "position_status",
+  "threshold",
+  "timesheet_status",
+  "threshold",
+  "move_all_positions",
+  "check_timesheet"
+ ],
+ "fields": [
+  {
+   "fieldname": "position_status",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Position Status",
+   "options": "Workflow State",
+   "reqd": 1
+  },
+  {
+   "fieldname": "timesheet_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Timesheet Status",
+   "options": "Draft\nPending Approval\nRejected\nRework\nApproved",
+   "reqd": 1
+  },
+  {
+   "fieldname": "threshold",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Threshold",
+   "options": "Any\nAll",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "move_all_positions",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Move All Positions"
+  },
+  {
+   "default": "0",
+   "description": "Run the timesheet filling checks before the timesheet enters this row's status.",
+   "fieldname": "check_timesheet",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Timesheet Check"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-15 01:50:00.000000",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "Timesheet Position Status Rule",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

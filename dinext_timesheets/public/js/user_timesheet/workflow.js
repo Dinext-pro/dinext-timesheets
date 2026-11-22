@@ -1,163 +1,216 @@
 /**
- * Approver actions on UT Form (demodev UT_Accept_WF).
+ * Approver actions on the User Timesheet form.
+ * Position workflow actions: get_timesheet_position_actions + apply_timesheet_position_action.
  */
-const SET_STATUS =
-	"dinext_timesheets.dinext_timesheets.user_timesheet.api.set_timesheet_status";
+import { guardEditableTimesheet, reportTimesheetError } from "./submit.js";
+const POSITION_ACTIONS =
+	"dinext_timesheets.workflow_approval.get_timesheet_position_actions";
+const APPLY = "dinext_timesheets.workflow_approval.apply_timesheet_position_action";
 
-const ICONS = {
-	Согласовано: "✅",
-	"Не согласовано": "❌",
-};
+const WORKFLOW_GROUP = "Workflow";
 
-function workflowButtonLabel(action) {
-	const icon = ICONS[action];
-	return (icon ? `${icon} ` : "") + __(action);
+function requestId() {
+	return (
+		window.crypto?.randomUUID?.() ||
+		`${Date.now()}-${Math.random().toString(16).slice(2)}`
+	);
 }
 
 export function clearWorkflowButtons(frm) {
+	const group = __(WORKFLOW_GROUP);
 	for (const label of frm._ut_wf_button_labels || []) {
+		frm.remove_custom_button(label, group);
+		frm.remove_custom_button(__(label), group);
 		frm.remove_custom_button(label);
 		frm.remove_custom_button(__(label));
 	}
 	frm._ut_wf_button_labels = [];
 }
 
-async function addUTComment(docname, comment) {
-	const currentUser = frappe.session.user;
-	return frappe.call({
-		method: "frappe.desk.form.utils.add_comment",
-		args: {
-			reference_doctype: "User Timesheet Position",
-			reference_name: docname,
-			content: comment,
-			comment_by: currentUser,
-			comment_email: currentUser,
-		},
-		silent: true,
+/** New or Not Saved: same flag as the orange form pill. */
+function timesheetNeedsSave(frm) {
+	return !!(frm?.is_new?.() || frm?.doc?.__islocal || frm?.is_dirty?.());
+}
+
+function bindUnsavedWorkflowHide(frm) {
+	if (!frm?.$wrapper || frm._ut_wf_dirty_bound) {
+		return;
+	}
+	frm._ut_wf_dirty_bound = true;
+	frm.$wrapper.on("dirty.utWorkflow", () => {
+		frm._ut_wf_gen = (frm._ut_wf_gen || 0) + 1;
+		clearWorkflowButtons(frm);
 	});
 }
 
-async function updateUTPositions(frm, updatedPositions, pos_status, comment = null) {
+async function refreshTimesheet(frm) {
+	let finishRefresh;
+	let timer;
+	const refreshed = new Promise((resolve, reject) => {
+		finishRefresh = resolve;
+		timer = setTimeout(() => reject(new Error(__("Could not reload the workflow document"))), 30000);
+	});
+	frm._ut_wait_for_workflow_refresh = finishRefresh;
 	try {
-		await frappe.call({
-			method: SET_STATUS,
-			args: {
-				positions: updatedPositions,
-				pos_status,
-				ts_name: frm.doc.name,
-			},
-			silent: true,
-			freeze: true,
-			freeze_message: __("Saving data..."),
-		});
-		if (comment) {
-			for (const item of updatedPositions) {
-				await addUTComment(item.name, comment);
-			}
+		frm.refresh();
+		await refreshed;
+	} finally {
+		clearTimeout(timer);
+		if (frm._ut_wait_for_workflow_refresh === finishRefresh) {
+			frm._ut_wait_for_workflow_refresh = null;
 		}
-		frappe.show_alert(
-			{ message: __("Data saved"), indicator: "green" },
-			5
-		);
-		frm.reload_doc();
-	} catch (err) {
-		const message = err?.responseJSON?.exception || String(err);
-		frappe.throw(__("Error saving data: {0}", [message]));
 	}
 }
 
-/** Show common UTP workflow actions for current approver. */
+function applyTimesheetAction(frm, transition) {
+	const {
+		captureWorkflowForm,
+		reloadWorkflowForm,
+		runWorkflowOperation,
+		withWorkflowComment,
+		workflowRequest,
+	} = frappe.dinext;
+	const target = captureWorkflowForm(frm);
+	const submit = async (comment) => {
+		if (!target.isCurrent()) return;
+		const id = requestId();
+		const count = transition.positions?.length || 1;
+		let result;
+		let validationMessage;
+		try {
+			result = await runWorkflowOperation(frm.page, async (updateProgress) => {
+				if (!(await guardEditableTimesheet(frm, transition, (message) => {
+					validationMessage = message;
+				}))) {
+					return;
+				}
+				if (!target.isCurrent()) return;
+				const outcome = await workflowRequest(APPLY, {
+					timesheet_name: target.name,
+					action: transition.action,
+					comment,
+					request_id: id,
+					track_progress: count > 1,
+					...(transition.scope ? { scope: transition.scope } : {}),
+					...(transition.targets ? { targets: transition.targets } : {}),
+				});
+				if (!outcome) {
+					throw new Error(__("The workflow result could not be confirmed"));
+				}
+				updateProgress(outcome.processed, outcome.total);
+				if (target.isCurrent()) {
+					await reloadWorkflowForm(frm, () => refreshTimesheet(frm));
+				}
+				return outcome;
+			}, {
+				count,
+				title: frappe.utils.escape_html(__("Applying: {0}", [__(transition.action)], "Workflow")),
+				requestId: id,
+			});
+		} catch (error) {
+			if (target.isCurrent()) reportTimesheetError(frm, error);
+			return;
+		}
+		if (!target.isCurrent()) return;
+		if (validationMessage) {
+			frappe.msgprint(validationMessage);
+		}
+		if (!result) return;
+
+		const results = result.results || [];
+		const messages = result.messages || [];
+		const failures = result.failed || [];
+		const escape = frappe.utils.escape_html;
+		const messageHtml = messages.map((message) => escape(message)).join("<br>");
+		if (failures.length) {
+			const positions = (frm.ut?.rows || []).filter((row) => row.rowType === "position");
+			const byName = new Map(positions.map((row, index) => [row.id, { row, number: index + 1 }]));
+			const rows = failures.map(({ name, error }) => {
+				const position = byName.get(name);
+				const label = position ? [
+					__("Position {0}", [position.number]),
+					position.row.project_label,
+					position.row.document_label,
+					position.row.project_role,
+				].filter(Boolean).join(" · ") : "";
+				const reason = name ? error.replaceAll(name, String(position?.number ?? "")) : error;
+				const heading = label ? `<strong>${escape(label)}</strong><br>` : "";
+				return `<li>${heading}${escape(reason)}</li>`;
+			});
+			const summary = results.length
+				? `<p>${escape(__("Successfully processed positions: {0} of {1}", [
+					results.length, result.total,
+				]))}</p>`
+				: "";
+			frappe.msgprint({
+				title: __("Could not process timesheet positions"),
+				indicator: "red",
+				message: `${summary}<ul>${rows.join("")}</ul>${messageHtml}`,
+			});
+			return;
+		}
+		const transitioned = results.some((row) => row.transitioned);
+		const failed = results.some(
+			(row) =>
+				!row.transitioned &&
+				["Conflicted", "Stalled"].includes(row.round_status)
+		);
+		if (!transitioned && (failed || messages.length)) {
+			frappe.msgprint({
+				title: __("Workflow action was not applied"),
+				indicator: "red",
+				message: messageHtml || __("Workflow action was not applied"),
+			});
+		} else if (messages.length) {
+			frappe.msgprint({
+				indicator: "orange",
+				message: messageHtml,
+			});
+		}
+	};
+	const ask = () => withWorkflowComment(transition, submit);
+	if (transition.confirm_return_to_editing) {
+		frappe.warn(
+			__("Are you sure you want to return the timesheet to editing?"),
+			__("The entire timesheet will need to be re-approved!"),
+			ask,
+			__("Continue"),
+			true
+		);
+		return;
+	}
+	return ask();
+}
+
+/** Position workflow actions the current user can apply. */
 export async function processUTWorkflow(frm) {
+	if (!frm) {
+		return;
+	}
 	const gen = (frm._ut_wf_gen = (frm._ut_wf_gen || 0) + 1);
 	clearWorkflowButtons(frm);
-
-	const isOwner = frappe.session.user === frm.doc.timesheet_from;
-	if (isOwner || frm.doc.ut_status !== "На согласовании") {
-		return;
-	}
-	if (!frm.ts_positions?.length) {
+	bindUnsavedWorkflowHide(frm);
+	if (timesheetNeedsSave(frm)) {
 		return;
 	}
 
-	const positionNames = frm.ts_positions.map((pos) => pos.name);
-	const userTasks = await frappe.db.get_list("Workflow Task", {
-		fields: ["name", "wt_docname"],
-		filters: {
-			doc: "User Timesheet Position",
-			wt_docname: ["in", positionNames],
-			status: "Working",
-			_assign: ["like", `%${frappe.session.user}%`],
-		},
-	});
-	if (gen !== frm._ut_wf_gen) {
-		return;
-	}
-	if (!userTasks.length) {
+	const response = await frappe.dinext
+		.workflowRequest(POSITION_ACTIONS, { timesheet_name: frm.doc.name })
+		.catch(() => null);
+	if (gen !== frm._ut_wf_gen || timesheetNeedsSave(frm)) {
 		return;
 	}
 
-	const taskPositionMap = {};
-	userTasks.forEach((task) => {
-		taskPositionMap[task.wt_docname] = task;
-	});
-	const positionsWithActiveTasks = frm.ts_positions.filter(
-		(pos) => taskPositionMap[pos.name]
-	);
-	if (!positionsWithActiveTasks.length) {
-		return;
-	}
-	frm.ts_positions_with_active_tasks = positionsWithActiveTasks;
-
-	const actions = await frappe.xcall(
-		"frappe.model.workflow.get_common_transition_actions",
-		{
-			docs: positionsWithActiveTasks,
-			doctype: "User Timesheet Position",
-		}
-	);
-	if (gen !== frm._ut_wf_gen) {
-		return;
-	}
-
-	clearWorkflowButtons(frm);
 	frm._ut_wf_button_labels = [];
-	for (const action of actions || []) {
-		const label = workflowButtonLabel(action);
-		frm.add_custom_button(label, async () => {
-			const position = { ...positionsWithActiveTasks[0] };
-			position.doctype = "User Timesheet Position";
-			const transitions = await frappe.workflow.get_transitions(position);
-			const cur_transition = transitions.find((t) => t.action === action);
-			if (!cur_transition) {
-				return;
-			}
-			if (cur_transition.custom_comment_is_required) {
-				frappe.prompt(
-					{
-						fieldtype: "Data",
-						label: __("Enter a comment"),
-						fieldname: "comment",
-						reqd: 1,
-					},
-					async (data) => {
-						await updateUTPositions(
-							frm,
-							positionsWithActiveTasks,
-							cur_transition.next_state,
-							data.comment
-						);
-					},
-					`${__("Comment for action")} "${cur_transition.action}"`,
-					__("Save")
-				);
-			} else {
-				await updateUTPositions(
-					frm,
-					positionsWithActiveTasks,
-					cur_transition.next_state
-				);
-			}
-		});
+	for (const transition of response?.actions || []) {
+		const label =
+			frappe.dinext?.workflowTransitionLabel?.(transition) ||
+			frappe.dinext?.workflowActionLabel?.(transition.action) || __(transition.action);
+		frm.add_custom_button(
+			label,
+			() => applyTimesheetAction(frm, transition),
+			__(WORKFLOW_GROUP)
+		);
 		frm._ut_wf_button_labels.push(label);
 	}
 }

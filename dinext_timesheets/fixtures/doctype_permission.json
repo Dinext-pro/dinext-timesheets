@@ -69,7 +69,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_UTP_Appoval",
-    "script": "current_user_name = frappe.session.user\r\n\r\nconditions = f\"\"\"\r\n    `tabUser Timesheet Position`.status != 'Редактирование'\r\n    AND project IN (\r\n        SELECT parent\r\n        FROM `tabProject Team Details` ptd\r\n        WHERE ptd.allow_approval = TRUE\r\n        AND ptd.pt_participant = '{current_user_name}'\r\n        AND EXISTS (\r\n            SELECT 1\r\n            FROM `tabUser Timesheet` tut\r\n            WHERE tut.name = user_timesheet\r\n            AND tut.ts_valid_from <= ptd.pt_valid_for\r\n            AND tut.ts_valid_for >= ptd.pt_valid_from\r\n        )\r\n    )\r\n\"\"\"\r\n"
+    "script": "current_user_name = frappe.session.user\r\n\r\nconditions = f\"\"\"\r\n    `tabUser Timesheet Position`.status != 'Editing'\r\n    AND project IN (\r\n        SELECT parent\r\n        FROM `tabProject Team Details` ptd\r\n        WHERE ptd.allow_approval = TRUE\r\n        AND ptd.pt_participant = '{current_user_name}'\r\n        AND EXISTS (\r\n            SELECT 1\r\n            FROM `tabUser Timesheet` tut\r\n            WHERE tut.name = user_timesheet\r\n            AND tut.ts_valid_from <= ptd.pt_valid_for\r\n            AND tut.ts_valid_for >= ptd.pt_valid_from\r\n        )\r\n    )\r\n\"\"\"\r\n"
    },
    {
     "parent": "UTP_Permissions-1",
@@ -77,7 +77,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Team_Lead",
-    "script": "current_user_name = frappe.session.user\r\n\r\nconditions = f\"\"\"\r\n    user_timesheet IN (\r\n        SELECT ut.name\r\n        FROM `tabUser Timesheet` ut\r\n        WHERE ut.timesheet_from IN (\r\n            SELECT w.wuser\r\n            FROM tabWorker w\r\n            WHERE w.wuser_group IN (\r\n                SELECT tl.parent\r\n                FROM `tabTeamleads Table` tl\r\n                WHERE tl.teamlead = '{current_user_name}'\r\n                  AND tl.date <= ut.ts_valid_for  # Последняя актуальная запись до конца периода\r\n                  AND NOT EXISTS (\r\n                      SELECT 1\r\n                      FROM `tabTeamleads Table` tl_newer\r\n                      WHERE tl_newer.parent = tl.parent\r\n                        AND tl_newer.date > tl.date\r\n                        AND tl_newer.date <= ut.ts_valid_for\r\n                  )\r\n            )\r\n        )\r\n    )\r\n\"\"\"\r\n"
+    "script": "current_user_name = frappe.db.escape(user)\r\n\r\nconditions = f\"\"\"\r\n    user_timesheet IN (\r\n        SELECT ut.name\r\n        FROM `tabUser Timesheet` ut\r\n        WHERE ut.timesheet_from IN (\r\n            SELECT w.wuser\r\n            FROM tabWorker w\r\n            WHERE w.wuser_group IN (\r\n                SELECT tl.parent\r\n                FROM `tabTeamleads Table` tl\r\n                WHERE tl.teamlead = {current_user_name}\r\n                  AND tl.parenttype = 'User Group'\r\n              AND tl.date <= ut.ts_valid_for  # Последняя актуальная запись до конца периода\r\n                  AND NOT EXISTS (\r\n                      SELECT 1\r\n                      FROM `tabTeamleads Table` tl_newer\r\n                      WHERE tl_newer.parent = tl.parent\r\n                        AND tl_newer.parenttype = 'User Group'\r\n                        AND (tl_newer.date > tl.date OR (tl_newer.date = tl.date AND tl_newer.idx > tl.idx))\r\n                        AND tl_newer.date <= ut.ts_valid_for\r\n                  )\r\n            )\r\n        )\r\n    )\r\n\"\"\"\r\n"
    },
    {
     "parent": "UTP_Permissions-1",
@@ -93,7 +93,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Financier",
-    "script": "conditions = \"\"\"\r\n`tabUser Timesheet Position`.user_timesheet IN (\r\n    SELECT `name` \r\n    FROM `tabUser Timesheet` \r\n    WHERE `ut_status` = 'Согласован'\r\n)\r\n\"\"\""
+    "script": "conditions = \"\"\"\r\n`tabUser Timesheet Position`.user_timesheet IN (\r\n    SELECT `name` \r\n    FROM `tabUser Timesheet` \r\n    WHERE `ut_status` = 'Approved'\r\n)\r\n\"\"\""
    },
    {
     "parent": "UTP_Permissions-1",
@@ -101,7 +101,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Project_Manager",
-    "script": "conditions = \"\"\"\r\n`tabUser Timesheet Position`.user_timesheet IN (\r\n    SELECT `name` \r\n    FROM `tabUser Timesheet` \r\n    WHERE `ut_status` = 'Согласован'\r\n)\r\n\"\"\""
+    "script": "conditions = \"\"\"\r\n`tabUser Timesheet Position`.user_timesheet IN (\r\n    SELECT `name` \r\n    FROM `tabUser Timesheet` \r\n    WHERE `ut_status` = 'Approved'\r\n)\r\n\"\"\""
    },
    {
     "parent": "UTP_Permissions-1",
@@ -109,7 +109,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Management",
-    "script": "conditions = \"\"\"\r\n`tabUser Timesheet Position`.user_timesheet IN (\r\n    SELECT `name` \r\n    FROM `tabUser Timesheet` \r\n    WHERE `ut_status` = 'Согласован'\r\n)\r\n\"\"\""
+    "script": "conditions = \"\"\"\r\n`tabUser Timesheet Position`.user_timesheet IN (\r\n    SELECT `name` \r\n    FROM `tabUser Timesheet` \r\n    WHERE `ut_status` = 'Approved'\r\n)\r\n\"\"\""
    }
   ],
   "description": "1) Пользователь с базовой ролью видит только созданные им UTP\n2) System Manager (можно поменять на любую другую роль супер-пользователя) видит все UTP\n3) Пользователь с базовой ролью видит те UTP, в проектах которых он является участником согласования (allow_approval = TRUE), с учетом периода включения в проектную команду.\n4) Тимлид видит все UTP пользователей своей функциональной группы",
@@ -146,7 +146,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Team_Lead",
-    "script": "current_user_name = frappe.session.user\r\n\r\nconditions = f\"\"\"\r\n    timesheet_from IN (\r\n        SELECT w.wuser\r\n        FROM tabWorker w\r\n        WHERE w.wuser_group IN (\r\n            SELECT tl.parent\r\n            FROM `tabTeamleads Table` tl\r\n            WHERE tl.teamlead = '{current_user_name}'\r\n              AND tl.date <= `tabUser Timesheet`.ts_valid_for  # Последняя актуальная запись до конца периода\r\n              AND NOT EXISTS (\r\n                  SELECT 1\r\n                  FROM `tabTeamleads Table` tl_newer\r\n                  WHERE tl_newer.parent = tl.parent\r\n                    AND tl_newer.date > tl.date\r\n                    AND tl_newer.date <= `tabUser Timesheet`.ts_valid_for\r\n              )\r\n        )\r\n    )\r\n\"\"\"\r\n"
+    "script": "current_user_name = frappe.db.escape(user)\n\nconditions = f\"\"\"\n    timesheet_from IN (\n        SELECT w.wuser\n        FROM tabWorker w\n        INNER JOIN `tabTeamleads Table` tl ON tl.parent = w.wuser_group\n        WHERE tl.teamlead = {current_user_name}\n          AND tl.parenttype = 'User Group'\n          AND tl.date <= `tabUser Timesheet`.ts_valid_for\n          AND (\n              NOT EXISTS (\n                  SELECT 1\n                  FROM `tabTeamleads Table` newer\n                  WHERE newer.parent = tl.parent\n                    AND newer.parenttype = 'User Group'\n                    AND (newer.date > tl.date OR (newer.date = tl.date AND newer.idx > tl.idx))\n                    AND newer.date <= `tabUser Timesheet`.ts_valid_for\n              )\n              OR (\n                  tl.date <= `tabUser Timesheet`.ts_valid_from\n                  AND NOT EXISTS (\n                      SELECT 1\n                      FROM `tabUser Timesheet Position` utp\n                      WHERE utp.user_timesheet = `tabUser Timesheet`.name\n                  )\n                  AND NOT EXISTS (\n                      SELECT 1\n                      FROM `tabTeamleads Table` newer\n                      WHERE newer.parent = tl.parent\n                        AND newer.parenttype = 'User Group'\n                        AND (newer.date > tl.date OR (newer.date = tl.date AND newer.idx > tl.idx))\n                        AND newer.date <= `tabUser Timesheet`.ts_valid_from\n                  )\n              )\n          )\n    )\n\"\"\"\n"
    },
    {
     "parent": "UT_Permissions-1",
@@ -154,7 +154,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_UTP_Appoval",
-    "script": "current_user_name = frappe.session.user\r\n\r\nconditions = f\"\"\"\r\n    `tabUser Timesheet`.ut_status NOT IN ('На доработке', 'Черновик')\r\n    AND EXISTS (\r\n        SELECT 1\r\n        FROM `tabProject Team Details` ptd\r\n        WHERE (\r\n            -- Прямая связь: timesheet_from = pt_participant\r\n            ptd.pt_participant = `tabUser Timesheet`.timesheet_from\r\n            OR EXISTS (\r\n                -- Косвенная связь: timesheet_from = user в tabUser Group Member, parent = pt_participant\r\n                SELECT 1\r\n                FROM `tabUser Group Member` ugm\r\n                WHERE ugm.user = `tabUser Timesheet`.timesheet_from\r\n                  AND ugm.parent = ptd.pt_participant\r\n            )\r\n          )\r\n          AND ptd.allow_approval = FALSE\r\n          AND ptd.parent IN (\r\n              SELECT parent\r\n              FROM `tabProject Team Details`\r\n              WHERE pt_participant = '{current_user_name}'\r\n                AND allow_approval = TRUE\r\n          )\r\n          AND `tabUser Timesheet`.ts_valid_from <= ptd.pt_valid_for\r\n          AND `tabUser Timesheet`.ts_valid_for >= ptd.pt_valid_from\r\n    )\r\n\"\"\""
+    "script": "current_user_name = frappe.session.user\r\n\r\nconditions = f\"\"\"\r\n    `tabUser Timesheet`.ut_status NOT IN ('Rework', 'Draft')\r\n    AND EXISTS (\r\n        SELECT 1\r\n        FROM `tabProject Team Details` ptd\r\n        WHERE (\r\n            -- Прямая связь: timesheet_from = pt_participant\r\n            ptd.pt_participant = `tabUser Timesheet`.timesheet_from\r\n            OR EXISTS (\r\n                -- Косвенная связь: timesheet_from = user в tabUser Group Member, parent = pt_participant\r\n                SELECT 1\r\n                FROM `tabUser Group Member` ugm\r\n                WHERE ugm.user = `tabUser Timesheet`.timesheet_from\r\n                  AND ugm.parent = ptd.pt_participant\r\n            )\r\n          )\r\n          AND ptd.allow_approval = FALSE\r\n          AND ptd.parent IN (\r\n              SELECT parent\r\n              FROM `tabProject Team Details`\r\n              WHERE pt_participant = '{current_user_name}'\r\n                AND allow_approval = TRUE\r\n          )\r\n          AND `tabUser Timesheet`.ts_valid_from <= ptd.pt_valid_for\r\n          AND `tabUser Timesheet`.ts_valid_for >= ptd.pt_valid_from\r\n    )\r\n\"\"\""
    },
    {
     "parent": "UT_Permissions-1",
@@ -170,7 +170,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Project_Manager",
-    "script": "conditions = \"ut_status = 'Согласован'\""
+    "script": "conditions = \"ut_status = 'Approved'\""
    },
    {
     "parent": "UT_Permissions-1",
@@ -178,7 +178,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Management",
-    "script": "conditions = \"ut_status = 'Согласован'\""
+    "script": "conditions = \"ut_status = 'Approved'\""
    },
    {
     "parent": "UT_Permissions-1",
@@ -186,7 +186,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Financier",
-    "script": "conditions = \"ut_status = 'Согласован'\""
+    "script": "conditions = \"ut_status = 'Approved'\""
    }
   ],
   "description": "1) Пользователь с базовой ролью видит только свои UT\n2) Z_Dinord_UT_Full_Access (можно поменять на любую другую роль супер-пользователя) видит все UT\n3) Тимлид видит все UT пользователей своей функциональной группы\n4) РП видит все UT пользователей своей команды, но ТОЛЬКО свои UTP (см. настройки UTP)",
@@ -284,7 +284,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Financier",
-    "script": "conditions = \"status = 'Согласовано'\""
+    "script": "conditions = \"status = 'Approved'\""
    },
    {
     "parent": "AFL_Permissions-1",
@@ -292,7 +292,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Project_Manager",
-    "script": "conditions = \"status = 'Согласовано'\""
+    "script": "conditions = \"status = 'Approved'\""
    },
    {
     "parent": "AFL_Permissions-1",
@@ -300,7 +300,7 @@
     "parenttype": "DocType Permission",
     "perm_level": "Custom Query",
     "role": "Dinext_Sales_Manager",
-    "script": "conditions = \"status = 'Согласовано'\""
+    "script": "conditions = \"status = 'Approved'\""
    }
   ],
   "description": "1) Пользователь с базовой ролью видит только созданные им AFL\n2) System Manager (можно поменять на любую другую роль супер-пользователя) видит все AFL\n3) Пользователь с базовой ролью видит те AFL, в проектах которых он является участником согласования (allow_approval = TRUE), с учетом периода включения в проектную команду\n4) Тимлид видит все AFL пользователей своей функциональной группы",

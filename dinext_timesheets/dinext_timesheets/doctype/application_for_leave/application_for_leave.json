@@ -27,11 +27,13 @@
  "fields": [
   {
    "fetch_from": "alworker.wuser",
+   "fetch_if_empty": 1,
    "fieldname": "lauser",
    "fieldtype": "Link",
    "hidden": 1,
    "label": "User",
-   "options": "User"
+   "options": "User",
+   "search_index": 1
   },
   {
    "fieldname": "alworker",
@@ -39,7 +41,8 @@
    "in_list_view": 1,
    "label": "Worker",
    "options": "Worker",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fetch_from": "alworker.wfullname",
@@ -59,7 +62,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435\n\u041d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438\n\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e\n\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e",
+   "options": "Editing\nPending Approval\nApproved\nRejected",
    "read_only": 1,
    "reqd": 1
   },

@@ -1,6 +1,6 @@
 /**
- * Hide Desk / Dinext workspace rail on User Timesheet form + list.
- * Body class + CSS; toggle must not reopen. Drop class on route leave.
+ * Hide native form/list panels on User Timesheet routes, preserving site navigation.
+ * Body class + CSS; native toggle must not reopen. Drop class on route leave.
  */
 
 export const UT_SIDEBAR_BODY_CLASS = "ut-hide-desk-sidebar";
@@ -19,14 +19,12 @@ function bindRouteLeave() {
 	}
 	window._utSidebarRouteBound = true;
 	$(document).on("page-change.utTimesheetSidebar", () => {
-		if (!isUserTimesheetRoute()) {
-			removeTimesheetSidebarHide();
-		}
+		document.body.classList.toggle(UT_SIDEBAR_BODY_CLASS, isUserTimesheetRoute());
 	});
 }
 
 export function applyTimesheetSidebarHide() {
-	document.body.classList.add(UT_SIDEBAR_BODY_CLASS);
+	document.body.classList.toggle(UT_SIDEBAR_BODY_CLASS, isUserTimesheetRoute());
 	bindRouteLeave();
 }
 

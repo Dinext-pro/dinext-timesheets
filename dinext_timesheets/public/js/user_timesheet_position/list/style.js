@@ -2,9 +2,10 @@
 // Функция для скрытия столбцов и элементов сайдбара
 function hideColumnsAndSidebar(listview) {
     
-    //Скрываем сайдбар
-    $('span.sidebar-toggle-btn').hide();
-    $('.col-lg-2.layout-side-section').hide();
+    // Hide only the current list's native panel; keep site navigation.
+    const $page = $(listview.page.wrapper);
+    $page.find('.page-head .sidebar-toggle-btn').hide();
+    $page.find('.layout-side-section:not(.dinext-ws-rail-section)').hide();
     
     //Скрываем колонку ID
     //listview.$frappe_list.find('.list-row-col.ellipsis.hidden-xs span[data-sort-by="name"]').parent().hide();
@@ -20,13 +21,13 @@ function hideColumnsAndSidebar(listview) {
 //Цвет статусов
 function getSelectStyle(status) {
     switch (status) {
-        case 'На согласовании':
+        case 'Pending Approval':
             return 'on-approve';
-        case 'Согласовано':
+        case 'Approved':
             return 'approved';
-        case 'Отклонено':
+        case 'Rejected':
             return 'rejected';
-        case 'Редактирование':
+        case 'Editing':
             return 'on-edit';
         default:
             return '';

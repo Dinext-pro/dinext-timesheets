@@ -1,0 +1,14 @@
+[
+ {
+  "doctype": "List View Settings",
+  "name": "User Timesheet Position",
+  "total_fields": "7",
+  "fields": "[{\"fieldname\":\"user\",\"label\":\"User\"},{\"fieldname\":\"period\",\"label\":\"Period\"},{\"fieldname\":\"project\",\"label\":\"Project\"},{\"fieldname\":\"project_role\",\"label\":\"Project Role\"},{\"fieldname\":\"document_name\",\"label\":\"Document Name\"},{\"fieldname\":\"all_hours\",\"label\":\"All Hours\"}]",
+  "disable_count": 0,
+  "disable_comment_count": 0,
+  "disable_sidebar_stats": 0,
+  "disable_auto_refresh": 0,
+  "allow_edit": 0,
+  "disable_automatic_recency_filters": 0
+ }
+]

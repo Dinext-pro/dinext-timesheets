@@ -4,35 +4,83 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
+from frappe.utils import getdate
+
+from dinext_timesheets.timesheet_status import PARENT_DRAFT, PARENT_REWORK
 
 
-def _is_system_manager() -> bool:
-	user = frappe.session.user
-	if user == "Administrator":
-		return True
-	if user in (None, "", "Guest"):
+def worker_group(worker: str) -> str | None:
+	return frappe.db.get_value("Worker", {"wuser": worker}, "wuser_group")
+
+
+def has_worker_scope(worker: str, period_end, actor: str | None = None) -> bool:
+	actor = actor or frappe.session.user
+	if not worker or not period_end or not actor:
 		return False
-	return "System Manager" in frappe.get_roles(user)
+	if actor == worker:
+		return True
+	group = worker_group(worker)
+	if not group:
+		return False
+	lead = frappe.db.get_value(
+		"Teamleads Table",
+		{"parent": group, "parenttype": "User Group", "date": ("<=", getdate(period_end))},
+		"teamlead",
+		order_by="date desc, idx desc",
+	)
+	return lead == actor
 
 
-def assert_can_query_tasks_for_owner(ts_owner: str) -> None:
-	"""Caller may load task tree for ts_owner (self, SM, or read access to their UT)."""
-	if not ts_owner:
-		frappe.throw(_("Missing ts_owner"), frappe.PermissionError)
+def assert_can_create_for_worker(worker: str, period_end, actor: str | None = None) -> None:
+	actor = actor or frappe.session.user
+	if not frappe.has_permission("User Timesheet", "create", user=actor) or not has_worker_scope(
+		worker, period_end, actor
+	):
+		frappe.throw(_("Not permitted to create a timesheet for this worker and period"), frappe.PermissionError)
 
-	user = frappe.session.user
-	if user == ts_owner or _is_system_manager():
+
+def can_edit_timesheet(doc) -> bool:
+	return (
+		doc.ut_status in {PARENT_DRAFT, PARENT_REWORK}
+		and has_worker_scope(doc.timesheet_from, doc.ts_valid_for)
+		and frappe.has_permission(doc, "write", ignore_share_permissions=True)
+	)
+
+
+def assert_can_edit_timesheet(doc) -> None:
+	if not can_edit_timesheet(doc):
+		frappe.throw(_("Not permitted to edit this timesheet"), frappe.PermissionError)
+
+
+def timesheet_management_transitions(position) -> list:
+	from frappe.model.workflow import get_workflow, get_workflow_name
+
+	if not get_workflow_name(position.doctype):
+		return []
+	workflow = get_workflow(position.doctype)
+	state = position.get(workflow.workflow_state_field)
+	return [
+		row for row in workflow.transitions
+		if row.state == state and row.get("custom_timesheet_management_action")
+	]
+
+
+def assert_can_query_tasks_for_owner(ts_owner: str, start=None, end=None) -> None:
+	"""Allow the worker or a caller who can read the requested timesheet."""
+	if not (ts_owner and start and end):
+		frappe.throw(_("A worker and timesheet period are required"), frappe.PermissionError)
+
+	if frappe.session.user == ts_owner:
 		return
 
-	names = frappe.get_all(
+	names = frappe.get_list(
 		"User Timesheet",
-		filters={"timesheet_from": ts_owner},
+		filters={"timesheet_from": ts_owner, "ts_valid_from": start, "ts_valid_for": end},
 		pluck="name",
-		limit_page_length=20,
+		limit_page_length=1,
 	)
-	for name in names:
-		if frappe.has_permission("User Timesheet", "read", doc=name):
-			return
+	if names:
+		return
 
 	frappe.throw(
 		_("Not permitted to load timesheet tasks for user {0}").format(ts_owner),

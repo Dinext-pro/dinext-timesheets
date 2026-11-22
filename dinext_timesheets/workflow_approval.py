@@ -1,0 +1,1466 @@
+"""Timesheet aggregate behavior for generic Workflow Task approvals."""
+
+from __future__ import annotations
+
+import json
+from collections import defaultdict
+from datetime import timedelta
+from importlib.util import find_spec
+from typing import Any, Literal, TypedDict
+
+import frappe
+from frappe import _
+from frappe.utils import cint, flt, getdate, nowdate
+
+from dinext_timesheets.dinext_timesheets.user_timesheet.status import (
+	position_status_values,
+	position_workflow_state,
+)
+from dinext_timesheets.timesheet_status import (
+	PARENT_APPROVED,
+	PARENT_DRAFT as DRAFT,
+	PARENT_PENDING as PENDING,
+	PARENT_REJECTED as REJECTED,
+	PARENT_REWORK as REWORK,
+	POSITION_APPROVED,
+	POSITION_EDITING as EDITING,
+)
+
+TimesheetOperation = Literal["Start", "Stop", "Edit"]
+
+
+class TimesheetPositionDetailInput(TypedDict, total=False):
+	date: str
+	hours: float
+	description: str
+
+
+class TimesheetPositionInput(TypedDict, total=False):
+	name: str
+	project: str
+	document_type: str
+	document_name: str
+	project_role: str
+	table: list[TimesheetPositionDetailInput]
+	details: list[TimesheetPositionDetailInput]
+
+
+class TimesheetOrchestrationResponse(TypedDict):
+	timesheet: str
+	status: str
+	processed: int
+	positions: list[str]
+
+
+class TimesheetRebuildRoundResponse(TypedDict):
+	round_id: str
+	round_status: Literal["Conflicted", "Stalled"]
+	reference_name: str
+	label: str
+	configuration_change: dict[str, object] | None
+	can_reset: bool
+
+
+@frappe.whitelist()
+def get_approval_number_card_result(filters: str | dict[str, Any]) -> dict[str, Any]:
+	from dinext_common.workflow_approval import api
+
+	values = frappe.parse_json(filters) if isinstance(filters, str) else filters
+	if not isinstance(values, dict) or values.get("doc") not in ("User Timesheet Position", "Application For Leave"):
+		raise frappe.ValidationError(_("Invalid DocType"))
+
+	calculate = getattr(api, "calculate_approval_number_card", None)
+	if calculate is None:
+		return api.get_legacy_number_card_result(values)
+	return calculate(values, source_state_field="status")
+
+
+def _has_workflow_engine() -> bool:
+	return find_spec("dinext_common.workflow_approval") is not None
+
+
+def _enabled() -> bool:
+	if not _has_workflow_engine():
+		return False
+	from dinext_common.workflow_approval.lifecycle import is_engine_enabled
+
+	return is_engine_enabled()
+
+
+def _value(row: object, fieldname: str, default=None):
+	if isinstance(row, dict):
+		return row.get(fieldname, default)
+	return getattr(row, fieldname, default)
+
+
+def _parse_positions(positions: object) -> list[TimesheetPositionInput]:
+	rows = frappe.parse_json(positions) if isinstance(positions, str) else positions
+	if rows is None:
+		return []
+	if not isinstance(rows, list):
+		raise frappe.ValidationError(_("Timesheet positions must be a list"))
+	parsed: list[TimesheetPositionInput] = []
+	for row in rows:
+		if not isinstance(row, dict):
+			raise frappe.ValidationError(_("Each timesheet position must be an object"))
+		parsed.append(row)
+	return parsed
+
+
+def _parse_names(values: object) -> list[str]:
+	rows = frappe.parse_json(values) if isinstance(values, str) else values
+	if rows is None:
+		return []
+	if not isinstance(rows, list):
+		raise frappe.ValidationError(_("Deleted positions must be a list"))
+	return list(dict.fromkeys(str(row) for row in rows if row not in (None, "")))
+
+
+def _position_label(position: object, index: int) -> str:
+	project = _value(position, "project")
+	document = _value(position, "document_name")
+	doctype = _value(position, "document_type")
+	project = _read_position_title("Project", project, "project_name")
+	if doctype in {"Task", "Issue"}:
+		document = _read_position_title(doctype, document, "subject")
+	context = ", ".join(filter(None, (project, document, _value(position, "project_role"))))
+	return _("Position {0} ({1})").format(index, context) if context else _("Position {0}").format(index)
+
+
+def _read_position_title(doctype: str, name: str | None, field: str) -> str | None:
+	if not name:
+		return None
+	title = frappe.db.get_value(doctype, name, field)
+	if title:
+		try:
+			if frappe.has_permission(doctype, "read", doc=name):
+				return title
+		except frappe.DoesNotExistError:
+			pass
+	return name
+
+
+def _format_position_errors(label: str, errors: list[str]) -> str:
+	label = frappe.utils.escape_html(label)
+	lines = [frappe.utils.escape_html(error) for error in dict.fromkeys(errors)]
+	if len(lines) == 1:
+		return f"{label}: {lines[0]}"
+	return f"{label}:<br>" + "<br>".join(lines)
+
+
+def _validate_position_shape(
+	parent: object,
+	position: object,
+	*,
+	description_required: bool,
+) -> list[str]:
+	errors: list[str] = []
+	if not _value(position, "project"):
+		errors.append(_("project is required"))
+	if _value(position, "document_type") not in {"Task", "Issue"}:
+		errors.append(_("task or issue type is required"))
+	if not _value(position, "document_name"):
+		errors.append(_("task or issue is required"))
+	if not _value(position, "project_role"):
+		errors.append(_("project role is required"))
+	details = _value(position, "table") or _value(position, "details") or []
+	total = 0.0
+	seen_dates: set[object] = set()
+	date_from = getdate(_value(parent, "ts_valid_from"))
+	date_to = getdate(_value(parent, "ts_valid_for"))
+	for detail in details:
+		hours = flt(_value(detail, "hours"))
+		date_value = _value(detail, "date")
+		description = str(_value(detail, "description") or "").strip()
+		if hours <= 0:
+			errors.append(_("hours must be positive"))
+		if not date_value:
+			errors.append(_("date is required"))
+			continue
+		detail_date = getdate(date_value)
+		if detail_date in seen_dates:
+			errors.append(_("duplicate date {0}").format(detail_date))
+		seen_dates.add(detail_date)
+		if detail_date < date_from or detail_date > date_to:
+			errors.append(_("date {0} is outside the timesheet period").format(detail_date))
+		if description_required and hours > 0 and not description:
+			errors.append(_("description is required for {0}").format(detail_date))
+		total += hours
+	if total <= 0:
+		errors.append(_("total hours must be positive"))
+	return errors
+
+
+def _dates_overlap(
+	left_from: object,
+	left_to: object,
+	right_from: object,
+	right_to: object,
+) -> bool:
+	return getdate(left_from) <= getdate(right_to) and getdate(right_from) <= getdate(left_to)
+
+
+def _validate_parent_period(parent: object) -> list[str]:
+	date_from = _value(parent, "ts_valid_from")
+	date_to = _value(parent, "ts_valid_for")
+	if not date_from or not date_to:
+		return [_("Timesheet start and end dates are required")]
+	if getdate(date_from) > getdate(date_to):
+		return [_("Timesheet start date cannot be after its end date")]
+	overlaps = frappe.get_all(
+		"User Timesheet",
+		filters={
+			"timesheet_from": _value(parent, "timesheet_from"),
+			"name": ("!=", _value(parent, "name")),
+			"ts_valid_from": ("<=", getdate(date_to)),
+			"ts_valid_for": (">=", getdate(date_from)),
+		},
+		pluck="name",
+		limit=1,
+	)
+	if overlaps:
+		return [_("Another timesheet overlaps this period")]
+	return []
+
+
+def _participant_values(user: str) -> set[str]:
+	values = {
+		user,
+		*frappe.get_all(
+			"Has Role",
+			filters={"parenttype": "User", "parent": user},
+			pluck="role",
+		),
+	}
+	values.update(
+		frappe.get_all(
+			"User Group Member",
+			filters={"user": user},
+			pluck="parent",
+		)
+	)
+	return {str(value) for value in values if value}
+
+
+def _team_row_matches_period(row: object, parent: object, project: object) -> bool:
+	row_from = _value(row, "pt_valid_from")
+	row_to = _value(row, "pt_valid_for")
+	if not row_from or not row_to:
+		row_from = _value(project, "expected_start_date") or _value(parent, "ts_valid_from")
+		row_to = _value(project, "expected_end_date") or _value(parent, "ts_valid_for")
+	return _dates_overlap(
+		row_from,
+		row_to,
+		_value(parent, "ts_valid_from"),
+		_value(parent, "ts_valid_for"),
+	)
+
+
+def _validate_position_links(parent: object, position: object, template: object) -> list[str]:
+	errors: list[str] = []
+	project_name = str(_value(position, "project") or "")
+	document_type = str(_value(position, "document_type") or "")
+	document_name = str(_value(position, "document_name") or "")
+	role = str(_value(position, "project_role") or "")
+	if not all((project_name, document_type, document_name, role)):
+		return errors
+	if document_type not in {"Task", "Issue"}:
+		return errors
+	project = frappe.db.get_value(
+		"Project",
+		project_name,
+		["name", "status", "is_active", "expected_start_date", "expected_end_date"],
+		as_dict=True,
+	)
+	if not project or project.status != "Open" or project.is_active != "Yes":
+		errors.append(_("project is not active and open"))
+		return errors
+	allowed_doctypes = {
+		str(_value(row, "dtdoctype"))
+		for row in (_value(template, "doctype_for_timesheet") or [])
+		if _value(row, "dtdoctype")
+	}
+	if document_type not in allowed_doctypes:
+		errors.append(_("document type is not enabled by the timesheet template"))
+	if not frappe.db.exists("Project Role", role):
+		errors.append(_("project role does not exist"))
+	source_fields = ["project", "custom_include"]
+	if document_type == "Task":
+		source_fields.extend(
+			[
+				"status",
+				"is_milestone",
+				"exp_start_date",
+				"exp_end_date",
+				"completed_on",
+			]
+		)
+	source = frappe.db.get_value(
+		document_type,
+		document_name,
+		source_fields,
+		as_dict=True,
+	)
+	if not source or source.project != project_name:
+		errors.append(_("task or issue does not belong to the selected project"))
+	else:
+		if not cint(source.custom_include):
+			errors.append(_("task or issue is excluded from timesheets"))
+		if document_type == "Task":
+			if source.status in {"Cancelled", "Template"} or cint(source.is_milestone):
+				errors.append(_("task is not eligible for timesheets"))
+			date_from = getdate(_value(parent, "ts_valid_from"))
+			date_to = getdate(_value(parent, "ts_valid_for"))
+			start = getdate(source.exp_start_date) if source.exp_start_date else None
+			end = (
+				getdate(source.completed_on)
+				if source.status == "Completed" and source.completed_on
+				else getdate(source.exp_end_date)
+				if source.exp_end_date
+				else None
+			)
+			if not start or start > date_to or not end or end < date_from:
+				errors.append(_("task is outside the timesheet period"))
+		owner = str(_value(parent, "timesheet_from"))
+		has_open_assignment = frappe.db.exists(
+			"ToDo",
+			{
+				"allocated_to": owner,
+				"status": "Open",
+				"reference_type": document_type,
+				"reference_name": document_name,
+			},
+		)
+		has_read_share = frappe.db.exists(
+			"DocShare",
+			{
+				"user": owner,
+				"read": 1,
+				"share_doctype": document_type,
+				"share_name": document_name,
+			},
+		)
+		if not (has_open_assignment or has_read_share):
+			errors.append(_("task or issue is not assigned or shared with the owner"))
+	team_rows = frappe.get_all(
+		"Project Team Details",
+		filters={
+			"parent": project_name,
+			"pt_role": role,
+			"pt_participant": (
+				"in",
+				sorted(_participant_values(str(_value(parent, "timesheet_from")))),
+			),
+		},
+		fields=["pt_valid_from", "pt_valid_for"],
+	)
+	if not any(_team_row_matches_period(row, parent, project) for row in team_rows):
+		errors.append(_("project role is not valid for the owner and period"))
+	return errors
+
+
+def _leave_period_filters(parent: object) -> dict:
+	return {
+		"lauser": _value(parent, "timesheet_from"),
+		"alfrom_date": ("<=", getdate(_value(parent, "ts_valid_for"))),
+		"alto_date": (">=", getdate(_value(parent, "ts_valid_from"))),
+	}
+
+
+def approved_leave_for_period(parent: object) -> list:
+	return frappe.db.get_values(
+		"Application For Leave",
+		{**_leave_period_filters(parent), "status": POSITION_APPROVED},
+		["alfrom_date", "alto_date", "alfrom_hours", "alto_hours", "altype_of_leave"],
+		as_dict=True,
+		for_update=bool(getattr(getattr(parent, "flags", None), "for_update", False)),
+	)
+
+
+def _calendar_context(parent: object) -> tuple[object, set[object], dict[object, float], dict[object, float]]:
+	worker_name = frappe.db.get_value(
+		"Worker",
+		{"wuser": _value(parent, "timesheet_from")},
+		"name",
+	)
+	if not worker_name:
+		raise frappe.ValidationError(_("Timesheet owner has no Worker record"))
+	worker = frappe.get_doc("Worker", worker_name)
+	if not worker.wtimesheet_template:
+		raise frappe.ValidationError(_("Worker has no Timesheet Template"))
+	template = frappe.get_doc("Timesheet Template", worker.wtimesheet_template)
+	date_from = getdate(_value(parent, "ts_valid_from"))
+	date_to = getdate(_value(parent, "ts_valid_for"))
+	if not worker.wholiday_list:
+		raise frappe.ValidationError(_("Worker has no Holiday List"))
+	holiday_list = frappe.db.get_value(
+		"Holiday List",
+		worker.wholiday_list,
+		["from_date", "to_date"],
+		as_dict=True,
+	)
+	if (
+		not holiday_list
+		or not holiday_list.from_date
+		or not holiday_list.to_date
+		or getdate(holiday_list.from_date) > date_from
+		or getdate(holiday_list.to_date) < date_to
+	):
+		raise frappe.ValidationError(
+			_("Holiday List is not active for the whole timesheet period")
+		)
+	holidays = {
+		getdate(row.holiday_date)
+		for row in frappe.get_all(
+			"Holiday",
+			filters={
+				"parent": worker.wholiday_list,
+				"holiday_date": ("between", [date_from, date_to]),
+			},
+			fields=["holiday_date"],
+		)
+	}
+	reduced: dict[object, float] = {}
+	if template.tt_working_hours_on_date:
+		working_hours = frappe.db.get_value(
+			"Working Hours On Date",
+			template.tt_working_hours_on_date,
+			["hod_from_date", "hod_to_date"],
+			as_dict=True,
+		)
+		if (
+			not working_hours
+			or not working_hours.hod_from_date
+			or not working_hours.hod_to_date
+			or getdate(working_hours.hod_from_date) > date_from
+			or getdate(working_hours.hod_to_date) < date_to
+		):
+			raise frappe.ValidationError(
+				_("Working Hours On Date is not active for the whole timesheet period")
+			)
+		reduced = {
+			getdate(row.wht_date): flt(row.wht_hours)
+			for row in frappe.get_all(
+				"Working Hours Table",
+				filters={
+					"parent": template.tt_working_hours_on_date,
+					"wht_date": (
+						"between",
+						[
+							date_from,
+							date_to,
+						],
+					),
+				},
+				fields=["wht_date", "wht_hours"],
+			)
+		}
+	leave_hours: dict[object, float] = defaultdict(float)
+	leave_rows = approved_leave_for_period(parent)
+	for leave in leave_rows:
+		start = getdate(leave.alfrom_date)
+		end = getdate(leave.alto_date)
+		current = max(start, getdate(_value(parent, "ts_valid_from")))
+		last = min(end, getdate(_value(parent, "ts_valid_for")))
+		while current <= last:
+			if current not in holidays:
+				if current == start and flt(leave.alfrom_hours) > 0:
+					hours = flt(leave.alfrom_hours)
+				elif current == end and end > start and flt(leave.alto_hours) > 0:
+					hours = flt(leave.alto_hours)
+				else:
+					hours = reduced.get(current, flt(template.hours_on_date))
+				leave_hours[current] += hours
+			current += timedelta(days=1)
+	return template, holidays, reduced, dict(leave_hours)
+
+
+def _validate_daily_totals(
+	parent: object,
+	positions: list[object],
+	template: object,
+	holidays: set[object],
+	reduced: dict[object, float],
+	leave_hours: dict[object, float],
+) -> list[str]:
+	totals: dict[object, float] = defaultdict(float)
+	for position in positions:
+		for detail in _value(position, "table") or []:
+			if _value(detail, "date"):
+				totals[getdate(_value(detail, "date"))] += flt(_value(detail, "hours"))
+	errors: list[str] = []
+	current = getdate(_value(parent, "ts_valid_from"))
+	end = getdate(_value(parent, "ts_valid_for"))
+	while current <= end:
+		if current not in holidays:
+			expected = reduced.get(current, flt(_value(template, "hours_on_date")))
+			minimum = expected - flt(_value(template, "minimum_hours"))
+			maximum = expected + flt(_value(template, "maximum_hours"))
+			total = totals.get(current, 0.0) + leave_hours.get(current, 0.0)
+			if total < minimum:
+				errors.append(
+					_("{0}: total hours cannot be less than {1}").format(current, minimum)
+				)
+			if total > maximum:
+				errors.append(
+					_("{0}: total hours cannot exceed {1}").format(current, maximum)
+				)
+		current += timedelta(days=1)
+	return errors
+
+
+def _task_children(project: str, task: str) -> list[str]:
+	children: list[str] = []
+	pending = [task]
+	seen = {task}
+	while pending:
+		direct = frappe.get_all(
+			"Task",
+			filters={"project": project, "parent_task": ("in", pending)},
+			pluck="name",
+		)
+		pending = []
+		for name in direct:
+			if name not in seen:
+				seen.add(name)
+				children.append(name)
+				pending.append(name)
+	return children
+
+
+def _root_task_with_issue(task_name: str) -> str | None:
+	seen: set[str] = set()
+	current = task_name
+	while current and current not in seen:
+		seen.add(current)
+		row = frappe.db.get_value(
+			"Task",
+			current,
+			["parent_task", "custom_linked_issue"],
+			as_dict=True,
+		)
+		if not row:
+			return None
+		if row.custom_linked_issue:
+			return current
+		current = row.parent_task
+	return None
+
+
+def _find_plan(project: str, task_name: str, role: str, requirement: str) -> tuple[str, float] | None:
+	root_issue = _root_task_with_issue(task_name) if requirement == "Обязательно для всех Запросов" else None
+	seen: set[str] = set()
+	current = task_name
+	while current and current not in seen:
+		seen.add(current)
+		plan_name = frappe.db.get_value(
+			"Project Work Efforts",
+			{
+				"pwe_project": project,
+				"pwe_task": current,
+				"pwe_project_role": role,
+			},
+			"name",
+		)
+		if plan_name:
+			plan = frappe.get_doc("Project Work Efforts", plan_name)
+			hours = sum(flt(row.pwea_plan) for row in plan.pwe_amount)
+			if hours > 0:
+				return current, hours
+		if root_issue and current == root_issue:
+			break
+		current = frappe.db.get_value("Task", current, "parent_task")
+	return None
+
+
+def _validate_planned_limits(parent: object, positions: list[object]) -> list[str]:
+	errors: list[str] = []
+	for position in positions:
+		project = str(_value(position, "project") or "")
+		document_name = str(_value(position, "document_name") or "")
+		role = str(_value(position, "project_role") or "")
+		if not all((project, document_name, role)):
+			continue
+		task = document_name
+		if _value(position, "document_type") == "Issue":
+			task = (
+				frappe.db.get_value(
+					"Task",
+					{"project": project, "custom_linked_issue": document_name},
+					"name",
+				)
+				or ""
+			)
+		elif _value(position, "document_type") != "Task":
+			continue
+		if not task:
+			continue
+		requirement = (
+			frappe.db.get_value(
+				"Project",
+				project,
+				"custom_обязательность_плановых_трудозатрат",
+			)
+			or "Опционально"
+		)
+		root_issue = _root_task_with_issue(task)
+		plan_required = requirement == "Обязательно для всех Задач" or (
+			requirement == "Обязательно для всех Запросов" and root_issue
+		)
+		plan = _find_plan(project, task, role, requirement)
+		if plan_required and not plan:
+			errors.append(
+				_("Task {0} has no required planned hours for role {1}").format(task, role)
+			)
+			continue
+		if not plan:
+			continue
+		plan_task, planned_hours = plan
+		fact_tasks = [plan_task, *_task_children(project, plan_task)]
+		fact_issues = frappe.get_all(
+			"Task",
+			filters={
+				"name": ("in", fact_tasks),
+				"custom_linked_issue": ("is", "set"),
+			},
+			pluck="custom_linked_issue",
+		)
+		existing = sum(
+			flt(row.all_hours)
+			for row in (
+				frappe.get_all(
+					"User Timesheet Position",
+					filters={
+						"document_type": "Task",
+						"document_name": ("in", fact_tasks),
+						"project_role": role,
+						"user_timesheet": ("!=", _value(parent, "name")),
+					},
+					fields=["all_hours"],
+				)
+				+ (
+					frappe.get_all(
+						"User Timesheet Position",
+						filters={
+							"document_type": "Issue",
+							"document_name": ("in", fact_issues),
+							"project_role": role,
+							"user_timesheet": ("!=", _value(parent, "name")),
+						},
+						fields=["all_hours"],
+					)
+					if fact_issues
+					else []
+				)
+			)
+		)
+		local = sum(
+			sum(flt(_value(detail, "hours")) for detail in (_value(row, "table") or []))
+			for row in positions
+			if (
+				_value(row, "document_type") == "Task"
+				and _value(row, "document_name") in fact_tasks
+				or _value(row, "document_type") == "Issue"
+				and _value(row, "document_name") in fact_issues
+			)
+			and _value(row, "project_role") == role
+		)
+		block_limit = frappe.db.get_value(
+			"Limit Control",
+			{"parent": project, "parenttype": "Project", "type": "Блокировка"},
+			"limit",
+		)
+		if block_limit and existing + local > planned_hours * flt(block_limit) / 100:
+			errors.append(
+				_("Task {0} exceeds the blocking planned-hours limit for role {1}").format(
+					task,
+					role,
+				)
+			)
+	return list(dict.fromkeys(errors))
+
+
+def _materialize_position(parent: object, payload: TimesheetPositionInput, existing: object | None):
+	values = {
+		"user_timesheet": _value(parent, "name"),
+		"user": _value(parent, "timesheet_from"),
+		"project": payload.get("project"),
+		"document_type": payload.get("document_type"),
+		"document_name": payload.get("document_name"),
+		"project_role": payload.get("project_role"),
+		"reject_reason": "",
+	}
+	doc = existing or frappe.get_doc(
+		{
+			"doctype": "User Timesheet Position",
+			**position_status_values(EDITING),
+			**values,
+		}
+	)
+	doc.update(values)
+	details = payload.get("table") or payload.get("details") or []
+	doc.set(
+		"table",
+		[
+			{
+				"date": _value(detail, "date"),
+				"hours": flt(_value(detail, "hours")),
+				"description": str(_value(detail, "description") or "").strip(),
+			}
+			for detail in details
+		],
+	)
+	doc.all_hours = sum(flt(row.hours) for row in doc.table)
+	return doc
+
+
+def _prepare_positions(
+	parent: object,
+	payloads: list[TimesheetPositionInput],
+	deleted_names: list[str],
+) -> tuple[list[object], list[object]]:
+	actual_names = sorted(
+		frappe.get_all(
+			"User Timesheet Position",
+			filters={"user_timesheet": _value(parent, "name")},
+			pluck="name",
+			order_by="name asc",
+		)
+	)
+	actual_set = set(actual_names)
+	if not set(deleted_names).issubset(actual_set):
+		raise frappe.PermissionError(_("A deleted position does not belong to this timesheet"))
+	locked = {
+		name: frappe.get_doc("User Timesheet Position", name, for_update=True)
+		for name in actual_names
+	}
+	seen_existing: set[str] = set()
+	docs: list[object] = []
+	for payload in payloads:
+		payload_name = payload.get("name")
+		name = str(payload_name) if payload_name not in (None, "") else ""
+		is_client_new = not name or name.isdigit() or cint(payload.get("new"))
+		if name in actual_set:
+			if name in deleted_names or name in seen_existing:
+				raise frappe.ValidationError(_("Timesheet position payload is inconsistent"))
+			seen_existing.add(name)
+			docs.append(_materialize_position(parent, payload, locked[name]))
+		elif is_client_new:
+			docs.append(_materialize_position(parent, payload, None))
+		else:
+			raise frappe.PermissionError(_("A selected position does not belong to this timesheet"))
+	expected_existing = actual_set - set(deleted_names)
+	if seen_existing != expected_existing:
+		raise frappe.ValidationError(
+			_("Every retained timesheet position must be included in the request")
+		)
+	return docs, [locked[name] for name in deleted_names]
+
+
+def _validate_positions(parent: object, positions: list[object]) -> None:
+	errors = _validate_parent_period(parent)
+	if errors:
+		frappe.throw(
+			"<br>".join(frappe.utils.escape_html(error) for error in errors),
+			frappe.ValidationError,
+			title=_("Timesheet filling errors"),
+		)
+	if not positions:
+		return
+	template, holidays, reduced, leave_hours = _calendar_context(parent)
+	position_errors = []
+	for index, position in enumerate(positions, start=1):
+		row_errors = _validate_position_shape(
+			parent,
+			position,
+			description_required=bool(template._is_mandatory),
+		)
+		row_errors.extend(_validate_position_links(parent, position, template))
+		if row_errors:
+			position_errors.append(_format_position_errors(_position_label(position, index), row_errors))
+	errors.extend(_validate_daily_totals(parent, positions, template, holidays, reduced, leave_hours))
+	errors.extend(_validate_planned_limits(parent, positions))
+	if position_errors or errors:
+		frappe.throw(
+			"<br><br>".join(
+				position_errors + [frappe.utils.escape_html(error) for error in dict.fromkeys(errors)]
+			),
+			frappe.ValidationError,
+			title=_("Timesheet filling errors"),
+		)
+
+
+def lock_dependencies(doctype: str, name: str) -> list[tuple[str, str]]:
+	dependencies = []
+	if doctype == "User Timesheet Position":
+		parent = frappe.db.get_value(doctype, name, "user_timesheet")
+		if not parent:
+			return []
+		dependencies.append(("User Timesheet", parent))
+	elif doctype == "User Timesheet":
+		parent = name
+	else:
+		return []
+	period = frappe.db.get_value(
+		"User Timesheet", parent, ["timesheet_from", "ts_valid_from", "ts_valid_for"], as_dict=True
+	)
+	if period and all(period.values()):
+		# Leave updates take the same order: leave rows before the timesheet.
+		frappe.db.get_values(
+			"Application For Leave", _leave_period_filters(period), "name",
+			for_update=True, order_by="name asc",
+		)
+	projects = frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": parent, "project": ("is", "set")},
+		distinct=True,
+		pluck="project",
+	)
+	return [*dependencies, *(("Project", project) for project in projects)]
+
+
+@frappe.whitelist()
+def get_timesheet_rebuild_rounds(timesheet_name: str) -> list[TimesheetRebuildRoundResponse]:
+	"""Stalled position rounds for a timesheet card, labeled by project and role."""
+	parent = frappe.get_doc("User Timesheet", timesheet_name)
+	parent.check_permission("read")
+	from dinext_timesheets.workflow_form_references import timesheet_positions
+
+	position_doctype, readable_names = timesheet_positions(parent)
+	if not readable_names:
+		return []
+	positions = frappe.get_all(
+		position_doctype,
+		filters={"name": ("in", readable_names)},
+		fields=["name", "project", "project_role"],
+	)
+	if not positions:
+		return []
+	from dinext_common.workflow_approval.api import describe_rebuild_rounds
+
+	positions_by_name = {row.name: row for row in positions}
+	rounds = describe_rebuild_rounds(position_doctype, list(positions_by_name))
+	labeled: list[TimesheetRebuildRoundResponse] = []
+	for item in rounds:
+		position = positions_by_name[item["reference_name"]]
+		label = " · ".join(filter(None, (position.project, position.project_role))) or position.name
+		labeled.append(
+			{
+				"round_id": item["round_id"],
+				"round_status": item["round_status"],
+				"reference_name": item["reference_name"],
+				"label": label,
+				"configuration_change": item["configuration_change"],
+				"can_reset": item["can_reset"],
+			}
+		)
+	return labeled
+
+
+def pending_approvers(doctype: str, name: str):
+	"""Aggregate active child-position approvers for a parent timesheet."""
+	if doctype != "User Timesheet":
+		return None
+	from dinext_timesheets.workflow_form_references import timesheet_positions
+
+	position_doctype, position_names = timesheet_positions(frappe.get_doc(doctype, name))
+	if not position_names:
+		return []
+	from dinext_common.workflow_approval.pending import get_required_state_pending_tasks
+
+	return get_required_state_pending_tasks(position_doctype, position_names)
+
+
+def digest_item(task):
+	from dinext_timesheets.workflow_email import digest_item as item
+	return item(task)
+
+
+@frappe.whitelist()
+def get_timesheet_approval_actions(timesheet_name: str) -> dict[str, object]:
+	parent = frappe.get_doc("User Timesheet", timesheet_name)
+	parent.check_permission("read")
+	position_names = set(
+		frappe.get_all(
+			"User Timesheet Position",
+			filters={"user_timesheet": parent.name},
+			pluck="name",
+		)
+	)
+	from dinext_common.workflow_approval.api import get_my_queue
+
+	tasks = [
+		task
+		for task in get_my_queue(limit=1000)
+		if task["reference_doctype"] == "User Timesheet Position"
+		and task["reference_name"] in position_names
+	]
+	action_sets = [
+		{row["action"] for row in task["available_transitions"]}
+		for task in tasks
+	]
+	common_actions = sorted(set.intersection(*action_sets)) if action_sets else []
+	required = {
+		row["action"]
+		for task in tasks
+		for row in task["available_transitions"]
+		if row["comment_is_required"]
+	}
+	return {
+		"tasks": [task["name"] for task in tasks],
+		"position_count": len({task["reference_name"] for task in tasks}),
+		"actions": [
+			{
+				"action": action,
+				"comment_is_required": action in required,
+				"positions": [
+					{"next_state": row["next_state"]}
+					for task in tasks
+					for row in task["available_transitions"]
+					if row["action"] == action
+				],
+			}
+			for action in common_actions
+		],
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def vote_timesheet_positions(
+	timesheet_name: str,
+	action: str,
+	comment: object = None,
+	request_id: str | None = None,
+) -> dict[str, object]:
+	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
+	parent.check_permission("read")
+	frappe.flags.timesheet_transition_messages = []
+	frappe.flags.workflow_finalization_errors = []
+	available = get_timesheet_approval_actions(parent.name)
+	if action not in {row["action"] for row in available["actions"]}:
+		frappe.throw(_("The action is not available for all selected positions"))
+	from dinext_common.workflow_approval.engine import (
+		WorkflowApprovalConflictError,
+		cast_vote,
+	)
+
+	results = []
+	for index, task_name in enumerate(sorted(available["tasks"])):
+		# The first vote can move the whole timesheet and cancel the other tasks.
+		if _task_no_longer_matches_source(task_name):
+			continue
+		try:
+			results.append(
+				cast_vote(
+					task_name,
+					action=action,
+					comment=comment,
+					request_id=f"{request_id or frappe.generate_hash(length=16)}:{index}",
+					completion_source="Bulk",
+				)
+			)
+		except WorkflowApprovalConflictError as caught:
+			if not any(row.get("transitioned") for row in results):
+				raise
+			_note_timesheet_transition_message(str(caught))
+	messages = [
+		*(getattr(frappe.flags, "workflow_finalization_errors", None) or []),
+		*(getattr(frappe.flags, "timesheet_transition_messages", None) or []),
+	]
+	return {"timesheet": parent.name, "results": results, "messages": messages}
+
+
+def _position_action_items(doc) -> list[dict]:
+	"""Show configured management actions alongside the caller’s own votes."""
+	from frappe.model.workflow import get_transitions
+
+	enabled = _enabled()
+	transitions = []
+	if frappe.has_permission(doc, "write", ignore_share_permissions=True):
+		try:
+			transitions = get_transitions(doc)
+		except (frappe.ValidationError, frappe.PermissionError):
+			pass
+
+	items = [
+		{
+			"action": row["action"],
+			"next_state": row["next_state"],
+			"comment_is_required": bool(row.get("custom_comment_is_required")),
+			"mode": "domain",
+		}
+		for row in transitions
+		if row.get("action") and row.get("next_state")
+		and (not enabled or row.get("custom_timesheet_management_action"))
+	]
+	if not enabled:
+		return items
+
+	task_names = frappe.get_all(
+		"Workflow Task",
+		filters={
+			"reference_doctype": "User Timesheet Position",
+			"reference_name": doc.name,
+			"approver": frappe.session.user,
+			"status": "Working",
+			"round_status": "Open",
+		},
+		pluck="name",
+		limit=2,
+	)
+	if len(task_names) != 1:
+		return items
+
+	task = frappe.get_doc("Workflow Task", task_names[0])
+	from dinext_timesheets.dinext_timesheets.user_timesheet.permissions import timesheet_management_transitions
+
+	management_actions = {row.action for row in timesheet_management_transitions(doc)}
+	items.extend(
+		{
+			"action": row.action,
+			"next_state": row.next_state,
+			"comment_is_required": bool(row.comment_is_required),
+			"mode": "vote",
+			"task": task.name,
+		}
+		for row in task.available_workflow_transitions
+		if row.action and row.next_state and row.action not in management_actions
+	)
+	return items
+
+
+@frappe.whitelist()
+def get_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
+	"""Workflow actions available on the timesheet card."""
+	if not _has_workflow_engine():
+		return _legacy_timesheet_position_actions(timesheet_name)
+	from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
+
+	if not empty_timesheet_workflow.has_positions(timesheet_name):
+		return {"actions": empty_timesheet_workflow.get_actions(timesheet_name)}
+	if workflow_scenario_actions.is_active():
+		return workflow_scenario_actions.get_timesheet_position_actions(timesheet_name)
+	return _legacy_timesheet_position_actions(timesheet_name)
+
+
+def _legacy_timesheet_position_actions(timesheet_name: str) -> dict[str, object]:
+	parent = frappe.get_doc("User Timesheet", timesheet_name)
+	parent.check_permission("read")
+	position_names = frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": parent.name},
+		pluck="name",
+		order_by="name asc",
+	)
+	grouped: dict[str, dict] = {}
+	current: dict[str, str] = {}
+	for name in position_names:
+		doc = frappe.get_doc("User Timesheet Position", name)
+		current[name] = str(position_workflow_state(doc) or "")
+		for item in _position_action_items(doc):
+			row = grouped.setdefault(
+				item["action"],
+				{
+					"action": item["action"],
+					"comment_is_required": False,
+					"confirm_return_to_editing": False,
+					"positions": [],
+				},
+			)
+			row["comment_is_required"] = bool(
+				row["comment_is_required"] or item["comment_is_required"]
+			)
+			row["confirm_return_to_editing"] = bool(
+				row["confirm_return_to_editing"]
+				or (
+					current[name] == POSITION_APPROVED
+					and item["next_state"] == EDITING
+				)
+			)
+			row["positions"].append(
+				{
+					"name": name,
+					"mode": item["mode"],
+					"task": item.get("task"),
+					"next_state": item["next_state"],
+				}
+			)
+	from dinext_timesheets.timesheet_settings import (
+		matching_position_rule,
+		timesheet_check_status,
+	)
+
+	check_status = timesheet_check_status()
+	actions = []
+	for row in grouped.values():
+		updates = {item["name"]: item["next_state"] for item in row["positions"]}
+		counts: dict[str, int] = {}
+		for name, status in current.items():
+			status = updates.get(name) or status
+			if not status:
+				continue
+			counts[status] = counts.get(status, 0) + 1
+		rule = matching_position_rule(counts)
+		row["runs_timesheet_checks"] = bool(
+			rule
+			and check_status
+			and rule["timesheet_status"] == check_status
+			and parent.ut_status != check_status
+		)
+		actions.append(row)
+	actions.sort(key=lambda row: row["action"])
+	return {"actions": actions}
+
+
+@frappe.whitelist(methods=["POST"])
+def apply_timesheet_position_action(
+	timesheet_name: str,
+	action: str,
+	comment: object = None,
+	request_id: str | None = None,
+	track_progress: bool = False,
+	targets: object = None,
+	scope: str | None = None,
+) -> dict[str, object]:
+	"""Apply a direct timesheet action or an action on its positions."""
+	if _has_workflow_engine():
+		from dinext_timesheets import empty_timesheet_workflow, workflow_scenario_actions
+
+		if scope == empty_timesheet_workflow.SCOPE:
+			return empty_timesheet_workflow.apply_action(timesheet_name, action, request_id)
+		if scope is None and workflow_scenario_actions.is_active():
+			from dinext_common.workflow_approval.api import _round_error_response
+
+			with _round_error_response():
+				return workflow_scenario_actions.apply_timesheet_position_action(
+					timesheet_name, action, comment, request_id, track_progress, targets
+				)
+	if scope is not None:
+		raise frappe.ValidationError(_("Invalid timesheet action scope"))
+	return _legacy_apply_timesheet_position_action(timesheet_name, action, comment, request_id, track_progress)
+
+
+def _legacy_apply_timesheet_position_action(timesheet_name, action, comment, request_id, track_progress):
+	parent = frappe.get_doc("User Timesheet", timesheet_name, for_update=True)
+	parent.check_permission("read")
+	available = get_timesheet_position_actions(parent.name)
+	chosen = next(
+		(row for row in available["actions"] if row["action"] == action and not row.get("scope")),
+		None,
+	)
+	if not chosen:
+		frappe.throw(_("The action is not available for the timesheet positions"))
+	if chosen["runs_timesheet_checks"]:
+		_validate_saved_positions(parent)
+	frappe.flags.timesheet_transition_messages = []
+	frappe.flags.workflow_finalization_errors = []
+	positions = chosen["positions"]
+	total = len(positions)
+	processed = 0
+	report_progress = (
+		_has_workflow_engine() and total > 1 and bool(request_id)
+		and str(track_progress).lower() in {"1", "true"}
+	)
+	if report_progress:
+		from dinext_common.workflow_approval.api import publish_workflow_progress
+
+	results = []
+	previous_defer = frappe.flags.defer_timesheet_rollup
+	frappe.flags.defer_timesheet_rollup = True
+	try:
+		for processed, position in enumerate(positions, start=1):
+			if position["mode"] != "vote":
+				if _enabled():
+					from dinext_common.workflow_approval.engine import apply_domain_transition
+
+					apply_domain_transition(
+						"User Timesheet Position",
+						position["name"],
+						position["next_state"],
+						reason=_("Timesheet action {0}").format(action),
+						actor=frappe.session.user,
+					)
+				else:
+					from frappe.model.workflow import apply_workflow
+
+					apply_workflow(
+						frappe.get_doc("User Timesheet Position", position["name"]),
+						action,
+					)
+				results.append({"name": position["name"], "transitioned": True})
+			elif not _task_no_longer_matches_source(position["task"]):
+				from dinext_common.workflow_approval.engine import (
+					WorkflowApprovalConflictError,
+					cast_vote,
+				)
+
+				try:
+					results.append(
+						cast_vote(
+							position["task"],
+							action=action,
+							comment=comment,
+							request_id=f"{request_id or frappe.generate_hash(length=16)}:{processed - 1}",
+							completion_source="Bulk",
+						)
+					)
+				except WorkflowApprovalConflictError as caught:
+					if not any(row.get("transitioned") for row in results):
+						raise
+					_note_timesheet_transition_message(str(caught))
+			if report_progress:
+				publish_workflow_progress(request_id, processed, total)
+	finally:
+		frappe.flags.defer_timesheet_rollup = previous_defer
+	parent.reload()
+	if positions and _enabled():
+		sample = frappe.get_doc(
+			"User Timesheet Position",
+			positions[-1]["name"],
+		)
+		_recalculate_parent(parent, sample, None)
+	messages = [
+		*(getattr(frappe.flags, "workflow_finalization_errors", None) or []),
+		*(getattr(frappe.flags, "timesheet_transition_messages", None) or []),
+	]
+	return {
+		"timesheet": parent.name,
+		"results": results,
+		"messages": messages,
+		"processed": processed,
+		"total": total,
+	}
+
+
+def on_vote_completed(task, source, transition) -> None:
+	if (
+		source.doctype == "User Timesheet Position"
+		and transition.next_state == REJECTED
+		and task.vote_comment
+	):
+		source.reject_reason = task.vote_comment
+		frappe.db.set_value(
+			source.doctype,
+			source.name,
+			"reject_reason",
+			task.vote_comment,
+			update_modified=False,
+		)
+
+
+@frappe.whitelist(methods=["POST"])
+def orchestrate_timesheet(
+	ts_name: str,
+	operation: TimesheetOperation,
+	positions: object = None,
+	deleted_positions: object = None,
+) -> TimesheetOrchestrationResponse:
+	"""Compatibility endpoint for saving an editable grid."""
+	from dinext_timesheets.dinext_timesheets.user_timesheet.permissions import assert_can_edit_timesheet
+
+	if operation != "Start":
+		frappe.throw(_("Use the position Workflow to change the timesheet status"), frappe.PermissionError)
+	if _has_workflow_engine():
+		from dinext_common.workflow_approval.engine import _lock_domain_dependencies
+
+		_lock_domain_dependencies("User Timesheet", ts_name)
+	parent = frappe.get_doc("User Timesheet", ts_name, for_update=True)
+	assert_can_edit_timesheet(parent)
+	position_docs, deleted_docs = _prepare_positions(parent, _parse_positions(positions), _parse_names(deleted_positions))
+	for doc in sorted(deleted_docs, key=lambda row: row.name):
+		doc.delete()
+	for doc in sorted(position_docs, key=lambda row: str(row.name or "")):
+		doc.save()
+	parent.reload()
+	return {
+		"timesheet": parent.name,
+		"status": parent.ut_status,
+		"processed": len(position_docs),
+		"positions": [doc.name for doc in position_docs],
+	}
+
+
+def on_utp_update(doc, method=None) -> None:
+	if not _enabled():
+		return
+	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
+
+	if uses_local_scenarios():
+		from dinext_timesheets.workflow_scenario_positions import handle_selected_state_update
+
+		if handle_selected_state_update(doc):
+			return
+	old = doc.get_doc_before_save()
+	old_status = old.status if old else None
+	if old_status == doc.status:
+		return
+	parent = frappe.get_doc("User Timesheet", doc.user_timesheet, for_update=True)
+	if old and not frappe.flags.in_timesheet_approval_cascade and not frappe.flags.defer_timesheet_rollup:
+		_recalculate_parent(parent, doc, old_status)
+	if old_status != PENDING and doc.status == PENDING:
+		from dinext_timesheets.submission_discipline import maybe_record_complete
+
+		maybe_record_complete(parent)
+
+
+def _task_no_longer_matches_source(task_name: str) -> bool:
+	from dinext_timesheets.workflow_scenario_actions import uses_local_scenarios
+
+	if uses_local_scenarios():
+		from dinext_timesheets.workflow_scenario_positions import task_no_longer_matches_source
+
+		return task_no_longer_matches_source(task_name)
+	task = frappe.db.get_value(
+		"Workflow Task",
+		task_name,
+		[
+			"status",
+			"round_status",
+			"reference_doctype",
+			"reference_name",
+			"workflow_state",
+		],
+		as_dict=True,
+	)
+	if not task or task.status != "Working" or task.round_status != "Open":
+		return True
+	from frappe.model.workflow import get_workflow
+
+	state_field = get_workflow(task.reference_doctype).workflow_state_field
+	current_state = frappe.db.get_value(
+		task.reference_doctype,
+		task.reference_name,
+		state_field,
+	)
+	return str(current_state or "") != str(task.workflow_state or "")
+
+
+def _note_timesheet_transition_message(message: str) -> None:
+	notes = getattr(frappe.flags, "timesheet_transition_messages", None)
+	if not isinstance(notes, list):
+		notes = []
+		frappe.flags.timesheet_transition_messages = notes
+	notes.append(str(message))
+
+
+def load_position_statuses(timesheet_name: str) -> list[str]:
+	return frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": timesheet_name},
+		pluck="status",
+	)
+
+
+def _validate_saved_positions(parent) -> None:
+	names = frappe.get_all(
+		"User Timesheet Position",
+		filters={"user_timesheet": parent.name},
+		pluck="name",
+		order_by="name asc",
+	)
+	_validate_positions(parent, [frappe.get_doc("User Timesheet Position", name) for name in names])
+
+
+def _recalculate_parent(parent, changed_position, old_status: str | None) -> None:
+	from dinext_timesheets import workflow_scenario_actions
+
+	if workflow_scenario_actions.is_active():
+		return workflow_scenario_actions.recalculate_parent(parent, changed_position, old_status)
+	del old_status
+	from dinext_timesheets.timesheet_settings import (
+		matching_position_rule,
+		parent_position_target,
+		timesheet_check_status,
+	)
+
+	statuses = list(load_position_statuses(parent.name) or [])
+	if changed_position.status and changed_position.status not in statuses:
+		statuses.append(changed_position.status)
+	counts: dict[str, int] = {}
+	for status in statuses:
+		if not status:
+			continue
+		counts[status] = counts.get(status, 0) + 1
+	rule = matching_position_rule(counts)
+	if not rule or parent.ut_status == rule["timesheet_status"]:
+		return
+	new_status = rule["timesheet_status"]
+	if new_status == timesheet_check_status():
+		_validate_saved_positions(parent)
+	parent.ut_status = new_status
+	if new_status == PARENT_APPROVED:
+		parent.ut_approval_date = nowdate()
+	else:
+		parent.ut_approval_date = None
+	target = rule["position_status"] if rule.get("move_all_positions") else parent_position_target(new_status)
+	if not target:
+		parent.save(ignore_permissions=True)
+		return
+	from dinext_common.workflow_approval.engine import apply_domain_transition
+
+	frappe.flags.in_timesheet_approval_cascade = True
+	try:
+		parent.save(ignore_permissions=True)
+		siblings = frappe.get_all(
+			"User Timesheet Position",
+			filters={
+				"user_timesheet": parent.name,
+				"name": ("!=", changed_position.name),
+				"status": ("!=", target),
+			},
+			pluck="name",
+			order_by="name asc",
+		)
+		for sibling_name in siblings:
+			try:
+				apply_domain_transition(
+					"User Timesheet Position",
+					sibling_name,
+					target,
+					reason=_("Timesheet returned for rework"),
+					actor=frappe.session.user,
+				)
+			except Exception:
+				frappe.log_error(
+					title=f"Timesheet sibling transition failed: {sibling_name}",
+				)
+				_note_timesheet_transition_message(
+					_("Could not update a related timesheet position: {0}").format(
+						sibling_name
+					)
+				)
+	finally:
+		frappe.flags.in_timesheet_approval_cascade = False
+
+
+def recalculate_task_actual_dates(task_name: str) -> None:
+	from dinext_timesheets.dinext_timesheets.user_timesheet.events.status_rollup import (
+		recalculate_task_actual_dates as recalculate,
+	)
+
+	recalculate(task_name)
+
+
+def _save_system_task(task) -> None:
+	"""Actual dates follow approval. The closing approver is not editing the WBS."""
+	previous = frappe.session.user
+	try:
+		if previous != "Administrator":
+			frappe.set_user("Administrator")
+		task.save(ignore_permissions=True)
+	finally:
+		if frappe.session.user != previous:
+			frappe.set_user(previous)
+
+
+def notify_task_limit_if_pending(position_name: str) -> None:
+	"""Handle an old queued job without guessing which round it belonged to."""
+	from dinext_timesheets.dinext_timesheets.user_timesheet.events.limits_notify import notify_task_limit_if_pending
+
+	notify_task_limit_if_pending(position_name)
+
+
+def email_context(task, source):
+	"""Correction emails open the parent timesheet rather than its internal position."""
+	from dinext_timesheets.workflow_email import email_context as context
+	return context(task, source)

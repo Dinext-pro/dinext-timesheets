@@ -1,0 +1,38 @@
+diff --git a/cypress/integration/ut_form_submit_errors.js b/cypress/integration/ut_form_submit_errors.js
+--- a/cypress/integration/ut_form_submit_errors.js
++++ b/cypress/integration/ut_form_submit_errors.js
+@@ -57,10 +57,13 @@
+ function openForm() {
+-	const name = Cypress.env("utWorkflow").name;
+-	cy.login();
+-	cy.visit(`/app/user-timesheet/${encodeURIComponent(name)}`);
+-	cy.get(".user-timesheet-table", { timeout: 120000 }).should("exist");
+-	cy.window({ timeout: 120000 }).should((win) => {
+-		expect(workflowGroup(win).length, "workflow group").to.eq(1);
+-		expect(!!win.cur_frm.doc.__unsaved, "saved form").to.eq(false);
+-	});
++	const name = Cypress.env("utWorkflow").name;
++	cy.login();
++	cy.visit(`/app/user-timesheet/${encodeURIComponent(name)}`);
++	cy.get(".user-timesheet-table", { timeout: 120000 }).should("exist");
++	cy.window({ timeout: 120000 }).should((win) => {
++		expect(win.cur_frm?.doc?.name).to.eq(name);
++		// The remaining form load can replace the template and grid data used by arm().
++		expect(win.cur_frm?._ut_load_promise, "initial timesheet load completed").to.eq(null);
++		expect(workflowGroup(win).length, "workflow group").to.eq(1);
++		expect(!!win.cur_frm.doc.__unsaved, "saved form").to.eq(false);
++	});
+ }
+@@ -68,11 +71,3 @@
+ function clickSubmit() {
+-	cy.window().then((win) => {
+-		const action = Cypress.env("submitAction");
+-		const label =
+-			win.frappe.dinext?.workflowActionLabel?.(action) || win.__(action);
+-		const encoded = encodeURIComponent(label);
+-		const item = win.$(`.dropdown-item[data-label="${encoded}"]`);
+-		expect(item.length, "submit action").to.eq(1);
+-		item.trigger("click");
+-	});
++	cy.clickWorkflowAction(Cypress.env("submitAction"));
+ }

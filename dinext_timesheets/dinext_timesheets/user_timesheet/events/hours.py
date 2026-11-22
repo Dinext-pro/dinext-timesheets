@@ -69,17 +69,9 @@ def calculate_ut_hours(doc) -> None:
 		for r in wod.get("hod_working_hours_table", [])
 	}
 
-	leave_apps = frappe.get_all(
-		"Application For Leave",
-		filters={"lauser": doc.timesheet_from, "status": "Согласовано"},
-		fields=[
-			"alfrom_date",
-			"alto_date",
-			"alfrom_hours",
-			"alto_hours",
-			"altype_of_leave",
-		],
-	)
+	from dinext_timesheets.workflow_approval import approved_leave_for_period
+
+	leave_apps = approved_leave_for_period(doc)
 
 	total_leave = 0.0
 	total_util_leave = 0.0
@@ -103,17 +95,14 @@ def calculate_ut_hours(doc) -> None:
 
 		absence_hours = 0.0
 		for app in leave_apps:
-			start = max(getdate(app.alfrom_date), getdate(doc.ts_valid_from))
-			end = min(getdate(app.alto_date), getdate(doc.ts_valid_for))
-			if date_diff(day, start) < 0 or date_diff(day, end) > 0:
+			start = getdate(app.alfrom_date)
+			end = getdate(app.alto_date)
+			if not start <= day <= end:
 				continue
 
-			span = date_diff(end, start) + 1
-			offset = date_diff(day, start)
-
-			if offset == 0 and flt(app.alfrom_hours) > 0:
+			if day == start and flt(app.alfrom_hours) > 0:
 				hrs = flt(app.alfrom_hours)
-			elif offset == span - 1 and span > 1 and flt(app.alto_hours) > 0:
+			elif day == end and end > start and flt(app.alto_hours) > 0:
 				hrs = flt(app.alto_hours)
 			else:
 				hrs = override_hours.get(day, standard_hours)
@@ -142,6 +131,8 @@ def calculate_ut_hours(doc) -> None:
 		doc.utilization_fulfillment = 100 * (
 			1 + (total_utilized - total_utilization_plan) / total_utilization_plan
 		)
+	else:
+		doc.utilization_fulfillment = 0.0
 
 	doc.total_hours_to_work = max(0, doc.total_hours_schedule - doc.total_hours_util_leave)
 
@@ -159,5 +150,7 @@ def calculate_ut_hours(doc) -> None:
 
 def calculate_utp_all_hours(doc) -> None:
 	"""Sum row.hours into all_hours when position is editable."""
-	if doc.status in ("Черновик", "Редактирование"):
+	from dinext_timesheets.timesheet_status import HOUR_SUM_POSITION_STATUSES
+
+	if doc.status in HOUR_SUM_POSITION_STATUSES:
 		doc.all_hours = sum(row.hours for row in doc.table) if doc.table else 0

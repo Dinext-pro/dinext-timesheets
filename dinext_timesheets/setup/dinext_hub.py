@@ -13,7 +13,7 @@ HUB_ITEMS = (
 	{
 		"section": 'My Work',
 		"element_type": 'Workspace',
-		"target": 'Мои Таймшиты',
+		"target": 'My Timesheets',
 		"label": 'My Timesheets',
 		"description": 'Personal time-tracking hub: your timesheets, leave and expense requests, pending approvals, utilization reports, and related settings.',
 		"icon": 'hr',

@@ -35,7 +35,6 @@ Working Hours On Date,Справочник дат исключений,
 Worker,Исполнитель,
 Worker Level,Уровень Исполнителя,
 "My Work","Моя работа",""
-"My Timesheets","Мои Таймшиты",""
 "Personal time-tracking hub: your timesheets, leave and expense requests, pending approvals, utilization reports, and related settings.","Персональный хаб учёта времени: ваши таймшиты, заявки на отпуск и расходы, ожидающие согласования, отчёты по загрузке и связанные настройки.",""
 "Timesheet Author","Автор ТШ",""
 "Author","Автор",""
@@ -74,11 +73,10 @@ Worker Level,Уровень Исполнителя,
 "Nothing found","Ничего не найдено",""
 "No tasks","Нет задач",""
 "Pending approval from: {0}","Ожидается согласование от: {0}",""
+"Action expected from: {0}","Ожидается действие от: {0}",""
 "Timesheet is overdue! Submit positions for approval immediately!","Таймшит просрочен! Срочно отправьте позиции на согласование!",""
 "Leave Applications:","Заявки на отсутствие:",""
 "Could not determine timesheet dates","Ошибка определения дат ТШ!",""
-"Submit for Approval","Отправить на согласование",""
-"Stop Workflow","Остановить воркфлоу",""
 "Return to Editing","Вернуть на редактирование",""
 "Save the timesheet first","Сначала сохраните таймшит",""
 "{0} cannot be less than {1} hours.","{0} не может быть менее {1} часов.",""
@@ -164,3 +162,154 @@ Worker Level,Уровень Исполнителя,
 "State","Статус",""
 "Timesheet Details","Детали таймшита",""
 "Reporting period","Отчетный период",""
+"Pending approvers","Ожидаются согласования от",""
+"{0} position(s)","позиций: {0}",""
+"Workflow action recorded","Решение по согласованию записано",""
+"Workflow action was not applied","Действие рабочего процесса не применено",""
+"Could not process timesheet positions","Не удалось обработать позиции таймшита",""
+"A related position could not open its next approval round.","Для связанной позиции не удалось открыть следующий раунд согласования.",""
+"Could not update a related timesheet position","Не удалось обновить связанную позицию таймшита",""
+"The timesheet status and position transitions were rolled back. A related position could not be updated.","Изменения статуса таймшита и переходы позиций отменены. Не удалось обновить связанную позицию.",""
+"The timesheet status and position transitions were rolled back. A related position could not open its next approval round.","Изменения статуса таймшита и переходы позиций отменены. Для связанной позиции не удалось открыть следующий раунд согласования.",""
+"Successfully processed positions: {0} of {1}","Успешно обработано позиций: {0} из {1}",""
+"The timesheet status and position transitions were rolled back. Could not update related position {0}. {1}","Изменения статуса таймшита и переходы позиций отменены. Не удалось обновить связанную позицию {0}. {1}",""
+"Could not update a related timesheet position: {0}","Не удалось обновить связанную позицию табеля: {0}",""
+"Rework","На доработке",""
+"Not Set","Не задано",""
+"Timesheet Settings","Настройки табеля",""
+"Position Sets Timesheet","Позиция задаёт статус табеля",""
+"Timesheet Check","Проверка ТШ",""
+"Move All Positions","Перевести все позиции",""
+"Timesheet Check can be set on only one row","Проверку табеля можно включить только на одной строке",""
+"Run the timesheet filling checks before the timesheet enters this row's status.","Выполнять проверки заполнения табеля перед входом в статус этой строки.",""
+"Position Status","Статус позиции",""
+"Timesheet Status","Статус табеля",""
+"Threshold","Порог",""
+"Hidden In Position List","Скрыты в списке позиций",""
+"Hidden List Statuses","Скрытые статусы списка",""
+"Timesheet Hidden List Status","Скрытый в списке статус позиции",""
+"Position status {0} is already hidden from the list","Статус позиции {0} уже скрыт в списке",""
+"Positions in these statuses stay on the timesheet and are omitted from the position list.","Позиции в этих статусах остаются на табеле и не показываются в списке позиций.",""
+"Apply workflow action","Применить действие согласования",""
+"Select rows that require your decision","Выберите строки, которые требуют вашего решения",""
+"The selected rows have no common workflow action","У выбранных строк нет общего действия согласования",""
+"Some workflow items failed","Часть решений согласования не применена",""
+"Timesheet details","Детали таймшита",""
+"Plan/fact analysis","Анализ план/факт",""
+Working Days must be a non-negative integer,Количество рабочих дней должно быть неотрицательным целым числом
+Timesheet author and period end are required to calculate the deadline,Для расчёта срока заполните автора и конец периода таймшита
+Holiday List {0} does not cover {1}; extend the worker calendar,Календарь {0} не покрывает дату {1}; продлите календарь сотрудника
+"Working days after the timesheet period, using the Worker's Holiday List. Recalculated on every save in Draft or Rework.",Рабочие дни после окончания периода по календарю Worker. Пересчитывается при каждом сохранении черновика и ТШ на доработке.
+Timesheet is overdue. Submission deadline: {0},Таймшит просрочен. Срок отправки: {0}
+You have {0} overdue timesheets. Complete and submit them for approval.,У вас просроченных таймшитов: {0}. Заполните и отправьте их на согласование.
+Go to Timesheets,Перейти к таймшитам
+Remind Me Later,Напомнить позже
+Timesheet owner has no Worker record,Для автора таймшита не найдена запись Worker
+Worker has no Timesheet Template,У сотрудника Worker не указан шаблон таймшита
+Worker has no Holiday List,У сотрудника Worker не указан календарь Holiday List
+A worker and timesheet period are required,Укажите работника и период ТШ
+Not permitted to create a timesheet for this worker and period,Нет права создать ТШ за этого работника на указанный период
+Not permitted to edit this timesheet,Нет права редактировать этот ТШ
+"Timesheet ownership, period and status are managed by the system","Работник, период и статус ТШ определяются системой"
+The timesheet end date does not match its reporting period,Дата окончания ТШ не соответствует отчётному периоду
+A new timesheet must be a draft,Новый ТШ должен быть черновиком
+The position must belong to the timesheet worker,Позиция должна относиться к работнику из ТШ
+A new position must be in editing,Новая позиция должна иметь статус «Редактирование»
+Change the position status through its Workflow,Измените статус через Workflow позиции
+Use the position Workflow to change the timesheet status,"Чтобы изменить статус ТШ, используйте Workflow позиций"
+Timesheet Management Action,Действие по ведению ТШ
+Run this timesheet position transition directly as an authorized submitter action.,"Выполнять этот переход позиции от имени пользователя, которому разрешено вести ТШ."
+My Expense Claims,Мои Заявки на расходы,
+My Leave Applications,Мои Заявки на отсутствие,
+My Approvals,Мои согласования,
+Timesheet Approvals,По Таймшитам,
+Leave Approvals,По Заявкам на отсутствие,
+Expense Approvals,По Заявкам на расходы,
+Timesheet Reports,Отчетность,
+Timesheet Configuration,Настройки,
+Expenses Awaiting My Approval,Расходы у меня на согласовании,
+Leave Applications Pending Approval,заявок на согласовании,
+Timesheets Approved by Me,ТШ согласованные мной,
+Leave Applications Approved by Me,Заявки согласованные мной,
+Timesheets Awaiting My Approval,ТШ у меня на согласовании,
+Leave Applications Awaiting My Approval,Заявки у меня на согласовании,
+Total Timesheets,таймшитов всего,
+Total Leave Applications,заявок всего,
+Timesheets in Editing,тш на редактировании,
+Timesheets Pending Approval,тш на согласовании,
+Expense Claims Pending Approval,из них на согласовании,
+Expenses Approved by Me,Расходы согласованные мной,
+Approved Leave Applications,заявок согласовано,
+Rejected Timesheets,тш отклонено,
+Approved Expense Claims,из них согласовано,
+Rejected Leave Applications,заявок отклонено,
+Overdue Timesheets,тш просрочено,
+Approved Timesheets,тш согласовано,
+Rejected Expense Claims,из них отклонено,
+Total Expense Claims,Всего заявок на расходы,
+My Logged Timesheet Hours,Мои списания по ТШ,
+Utilization Report,Отчет по утилизации,
+Leave Calendar,Календарь отсутствий,
+Timesheet Report,Отчетность по ТШ,
+My Timesheets,Мои Таймшиты,
+Holiday List,Список выходных,
+"Position {0} ({1})","Позиция {0} ({1})",""
+"Position {0}","Позиция {0}",""
+"project is required","укажите проект",""
+"task or issue type is required","укажите тип задачи или запроса",""
+"task or issue is required","укажите задачу или запрос",""
+"project role is required","укажите проектную роль",""
+"hours must be positive","часы должны быть больше нуля",""
+"date is required","укажите дату",""
+"duplicate date {0}","дата {0} повторяется",""
+"date {0} is outside the timesheet period","дата {0} вне периода таймшита",""
+"description is required for {0}","для {0} нужно описание",""
+"total hours must be positive","сумма часов должна быть больше нуля",""
+"project is not active and open","проект не открыт или не активен",""
+"document type is not enabled by the timesheet template","тип документа не разрешён шаблоном таймшита",""
+"project role does not exist","проектная роль не существует",""
+"task or issue does not belong to the selected project","задача или запрос не относятся к выбранному проекту",""
+"task or issue is excluded from timesheets","задача или запрос исключены из таймшитов",""
+"task is not eligible for timesheets","задача недоступна для таймшитов",""
+"task is outside the timesheet period","задача вне периода таймшита",""
+"task or issue is not assigned or shared with the owner","задача или запрос не назначены владельцу и не расшарены ему",""
+"project role is not valid for the owner and period","проектная роль не действует для владельца в этом периоде",""
+"Approval needs rebuilding for {0} positions","Нужна пересборка позиций: {0}",""
+Deadline Control,Контроль сроков
+Overdue Timesheet Submissions by Author,Просроченная отправка ТШ по авторам
+Overdue Timesheet Approvals by Approver,Просроченное согласование ТШ по согласующим
+Chart Metric,Показатель графика
+Submission,Отправка
+Approval,Согласование
+No observations,Нет наблюдений
+"{0}: Approved absence does not cover the full workday","{0}: Согласованное отсутствие не покрывает рабочий день",""
+"This action is only available for a timesheet without positions","Действие доступно только для ТШ без позиций",""
+"The action is not available for the current timesheet status","Действие недоступно в текущем статусе ТШ",""
+"Return the empty timesheet to editing before adding positions","Верните пустую ТШ на редактирование, чтобы добавить позиции",""
+"Invalid timesheet action scope","Неизвестный тип действия ТШ",""
+"Use Workflow to change the approval status of an empty timesheet","Измените статус согласования пустой ТШ через меню Workflow",""
+Timesheets Overdue for Submission,ТШ с просроченной отправкой,
+On-time Timesheet Submissions,Таймшиты отправлены в срок
+On-time Timesheet Approvals,Таймшиты согласованы в срок
+Overdue Timesheet Approvals,Просроченные согласования таймшитов
+Overdue Timesheet Positions,Просроченные позиции таймшитов
+Timesheet Hours Awaiting Approval,Часы таймшитов на согласовании
+Timesheet Deadline Discipline,Соблюдение сроков по таймшитам
+Invalid DocType,Недопустимый тип документа,
+"Review this approved timesheet because approved leave changed.","Проверьте согласованный табель. Изменилось согласованное отсутствие.",""
+"Review this approved timesheet because a project was closed.","Проверьте согласованный табель. Связанный проект закрыт.",""
+"This timesheet has a position in a closed or inactive project.","В табеле есть строка по закрытому или неактивному проекту.",""
+Hours awaiting approval,Часы на согласовании
+h,ч.,WorkflowTimesheetHours
+"Start and end dates are required.","Даты начала и окончания обязательны.",""
+"Start date cannot be after end date.","Дата начала не может быть позже даты окончания.",""
+"Leave hours cannot be negative.","Часы отсутствия не могут быть отрицательными.",""
+"This Worker already has a leave application that overlaps the selected dates.","У исполнителя уже есть заявка на отсутствие, которая пересекается с указанными датами.",""
+"End date cannot be earlier than start date","Дата окончания не может быть раньше даты начала",""
+"Worker is required.","Исполнитель обязателен.",""
+"Worker {0} has no user.","У исполнителя {0} не указан пользователь.",""
+"User must match the selected Worker's user.","Укажите пользователя, привязанного к выбранному исполнителю.",""
+"Worker {0} has no Holiday List.","У исполнителя {0} не указан календарь праздников.",""
+"Worker {0} has no Timesheet Template.","У исполнителя {0} не указан шаблон таймшита.",""
+"Timesheet Template {0} has no Working Hours On Date.","В шаблоне таймшита {0} не указан справочник дат исключений.",""
+"{0} {1} does not cover the leave period.","{0} {1} не покрывает период отсутствия.",""

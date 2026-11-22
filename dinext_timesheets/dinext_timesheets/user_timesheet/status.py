@@ -9,6 +9,26 @@ import frappe
 from .permissions import assert_can_set_timesheet_status
 
 
+def has_legacy_position_status() -> bool:
+	return frappe.get_meta("User Timesheet Position").has_field("workflow_state")
+
+
+def position_workflow_state(doc):
+	if has_legacy_position_status():
+		from frappe.model.workflow import get_workflow, get_workflow_name
+
+		field = get_workflow(doc.doctype).workflow_state_field if get_workflow_name(doc.doctype) else "workflow_state"
+		return doc.get(field) or doc.get("status")
+	return doc.get("status")
+
+
+def position_status_values(state) -> dict:
+	values = {"status": state}
+	if has_legacy_position_status():
+		values["workflow_state"] = state
+	return values
+
+
 def _parse_positions(positions):
 	if positions is None:
 		positions = frappe.form_dict.get("positions")
@@ -37,8 +57,7 @@ def set_timesheet_status(positions=None, pos_status=None, ts_name=None, ts_statu
 		if not name:
 			continue
 		position = frappe.get_doc("User Timesheet Position", name)
-		position.status = pos_status
-		position.workflow_state = pos_status
+		position.update(position_status_values(pos_status))
 		position.save()
 		updated += 1
 

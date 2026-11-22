@@ -1,0 +1,225 @@
+{
+ "charts": [
+  {
+   "chart_name": "Overdue Timesheet Submissions by Author",
+   "label": "Overdue Timesheet Submissions by Author"
+  },
+  {
+   "chart_name": "Overdue Timesheet Approvals by Approver",
+   "label": "Overdue Timesheet Approvals by Approver"
+  }
+ ],
+ "content": "[\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\">My Timesheets</span>\"\n  },\n  \"id\": \"78DXiXdey6\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Total Timesheets\"\n  },\n  \"id\": \"Ych2Us08RK\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Timesheets in Editing\"\n  },\n  \"id\": \"4rRKTW9xcr\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Timesheets Pending Approval\"\n  },\n  \"id\": \"eoxTQeHlJ1\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Rejected Timesheets\"\n  },\n  \"id\": \"V9N5Jb7bTS\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Overdue Timesheets\"\n  },\n  \"id\": \"X3L9ekhaMv\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Approved Timesheets\"\n  },\n  \"id\": \"ZHd7K0dgCW\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"tU5Tk2P8sp\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\">My Expense Claims<b></b></span>\"\n  },\n  \"id\": \"Ypqlj384xt\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Total Expense Claims\"\n  },\n  \"id\": \"expenseTotal\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Expense Claims Pending Approval\"\n  },\n  \"id\": \"8U2fco2DgC\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Approved Expense Claims\"\n  },\n  \"id\": \"9UXpC3wR5e\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Rejected Expense Claims\"\n  },\n  \"id\": \"m29rp4cEAB\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"QFS2RkQQ-e\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\"><b>My Leave Applications</b></span>\"\n  },\n  \"id\": \"GNwQY2sQgf\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Total Leave Applications\"\n  },\n  \"id\": \"v59OsO9FyB\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Leave Applications Pending Approval\"\n  },\n  \"id\": \"VjocwxgDNw\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Approved Leave Applications\"\n  },\n  \"id\": \"c02TPOlLb8\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 3,\n   \"number_card_name\": \"Rejected Leave Applications\"\n  },\n  \"id\": \"MBvN-Q1SA7\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"wZTfNXxZQ3\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\"><b>My Approvals</b></span>\"\n  },\n  \"id\": \"QB1TOjS2S9\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"text\": \"<span class=\\\"h4\\\"><b>Timesheet Approvals</b></span>\"\n  },\n  \"id\": \"eLQxUrMomT\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"text\": \"<span class=\\\"h4\\\"><b>Leave Approvals</b></span>\"\n  },\n  \"id\": \"XeaBq7l2sR\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"text\": \"<span class=\\\"h4\\\"><b></b></span><span class=\\\"h4\\\">Expense Approvals</span>\"\n  },\n  \"id\": \"RlfK7Y_jO5\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Timesheets Awaiting My Approval\"\n  },\n  \"id\": \"3bruDvGoUL\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Leave Applications Awaiting My Approval\"\n  },\n  \"id\": \"0pt3X0Jm_9\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Expenses Awaiting My Approval\"\n  },\n  \"id\": \"RPkQwvO2Qa\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Timesheets Approved by Me\"\n  },\n  \"id\": \"7QZCDyRBMc\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Leave Applications Approved by Me\"\n  },\n  \"id\": \"zisSticUW2\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Expenses Approved by Me\"\n  },\n  \"id\": \"mzxxycRAiN\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"OolMy5FYV1\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"C648qKxTOZ\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\"><b>Deadline Control</b></span>\"\n  },\n  \"id\": \"deadline-control\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Timesheets Overdue for Submission\"\n  },\n  \"id\": \"deadline-overdue-submission\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"On-time Timesheet Submissions\"\n  },\n  \"id\": \"deadline-card-0\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"On-time Timesheet Approvals\"\n  },\n  \"id\": \"deadline-card-1\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Overdue Timesheet Approvals\"\n  },\n  \"id\": \"deadline-card-2\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Overdue Timesheet Positions\"\n  },\n  \"id\": \"deadline-card-3\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"number_card_name\": \"Timesheet Hours Awaiting Approval\"\n  },\n  \"id\": \"deadline-card-4\",\n  \"type\": \"number_card\"\n },\n {\n  \"data\": {\n   \"chart_name\": \"Overdue Timesheet Submissions by Author\",\n   \"col\": 6\n  },\n  \"id\": \"deadline-chart-0\",\n  \"type\": \"chart\"\n },\n {\n  \"data\": {\n   \"chart_name\": \"Overdue Timesheet Approvals by Approver\",\n   \"col\": 6\n  },\n  \"id\": \"deadline-chart-1\",\n  \"type\": \"chart\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"deadline-control-spacer\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\"><b>Timesheet Reports</b></span>\"\n  },\n  \"id\": \"CrG4btogWC\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"My Logged Timesheet Hours\"\n  },\n  \"id\": \"t0AOcA2iXq\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Timesheet Report\"\n  },\n  \"id\": \"OX_CGdK7uI\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Utilization Report\"\n  },\n  \"id\": \"T_dPTtT5cB\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Leave Calendar\"\n  },\n  \"id\": \"6h6jeuDwEU\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Timesheet Deadline Discipline\"\n  },\n  \"id\": \"deadline-report\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 12\n  },\n  \"id\": \"rl1YpJ1xc3\",\n  \"type\": \"spacer\"\n },\n {\n  \"data\": {\n   \"col\": 12,\n   \"text\": \"<span class=\\\"h4\\\"><b>Timesheet Configuration</b></span>\"\n  },\n  \"id\": \"T5E9TLJQRm\",\n  \"type\": \"header\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Timesheet Settings\"\n  },\n  \"id\": \"TPod0jvW6v\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Timesheet Template\"\n  },\n  \"id\": \"udCSPQU7VE\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Worker\"\n  },\n  \"id\": \"0ba6c7a2d2\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Holiday List\"\n  },\n  \"id\": \"7103875d7b\",\n  \"type\": \"shortcut\"\n },\n {\n  \"data\": {\n   \"col\": 4,\n   \"shortcut_name\": \"Working Hours On Date\"\n  },\n  \"id\": \"8ed572c4a4\",\n  \"type\": \"shortcut\"\n }\n]",
+ "creation": "2026-02-07 13:31:04.195285",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "quantity-1",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "My Timesheets",
+ "links": [],
+ "modified": "2026-11-10 03:54:41.574371",
+ "modified_by": "Administrator",
+ "module": "Dinext Timesheets",
+ "name": "My Timesheets",
+ "number_cards": [
+  {
+   "label": "Expenses Awaiting My Approval",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043e\u043a EC \u0443 \u043c\u0435\u043d\u044f \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438"
+  },
+  {
+   "label": "Leave Applications Pending Approval",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0417\u0430\u044f\u0432\u043e\u043a \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438"
+  },
+  {
+   "label": "Timesheets Approved by Me",
+   "number_card_name": "\u0422\u0428 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u044b\u0435 \u043c\u043d\u043e\u0439-1"
+  },
+  {
+   "label": "Leave Applications Approved by Me",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043a\u0438 \u043d\u0430 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u044b\u0435 \u043c\u043d\u043e\u0439-1"
+  },
+  {
+   "label": "Timesheets Awaiting My Approval",
+   "number_card_name": "\u0422\u0428 \u0443 \u043c\u0435\u043d\u044f \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438-2"
+  },
+  {
+   "label": "Leave Applications Awaiting My Approval",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043a\u0438 \u043d\u0430 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u0443 \u043c\u0435\u043d\u044f \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438-2"
+  },
+  {
+   "label": "Total Timesheets",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0422\u0430\u0439\u043c\u0448\u0438\u0442\u043e\u0432 \u0432\u0441\u0435\u0433\u043e"
+  },
+  {
+   "label": "Total Leave Applications",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0417\u0430\u044f\u0432\u043e\u043a \u0432\u0441\u0435\u0433\u043e"
+  },
+  {
+   "label": "Timesheets in Editing",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0442\u0430\u0439\u043c\u0448\u0438\u0442\u043e\u0432 \u043d\u0430 \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0438"
+  },
+  {
+   "label": "Timesheets Pending Approval",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0442\u0430\u0439\u043c\u0448\u0438\u0442\u043e\u0432 \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438"
+  },
+  {
+   "label": "Expense Claims Pending Approval",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043e\u043a EC \u043d\u0430 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u0438"
+  },
+  {
+   "label": "Expenses Approved by Me",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043e\u043a EC \u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u044b\u0445 \u043c\u043d\u043e\u0439"
+  },
+  {
+   "label": "Approved Leave Applications",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0417\u0430\u044f\u0432\u043e\u043a \u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e"
+  },
+  {
+   "label": "Rejected Timesheets",
+   "number_card_name": "\u041c\u043e\u0438 \u043e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043d\u044b\u0435 \u0442\u0430\u0439\u043c\u0448\u0438\u0442\u044b"
+  },
+  {
+   "label": "Approved Expense Claims",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043e\u043a EC \u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e"
+  },
+  {
+   "label": "Rejected Leave Applications",
+   "number_card_name": "\u041c\u043e\u0438\u0445 \u0417\u0430\u044f\u0432\u043e\u043a \u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e"
+  },
+  {
+   "label": "Overdue Timesheets",
+   "number_card_name": "\u041c\u043e\u0438 \u043f\u0440\u043e\u0441\u0440\u043e\u0447\u0435\u043d\u043d\u044b\u0435 \u0442\u0430\u0439\u043c\u0448\u0438\u0442\u044b"
+  },
+  {
+   "label": "Approved Timesheets",
+   "number_card_name": "\u041c\u043e\u0438 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u044b\u0435 \u0442\u0430\u0439\u043c\u0448\u0438\u0442\u044b"
+  },
+  {
+   "label": "Rejected Expense Claims",
+   "number_card_name": "\u0417\u0430\u044f\u0432\u043e\u043a EC \u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e"
+  },
+  {
+   "label": "Total Expense Claims",
+   "number_card_name": "\u0412\u0441\u0435\u0433\u043e \u0437\u0430\u044f\u0432\u043e\u043a \u043d\u0430 \u0440\u0430\u0441\u0445\u043e\u0434\u044b"
+  },
+  {
+   "label": "Timesheets Overdue for Submission",
+   "number_card_name": "Timesheets Overdue for Submission"
+  },
+  {
+   "label": "On-time Timesheet Submissions",
+   "number_card_name": "On-time Timesheet Submissions"
+  },
+  {
+   "label": "On-time Timesheet Approvals",
+   "number_card_name": "On-time Timesheet Approvals"
+  },
+  {
+   "label": "Overdue Timesheet Approvals",
+   "number_card_name": "Overdue Timesheet Approvals"
+  },
+  {
+   "label": "Overdue Timesheet Positions",
+   "number_card_name": "Overdue Timesheet Positions"
+  },
+  {
+   "label": "Timesheet Hours Awaiting Approval",
+   "number_card_name": "Timesheet Hours Awaiting Approval"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Dinext_Worker"
+  },
+  {
+   "role": "Dinext_UTP_Appoval"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 43.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "My Logged Timesheet Hours",
+   "link_to": "\u041e\u0442\u0447\u0435\u0442 \u0434\u043b\u044f \u041f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a\u043e\u0432",
+   "report_ref_doctype": "User Timesheet Position",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Timesheet Settings",
+   "link_to": "Timesheet Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Timesheet Template",
+   "link_to": "Timesheet Template",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Utilization Report",
+   "link_to": "\u041e\u0442\u0447\u0435\u0442 \u043f\u043e \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u0438",
+   "report_ref_doctype": "User Timesheet",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Leave Calendar",
+   "type": "URL",
+   "url": "/app/application-for-leave/view/calendar/AFL?status=%D0%A1%D0%BE%D0%B3%D0%BB%D0%B0%D1%81%D0%BE%D0%B2%D0%B0%D0%BD%D0%BE"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Timesheet Report",
+   "link_to": "\u041e\u0442\u0447\u0435\u0442 \u043f\u043e \u0422\u0428",
+   "report_ref_doctype": "User Timesheet Position",
+   "type": "Report"
+  },
+  {
+   "doc_view": "",
+   "label": "Worker",
+   "link_to": "Worker",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Holiday List",
+   "link_to": "Holiday List",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Working Hours On Date",
+   "link_to": "Working Hours On Date",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Timesheet Deadline Discipline",
+   "link_to": "Timesheet Deadline Discipline",
+   "report_ref_doctype": "User Timesheet",
+   "type": "Report"
+  }
+ ],
+ "title": "My Timesheets"
+}

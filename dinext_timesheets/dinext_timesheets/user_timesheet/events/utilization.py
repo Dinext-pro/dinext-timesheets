@@ -18,12 +18,11 @@ logger = frappe.logger("user_timesheet")
 
 def apply_utilization_hours(doc) -> None:
 	"""Apply project utilization rules to ``doc.table`` utilized_hours."""
+	from dinext_timesheets.timesheet_status import EDITING_POSITION_STATUSES
+
 	old_doc = doc.get_doc_before_save()
-	if not (
-		doc.get("project")
-		and doc.get("table")
-		and (not old_doc or old_doc.status in (None, "Редактирование"))
-	):
+	previous_is_editing = not old_doc or old_doc.status in (None, *EDITING_POSITION_STATUSES)
+	if not (doc.get("project") and doc.get("table") and previous_is_editing):
 		return
 
 	project = frappe.get_cached_doc("Project", doc.project)

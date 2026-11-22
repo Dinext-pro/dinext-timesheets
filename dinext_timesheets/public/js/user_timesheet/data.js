@@ -7,50 +7,19 @@ import {
 	taskLabelFromCatalog,
 } from "./catalog.js";
 
-async function loadTemplate(frm) {
-	const r = await frappe.db.get_value(
-		"Worker",
-		{ wuser: frm.doc.timesheet_from },
-		"wtimesheet_template"
-	);
-	const templateName = r?.message?.wtimesheet_template;
-	if (!templateName) {
-		frm.template_doc = null;
-		return;
-	}
-	frm.template_doc = await frappe.db.get_doc("Timesheet Template", templateName);
-}
+const CONTEXT = "dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context";
 
-async function loadWorkHours(frm) {
-	const name = frm.template_doc?.tt_working_hours_on_date;
-	if (!name) {
-		return [];
-	}
-	const doc = await frappe.db.get_doc("Working Hours On Date", name);
-	return doc.hod_working_hours_table || [];
-}
-
-async function loadHolidays(frm) {
-	const r = await frappe.db.get_value(
-		"Worker",
-		{ wuser: frm.doc.timesheet_from },
-		"wholiday_list"
-	);
-	const listName = r?.message?.wholiday_list;
-	if (!listName) {
-		return [];
-	}
-	const doc = await frappe.db.get_doc("Holiday List", listName);
-	const from = frm.doc.ts_valid_from;
-	const to = frm.doc.ts_valid_for;
-	return (doc.holidays || []).filter((h) => {
-		const d = h.holiday_date;
-		return d >= from && d <= to;
+async function getList(doctype, args) {
+	const { message } = await frappe.call({
+		method: "frappe.desk.reportview.get_list",
+		type: "GET",
+		args: { doctype, ...args },
 	});
+	return message;
 }
 
 async function loadLeaves(frm) {
-	return frappe.db.get_list("Application For Leave", {
+	return getList("Application For Leave", {
 		fields: [
 			"name",
 			"lauser",
@@ -65,7 +34,7 @@ async function loadLeaves(frm) {
 			["lauser", "=", frm.doc.timesheet_from],
 			["alfrom_date", "<=", frm.doc.ts_valid_for],
 			["alto_date", ">=", frm.doc.ts_valid_from],
-			["status", "=", "Согласовано"],
+			["status", "=", "Approved"],
 		],
 		limit: 1000,
 	});
@@ -83,35 +52,54 @@ async function rejectAuthorLabel(userId) {
 	return r?.message?.full_name || userId;
 }
 
-/** Latest human Comment on UTP — skip share/workflow noise. V10: `{full_name}: {text}`. */
+const STATUS_ONLY_COMMENTS = new Set([
+	"Editing",
+	"Pending Approval",
+	"Approved",
+	"Rejected",
+	"Draft",
+	"Rework",
+	"Редактирование",
+	"На согласовании",
+	"Согласовано",
+	"Согласован",
+	"Отклонено",
+	"Черновик",
+	"На доработке",
+]);
+
+function commentPlainText(content) {
+	return $("<div>")
+		.html(content || "")
+		.text()
+		.trim();
+}
+
+function isSkippedRejectComment(text) {
+	if (!text || STATUS_ONLY_COMMENTS.has(text)) {
+		return true;
+	}
+	return /shared this document|Создана задача/i.test(text);
+}
+
+/** Latest human Comment on UTP when the position field is empty. */
 async function loadRejectReason(positionName) {
-	const comments = await frappe.db.get_list("Comment", {
+	const comments = await getList("Comment", {
 		filters: [
 			["reference_doctype", "=", "User Timesheet Position"],
 			["reference_name", "=", positionName],
-			["comment_by", "!=", ""],
 		],
 		fields: ["content", "comment_by", "comment_email"],
 		limit: 20,
 		order_by: "creation desc",
 	});
-	const comment = (comments || []).find((item) => {
-		const text = $("<div>")
-			.html(item.content || "")
-			.text()
-			.trim();
-		if (!text) {
-			return false;
-		}
-		return !/shared this document|Создана задача/i.test(text);
-	});
+	const comment = (comments || []).find(
+		(item) => !isSkippedRejectComment(commentPlainText(item.content))
+	);
 	if (!comment) {
 		return "";
 	}
-	const text = $("<div>")
-		.html(comment.content || "")
-		.text()
-		.trim();
+	const text = commentPlainText(comment.content);
 	const author = await rejectAuthorLabel(
 		comment.comment_by || comment.comment_email
 	);
@@ -122,7 +110,8 @@ async function loadRejectReason(positionName) {
 }
 
 async function loadPositions(frm) {
-	const list = await frappe.db.get_list("User Timesheet Position", {
+	const legacyStatus = frappe.boot.dinext_timesheet_legacy_position_status;
+	const list = await getList("User Timesheet Position", {
 		filters: [["user_timesheet", "=", frm.doc.name]],
 		fields: [
 			"name",
@@ -131,30 +120,38 @@ async function loadPositions(frm) {
 			"document_type",
 			"document_name",
 			"status",
-			"workflow_state",
+			...(legacyStatus ? ["workflow_state"] : []),
 			"all_hours",
 			"custom_username",
 		],
 		limit: 0,
-		order_by: "creation asc",
+		order_by: "creation asc, name asc",
 	});
 
+	const contexts = list?.length && await frappe.dinext?.loadWorkflowContexts?.(
+		"User Timesheet Position",
+		list.map((item) => item.name),
+	);
 	const positions = [];
 	for (const item of list) {
 		const doc = await frappe.db.get_doc("User Timesheet Position", item.name);
 		const details = (doc.table || []).filter(
 			(d) => d.date >= frm.doc.ts_valid_from && d.date <= frm.doc.ts_valid_for
 		);
-		const status = (item.status || item.workflow_state || "").trim();
+		const context = contexts?.[item.name]?.context;
+		const positionStatus = context?.workflow ? context.state : item.status;
+		const status = (positionStatus || (legacyStatus && item.workflow_state) || "").trim();
 		let reject_reason = "";
-		if (status === "Отклонено") {
-			reject_reason = await loadRejectReason(item.name);
+		if (status === "Rejected") {
+			reject_reason = String(doc.reject_reason || "").trim();
+			if (!reject_reason) {
+				reject_reason = await loadRejectReason(item.name);
+			}
 		}
 		const hoursFromDetails = details.reduce((sum, d) => sum + (flt(d.hours) || 0), 0);
 		positions.push({
 			...item,
 			status,
-			workflow_state: item.workflow_state || status,
 			user: item.user || frm.doc.timesheet_from,
 			custom_username:
 				item.custom_username || frm.doc.timesheet_from_name || "",
@@ -167,43 +164,12 @@ async function loadPositions(frm) {
 	return positions;
 }
 
-export async function loadTitles(positions, frm) {
-	const projectIds = [...new Set(positions.map((p) => p.project).filter(Boolean))];
-	const projectNames = {};
-	await Promise.all(
-		projectIds.map(async (name) => {
-			const catalog = frm ? projectLabelFromCatalog(frm, name) : "";
-			const r = await frappe.db.get_value("Project", name, "project_name");
-			projectNames[name] = r?.message?.project_name || catalog || name;
-		})
-	);
-
-	await Promise.all(
-		positions.map(async (p) => {
-			p.project_label =
-				projectNames[p.project] ||
-				(frm ? projectLabelFromCatalog(frm, p.project) : "") ||
-				p.project ||
-				"";
-			if (!p.document_type || !p.document_name) {
-				p.document_label = "";
-				return;
-			}
-			const catalog = frm ? taskLabelFromCatalog(frm, p.document_name) : "";
-			let subject = "";
-			try {
-				const r = await frappe.db.get_value(
-					p.document_type,
-					p.document_name,
-					"subject"
-				);
-				subject = r?.message?.subject || "";
-			} catch (_err) {
-				subject = "";
-			}
-			p.document_label = subject || catalog || p.document_name;
-		})
-	);
+export function loadTitles(positions, frm) {
+	for (const position of positions) {
+		position.project_label = projectLabelFromCatalog(frm, position.project) || position.project || "";
+		position.document_label =
+			taskLabelFromCatalog(frm, position.document_name) || position.document_name || "";
+	}
 }
 
 async function loadTasksData(frm) {
@@ -225,16 +191,20 @@ async function loadTasksData(frm) {
 /** Load UT grid domain into frm.ut / frm.ts_positions. */
 export async function loadGridData(frm) {
 	const state = initState(frm);
-	await loadTemplate(frm);
+	const { message: context } = await frappe.call({
+		method: CONTEXT,
+		args: { timesheet: frm.doc.name },
+	});
+	frm.template_doc = context.template;
+	state.canEdit = context.can_edit;
+	const { work_hours: workHours, holidays } = context;
 
 	const dates = getDatesBetween(frm.doc.ts_valid_from, frm.doc.ts_valid_for);
 	if (!dates.length) {
 		frappe.throw(__("Could not determine timesheet dates"));
 	}
 
-	const [workHours, holidays, leaves, positions, tasksData] = await Promise.all([
-		loadWorkHours(frm),
-		loadHolidays(frm),
+	const [leaves, positions, tasksData] = await Promise.all([
 		loadLeaves(frm),
 		loadPositions(frm),
 		loadTasksData(frm),
@@ -242,7 +212,7 @@ export async function loadGridData(frm) {
 
 	state.tasksData = tasksData;
 	frm.tasks_data = tasksData;
-	await loadTitles(positions, frm);
+	loadTitles(positions, frm);
 
 	state.dates = dates;
 	state.workHours = workHours;

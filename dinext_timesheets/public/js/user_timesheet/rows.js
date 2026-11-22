@@ -147,7 +147,7 @@ export function attachRejectReasonRows(rows, hoverParent = "") {
 			hover &&
 			hover === String(row.id) &&
 			row?.rowType === "position" &&
-			row.status === "Отклонено" &&
+			row.status === "Rejected" &&
 			row.reject_reason
 		) {
 			out.push(reasons.get(String(row.id)) || rejectReasonRow(row));

@@ -28,9 +28,9 @@ jobs:
           test "$GITHUB_REF" = "refs/tags/$GITHUB_REF_NAME"
   validation:
     name: Validation
-    uses: Dinext-pro/dinext-common/.github/workflows/dinext-reusable.yml@9b376ae244d920fa336d5a62be646b30adb43790
+    uses: Dinext-pro/dinext-common/.github/workflows/dinext-reusable.yml@6bdc20a26d03b27d3625fd483981d367478af81b
     with:
-      support_ref: 9b376ae244d920fa336d5a62be646b30adb43790
+      support_ref: 6bdc20a26d03b27d3625fd483981d367478af81b
       mode: frappe-app
       frontend_tests: false
   acceptance:

@@ -29,7 +29,8 @@ jobs:
       DINEXT_NOTIFICATIONS_ENABLED: 'false'
       DINEXT_DOCS_AGENT_ENABLED: '0'
       DINEXT_WIKI_PUBLISH_ENABLED: '0'
-      WORKFLOW_COMMON_SHA: 9b376ae244d920fa336d5a62be646b30adb43790
+      WORKFLOW_COMMON_SHA: 6bdc20a26d03b27d3625fd483981d367478af81b
+      WORKFLOW_GOALS_SHA: f494956c6e534dbbf4a1cf3d563a53375c2b84b2
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -67,7 +68,18 @@ jobs:
       - name: Run reminder contract tests
         run: node tests/js/deadline_reminder.test.cjs
       - name: Run server and browser acceptance
-        run: python .ci-workflow/.github/ci/workflow_acceptance.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.ci-support/.github/ci"
+        run: |
+          python - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
+
+          catalog_path = Path(".ci-workflow/.github/ci/public-apps.json")
+          catalog = json.loads(catalog_path.read_text())
+          catalog["dinext_goals"]["ci_sha"] = os.environ["WORKFLOW_GOALS_SHA"]
+          catalog_path.write_text(json.dumps(catalog))
+          PYTHON
+          python .ci-workflow/.github/ci/workflow_acceptance.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.ci-support/.github/ci"
       - name: Verify the UTP edit migration
         run: |
           python -m unittest dinext_timesheets.tests.test_utp_edit_fixture

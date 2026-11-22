@@ -6,6 +6,7 @@
   "frontend_tests": false,
   "skip_test_records": true,
   "post_install": [
-    "dinext_project_tasks_gantt"
+    "dinext_project_tasks_gantt",
+    "dinext_goals"
   ]
 }

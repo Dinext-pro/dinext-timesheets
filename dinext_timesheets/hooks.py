@@ -464,6 +464,7 @@ workflow_approval_email_context = ["dinext_timesheets.workflow_approval.email_co
 workflow_approval_email_permission = ["dinext_timesheets.workflow_email.can_receive"]
 workflow_approval_email_template_providers = ["dinext_timesheets.workflow_email.approval_email_templates"]
 workflow_approval_email_profile_providers = ["dinext_timesheets.workflow_email.approval_email_profiles"]
+workflow_approval_approver_group_providers = ["dinext_timesheets.workflow_deadlines.approver_groups"]
 
 workflow_scenario_final_states = {"AFL Workflow": ["Approved"]}
 

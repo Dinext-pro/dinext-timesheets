@@ -29,6 +29,7 @@ PROJECT_ROLE = PREFIX + " Project Role"
 ACTION = PREFIX + " Approve"
 CALENDAR = PREFIX + " Calendar"
 TEMPLATE = PREFIX + " Template"
+WORKING_HOURS = PREFIX + " Working Hours"
 
 
 @whitelist_for_tests
@@ -71,6 +72,7 @@ def cleanup_utp_list():
 	for name in frappe.get_all("Worker", filters={"wuser": ("in", USERS)}, pluck="name"):
 		frappe.delete_doc("Worker", name, force=True, ignore_permissions=True)
 	frappe.delete_doc_if_exists("Timesheet Template", TEMPLATE, force=True)
+	frappe.delete_doc_if_exists("Working Hours On Date", WORKING_HOURS, force=True)
 	frappe.delete_doc_if_exists("Holiday List", CALENDAR, force=True)
 	if frappe.db.exists("User Group", GROUP):
 		frappe.delete_doc("User Group", GROUP, force=True, ignore_permissions=True)
@@ -121,9 +123,16 @@ def seed_utp_list():
 	frappe.get_doc(
 		{"doctype": "Holiday List", "holiday_list_name": CALENDAR, "from_date": start, "to_date": end}
 	).insert(ignore_permissions=True)
+	hours = frappe.get_doc({
+		"doctype": "Working Hours On Date",
+		"hod_from_date": start,
+		"hod_to_date": end,
+	}).insert(ignore_permissions=True, set_name=WORKING_HOURS)
 	frappe.get_doc({
 		"doctype": "Timesheet Template",
 		"ttsubject": TEMPLATE,
+		"tt_working_hours_on_date": hours.name,
+		"doctype_for_timesheet": [{"dtdoctype": name} for name in ("Issue", "Task")],
 		"ttreporting_period": "Недельный",
 		"hours_on_date": 0,
 		"minimum_hours": 0,

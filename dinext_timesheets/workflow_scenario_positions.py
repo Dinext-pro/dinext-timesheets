@@ -10,7 +10,7 @@ def before_position_save(original, doc, method=None):
 	from dinext_common.workflow_approval.scenarios import compat, service
 	from dinext_timesheets.dinext_timesheets.user_timesheet.permissions import (
 		has_worker_scope,
-		timesheet_management_transitions,
+		is_timesheet_management_state_change,
 	)
 
 	before = doc.get_doc_before_save()
@@ -24,7 +24,7 @@ def before_position_save(original, doc, method=None):
 		return original(doc, method)
 	if any(doc.get(key) != before.get(key) for key in ("user_timesheet", "user", "user_group")):
 		frappe.throw(_("The position must belong to the timesheet worker"), frappe.PermissionError)
-	if any(row.next_state == doc.get(field) for row in timesheet_management_transitions(before, workflow=workflow)):
+	if is_timesheet_management_state_change(before, doc, field, workflow=workflow):
 		parent = frappe.get_doc("User Timesheet", doc.user_timesheet)
 		if not has_worker_scope(parent.timesheet_from, parent.ts_valid_for) or not frappe.has_permission(
 			before, "write", ignore_share_permissions=True

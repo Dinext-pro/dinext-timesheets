@@ -92,6 +92,17 @@ def timesheet_management_transitions(position, *, workflow=None) -> list:
 	]
 
 
+def is_timesheet_management_state_change(before, doc, state_field, *, workflow=None) -> bool:
+	from dinext_common.workflow_approval.scenarios.compat import transition_execution
+
+	execution = transition_execution(doc)
+	return any(
+		row.next_state == doc.get(state_field)
+		and (execution is None or row.get("custom_transition_uuid") == execution.uuid)
+		for row in timesheet_management_transitions(before, workflow=workflow)
+	)
+
+
 def assert_can_query_tasks_for_owner(ts_owner: str, start=None, end=None) -> None:
 	"""Allow the worker or a caller who can read the requested timesheet."""
 	if not (ts_owner and start and end):

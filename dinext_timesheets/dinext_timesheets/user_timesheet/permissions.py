@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import cint, getdate
 
-from dinext_timesheets.timesheet_status import PARENT_DRAFT, PARENT_REWORK
+from dinext_timesheets.timesheet_status import (
+	PARENT_DRAFT,
+	PARENT_REWORK,
+	POSITION_APPROVED,
+	POSITION_EDITING,
+	POSITION_PENDING,
+	POSITION_REJECTED,
+	UTP_STATUS_FROM_RUSSIAN,
+)
 
 
 def worker_group(worker: str) -> str | None:
@@ -52,16 +60,33 @@ def assert_can_edit_timesheet(doc) -> None:
 		frappe.throw(_("Not permitted to edit this timesheet"), frappe.PermissionError)
 
 
-def timesheet_management_transitions(position) -> list:
+def is_timesheet_management_transition(transition) -> bool:
+	"""Identify configured submission and return-to-editing transitions."""
+	state = transition.get("state")
+	next_state = transition.get("next_state")
+	states = (
+		UTP_STATUS_FROM_RUSSIAN.get(state, state),
+		UTP_STATUS_FROM_RUSSIAN.get(next_state, next_state),
+	)
+	return bool(cint(transition.get("allow_self_approval"))) and states in {
+		(POSITION_EDITING, POSITION_PENDING),
+		(POSITION_PENDING, POSITION_EDITING),
+		(POSITION_REJECTED, POSITION_EDITING),
+		(POSITION_APPROVED, POSITION_EDITING),
+	}
+
+
+def timesheet_management_transitions(position, *, workflow=None) -> list:
 	from frappe.model.workflow import get_workflow, get_workflow_name
 
-	if not get_workflow_name(position.doctype):
-		return []
-	workflow = get_workflow(position.doctype)
+	if workflow is None:
+		if not get_workflow_name(position.doctype):
+			return []
+		workflow = get_workflow(position.doctype)
 	state = position.get(workflow.workflow_state_field)
 	return [
 		row for row in workflow.transitions
-		if row.state == state and row.get("custom_timesheet_management_action")
+		if row.state == state and is_timesheet_management_transition(row)
 	]
 
 

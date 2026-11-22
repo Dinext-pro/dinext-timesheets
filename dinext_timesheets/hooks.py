@@ -497,7 +497,6 @@ workflow_approval_cutover_providers = ["dinext_timesheets.workflow_cutover.confi
 
 workflow_approval_email_presentation_providers = ["dinext_timesheets.workflow_email_presentation.present_email"]
 workflow_approval_previous_email_template_providers = ["dinext_timesheets.workflow_email.previous_approval_email_templates"]
-workflow_approval_email_choice_fields = ["custom_timesheet_management_action"]
 
 override_whitelisted_methods = {
     "dinext_common.workflow_approval.scenarios.timesheet_actions.get_timesheet_position_actions":

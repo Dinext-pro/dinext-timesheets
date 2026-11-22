@@ -24,7 +24,8 @@ class TestWorkflowEmailDefaults(unittest.TestCase):
         management=[r for r in workflow['transitions']if r['allowed']=='Dinext_Worker']
         self.assertEqual(len(management),4)
         for row in management:
-            self.assertEqual(row.get('custom_timesheet_management_action'),1)
+            self.assertEqual(row.get('allow_self_approval'),1)
+            self.assertNotIn('custom_timesheet_management_action',row)
             self.assertIn('timesheet_from',row['condition'])
             self.assertIn('date desc, idx desc',row['condition'])
         edit=next(r for r in management if r['state']=='Pending Approval')

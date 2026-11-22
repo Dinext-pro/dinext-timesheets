@@ -986,6 +986,11 @@ def _position_action_items(doc) -> list[dict]:
 	"""Show configured management actions alongside the caller’s own votes."""
 	from frappe.model.workflow import get_transitions
 
+	from dinext_timesheets.dinext_timesheets.user_timesheet.permissions import (
+		is_timesheet_management_transition,
+		timesheet_management_transitions,
+	)
+
 	enabled = _enabled()
 	transitions = []
 	if frappe.has_permission(doc, "write", ignore_share_permissions=True):
@@ -1003,7 +1008,7 @@ def _position_action_items(doc) -> list[dict]:
 		}
 		for row in transitions
 		if row.get("action") and row.get("next_state")
-		and (not enabled or row.get("custom_timesheet_management_action"))
+		and (not enabled or is_timesheet_management_transition(row))
 	]
 	if not enabled:
 		return items
@@ -1024,7 +1029,6 @@ def _position_action_items(doc) -> list[dict]:
 		return items
 
 	task = frappe.get_doc("Workflow Task", task_names[0])
-	from dinext_timesheets.dinext_timesheets.user_timesheet.permissions import timesheet_management_transitions
 
 	management_actions = {row.action for row in timesheet_management_transitions(doc)}
 	items.extend(

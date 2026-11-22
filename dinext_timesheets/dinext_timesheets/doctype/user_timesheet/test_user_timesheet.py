@@ -535,8 +535,8 @@ class TestUserTimesheet(FrappeTestCase):
 
 	def test_self_approval_does_not_replace_a_personal_workflow_task(self):
 		transitions = [
-			{"action": "Approve", "next_state": "Approved", "allow_self_approval": 1},
-			{"action": "Withdraw", "next_state": "Editing", "custom_timesheet_management_action": 1},
+			{"action": "Approve", "state": "Pending Approval", "next_state": "Approved", "allow_self_approval": 1},
+			{"action": "Withdraw", "state": "На согласовании", "next_state": "Редактирование", "allow_self_approval": 1},
 		]
 		doc = SimpleNamespace(name="UTP-1")
 		with (

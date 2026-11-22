@@ -42,21 +42,23 @@ dinext_timesheets.approvals.addHistoryButton = function (parent, position) {
 					name: position.name,
 				}
 			),
-			frappe.db.get_list("Comment", {
-				fields: [
-					"comment_email",
-					"comment_by",
-					"comment_type",
-					"creation",
-					"content",
-				],
-				filters: {
-					reference_doctype: "User Timesheet Position",
-					reference_name: position.name,
-					comment_type: ["in", ["Workflow", "Comment"]],
-				},
-				limit: 0,
-			}),
+			frappe.model.can_read("Comment")
+				? frappe.db.get_list("Comment", {
+						fields: [
+							"comment_email",
+							"comment_by",
+							"comment_type",
+							"creation",
+							"content",
+						],
+						filters: {
+							reference_doctype: "User Timesheet Position",
+							reference_name: position.name,
+							comment_type: ["in", ["Workflow", "Comment"]],
+						},
+						limit: 0,
+					})
+				: [],
 		]);
 		const rows = [
 			...(workflowRows || []).map((row) => ({

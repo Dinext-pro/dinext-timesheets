@@ -128,6 +128,7 @@ def seed_utp_list():
 		"hours_on_date": 0,
 		"minimum_hours": 0,
 		"maximum_hours": 24,
+		"working_days": 0,
 		"enabled": 1,
 	}).insert(ignore_permissions=True)
 	frappe.get_doc({"doctype": "User Group", "name": GROUP, "user_group_members": [{"user": OWNER}]}).insert(

@@ -217,7 +217,7 @@ The position must belong to the timesheet worker,Позиция должна о�
 A new position must be in editing,Новая позиция должна иметь статус «Редактирование»
 Change the position status through its Workflow,Измените статус через Workflow позиции
 Use the position Workflow to change the timesheet status,"Чтобы изменить статус ТШ, используйте Workflow позиций"
-Timesheet Management Action,Действие по ведению ТШ
+Cannot remove the Timesheet Management Action field. These transitions need review: {0},Поле «Действие по ведению ТШ» пока нельзя удалить. Проверьте переходы: {0}
 Run this timesheet position transition directly as an authorized submitter action.,"Выполнять этот переход позиции от имени пользователя, которому разрешено вести ТШ."
 My Expense Claims,Мои Заявки на расходы,
 My Leave Applications,Мои Заявки на отсутствие,

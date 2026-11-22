@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import cint, getdate
 
-from dinext_timesheets.timesheet_status import PARENT_DRAFT, PARENT_REWORK
+from dinext_timesheets.timesheet_status import (
+	PARENT_DRAFT,
+	PARENT_REWORK,
+	POSITION_APPROVED,
+	POSITION_EDITING,
+	POSITION_PENDING,
+	POSITION_REJECTED,
+	UTP_STATUS_FROM_RUSSIAN,
+)
 
 
 def worker_group(worker: str) -> str | None:
@@ -52,17 +60,47 @@ def assert_can_edit_timesheet(doc) -> None:
 		frappe.throw(_("Not permitted to edit this timesheet"), frappe.PermissionError)
 
 
-def timesheet_management_transitions(position) -> list:
+def is_timesheet_management_transition(transition) -> bool:
+	"""Identify configured submission and return-to-editing transitions."""
+	if transition.get("allowed") != "Dinext_Worker" or not cint(transition.get("allow_self_approval")):
+		return False
+	state = transition.get("state")
+	next_state = transition.get("next_state")
+	states = (
+		UTP_STATUS_FROM_RUSSIAN.get(state, state),
+		UTP_STATUS_FROM_RUSSIAN.get(next_state, next_state),
+	)
+	return states in {
+		(POSITION_EDITING, POSITION_PENDING),
+		(POSITION_PENDING, POSITION_EDITING),
+		(POSITION_REJECTED, POSITION_EDITING),
+		(POSITION_APPROVED, POSITION_EDITING),
+	}
+
+
+def timesheet_management_transitions(position, *, workflow=None) -> list:
 	from frappe.model.workflow import get_workflow, get_workflow_name
 
-	if not get_workflow_name(position.doctype):
-		return []
-	workflow = get_workflow(position.doctype)
+	if workflow is None:
+		if not get_workflow_name(position.doctype):
+			return []
+		workflow = get_workflow(position.doctype)
 	state = position.get(workflow.workflow_state_field)
 	return [
 		row for row in workflow.transitions
-		if row.state == state and row.get("custom_timesheet_management_action")
+		if row.state == state and is_timesheet_management_transition(row)
 	]
+
+
+def is_timesheet_management_state_change(before, doc, state_field, *, workflow=None) -> bool:
+	from dinext_common.workflow_approval.scenarios.compat import transition_execution
+
+	execution = transition_execution(doc)
+	return any(
+		row.next_state == doc.get(state_field)
+		and (execution is None or row.get("custom_transition_uuid") == execution.uuid)
+		for row in timesheet_management_transitions(before, workflow=workflow)
+	)
 
 
 def assert_can_query_tasks_for_owner(ts_owner: str, start=None, end=None) -> None:

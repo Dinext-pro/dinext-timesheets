@@ -11,7 +11,7 @@ from dinext_timesheets.timesheet_status import APPROVED_TIMESHEET_STATUSES, POSI
 from ..permissions import (
 	assert_can_edit_timesheet,
 	has_worker_scope,
-	timesheet_management_transitions,
+	is_timesheet_management_state_change,
 	worker_group,
 )
 from ..status import has_legacy_position_status
@@ -60,7 +60,7 @@ def _before_save(doc, method=None):
 			if doc.status != before.status:
 				frappe.throw(_("Change the position status through its Workflow"), frappe.PermissionError)
 			assert_can_edit_timesheet(frappe.get_doc("User Timesheet", doc.user_timesheet))
-		elif any(row.next_state == doc.get(state_field) for row in timesheet_management_transitions(before)):
+		elif is_timesheet_management_state_change(before, doc, state_field):
 			parent = frappe.get_doc("User Timesheet", doc.user_timesheet)
 			if not has_worker_scope(parent.timesheet_from, parent.ts_valid_for) or not frappe.has_permission(
 				before, "write", ignore_share_permissions=True

@@ -540,8 +540,12 @@ class TestUserTimesheet(FrappeTestCase):
 
 	def test_self_approval_does_not_replace_a_personal_workflow_task(self):
 		transitions = [
-			{"action": "Approve", "next_state": "Approved", "allow_self_approval": 1},
-			{"action": "Withdraw", "next_state": "Editing", "custom_timesheet_management_action": 1},
+			{"action": "Approve", "state": "Pending Approval", "next_state": "Approved",
+				"allowed": "Dinext_UTP_Appoval", "allow_self_approval": 1},
+			{"action": "Return after review", "state": "Pending Approval", "next_state": "Editing",
+				"allowed": "Review team", "allow_self_approval": 1},
+			{"action": "Withdraw", "state": "На согласовании", "next_state": "Редактирование",
+				"allowed": "Dinext_Worker", "allow_self_approval": 1},
 		]
 		doc = SimpleNamespace(name="UTP-1")
 		with (
@@ -554,6 +558,75 @@ class TestUserTimesheet(FrappeTestCase):
 				[row["action"] for row in workflow_approval._position_action_items(doc)],
 				["Withdraw"],
 			)
+
+	def test_direct_action_checks_worker_scope_in_selected_workflow(self):
+		from dinext_common.workflow_approval.scenarios import compat, service
+		from dinext_timesheets.dinext_timesheets.user_timesheet import permissions
+		from dinext_timesheets.workflow_scenario_positions import before_position_save
+
+		before = frappe._dict(doctype="User Timesheet Position", status="Pending Approval", user_timesheet="UT-1")
+		doc = frappe._dict(before, status="Editing", flags=frappe._dict(), get_doc_before_save=lambda: before)
+		workflow = frappe._dict(workflow_state_field="status", transitions=[frappe._dict(
+			state="Pending Approval", next_state="Editing", allowed="Dinext_Worker", allow_self_approval=1,
+		)])
+		parent = frappe._dict(timesheet_from="worker@example.com", ts_valid_for="2026-11-22")
+		with (
+			patch.object(compat, "is_authorized_finalization", return_value=True),
+			patch.object(service, "workflow_context", return_value=("UTP Scenario", workflow, "status", "Editing")),
+			patch.object(frappe, "get_doc", return_value=parent),
+			patch.object(permissions, "has_worker_scope", return_value=False),
+		):
+			with self.assertRaises(frappe.PermissionError):
+				before_position_save(Mock(), doc)
+
+	def test_reviewer_return_uses_its_own_transition_for_both_status_fields(self):
+		from dinext_common.workflow_approval.scenarios import compat, service
+		from dinext_timesheets.dinext_timesheets.user_timesheet import permissions
+		from dinext_timesheets.dinext_timesheets.user_timesheet.events import user_timesheet_position
+		from dinext_timesheets.workflow_scenario_positions import before_position_save
+
+		workflow = frappe._dict(name="UTP Scenario", transitions=[
+			frappe._dict(
+				state="Pending Approval", next_state="Editing", action="Withdraw",
+				allowed="Dinext_Worker", allow_self_approval=1, custom_transition_uuid="worker-withdraw",
+			),
+			frappe._dict(
+				state="Pending Approval", next_state="Editing", action="Return after review",
+				allowed="Review team", allow_self_approval=1, custom_transition_uuid="reviewer-return",
+			),
+		])
+		parent = frappe._dict(timesheet_from="worker@example.com", ts_valid_for="2026-11-22")
+		events = user_timesheet_position
+		for field in ("status", "workflow_state"):
+			with self.subTest(field=field):
+				workflow.workflow_state_field = field
+				before = frappe._dict(doctype="User Timesheet Position", name="UTP-1", user_timesheet="UT-1")
+				before[field] = "Pending Approval"
+				doc = frappe._dict(before, flags=frappe._dict(), get_doc_before_save=lambda: before)
+				doc[field] = "Editing"
+				winner = {
+					"state": "Pending Approval", "transition_uuid": "reviewer-return",
+					"transition_semantic_hash": "reviewer-return-hash",
+				}
+				with (
+					compat.exact_transition(doc, workflow.name, winner),
+					compat.authorized_finalization(doc),
+					patch.object(service, "workflow_context", return_value=(workflow.name, workflow, field, "Editing")),
+					patch("frappe.model.workflow.get_workflow_name", return_value=workflow.name),
+					patch("frappe.model.workflow.get_workflow", return_value=workflow),
+					patch.object(frappe, "get_doc", return_value=parent),
+					patch.object(permissions, "has_worker_scope", return_value=False) as selected_scope,
+					patch.object(events, "has_worker_scope", return_value=False) as legacy_scope,
+					patch.object(events, "has_legacy_position_status", return_value=field == "workflow_state"),
+					patch.object(events, "sync_status_from_workflow_state"),
+					patch.object(events, "set_utp_user_group"),
+					patch.object(events, "apply_utilization_hours"),
+					patch.object(events, "calculate_utp_all_hours") as calculate_hours,
+				):
+					before_position_save(events._before_save, doc)
+				selected_scope.assert_not_called()
+				legacy_scope.assert_not_called()
+				calculate_hours.assert_called_once_with(doc)
 
 	def test_later_vote_conflict_keeps_the_applied_transition(self):
 		from dinext_common.workflow_approval.engine import WorkflowApprovalConflictError

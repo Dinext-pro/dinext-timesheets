@@ -214,3 +214,17 @@ describe("Delegated User Timesheet", () => {
 		});
 	});
 });
+describe("Workflow Transition configuration", () => {
+	it("shows the native transition fields without the removed Timesheet checkbox", () => {
+		cy.login();
+		cy.openDesk("/app/workflow/UTP%20Workflow");
+		cy.window().should((win) => {
+			const form = win.cur_frm;
+			expect(form?.doc?.name).to.eq("UTP Workflow");
+			const fields = form.fields_dict.transitions.grid.docfields;
+			const fieldnames = fields.map((field) => field.fieldname);
+			expect(fieldnames).to.include("allow_self_approval");
+			expect(fieldnames).not.to.include("custom_timesheet_management_action");
+		});
+	});
+});

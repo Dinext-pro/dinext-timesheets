@@ -289,6 +289,12 @@ No observations,Нет наблюдений
 "Invalid timesheet action scope","Неизвестный тип действия ТШ",""
 "Use Workflow to change the approval status of an empty timesheet","Измените статус согласования пустой ТШ через меню Workflow",""
 Timesheets Overdue for Submission,ТШ с просроченной отправкой,
+On-time Timesheet Submissions,Таймшиты отправлены в срок
+On-time Timesheet Approvals,Таймшиты согласованы в срок
+Overdue Timesheet Approvals,Просроченные согласования таймшитов
+Overdue Timesheet Positions,Просроченные позиции таймшитов
+Timesheet Hours Awaiting Approval,Часы таймшитов на согласовании
+Timesheet Deadline Discipline,Соблюдение сроков по таймшитам
 Invalid DocType,Недопустимый тип документа,
 "Review this approved timesheet because approved leave changed.","Проверьте согласованный табель. Изменилось согласованное отсутствие.",""
 "Review this approved timesheet because a project was closed.","Проверьте согласованный табель. Связанный проект закрыт.",""

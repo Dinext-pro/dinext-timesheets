@@ -286,6 +286,7 @@ class TestSubmitValidation(FrappeTestCase):
 				return_value=[],
 			),
 			patch.object(frappe.db, "get_value", side_effect=_title_value),
+			patch.object(frappe, "has_permission", return_value=True),
 			self.assertRaises(frappe.ValidationError) as caught,
 		):
 			workflow_approval._validate_positions(_parent(), positions)
@@ -310,9 +311,20 @@ class TestSubmitValidation(FrappeTestCase):
 		self.assertNotIn("UTP-", str(caught.exception))
 
 	def test_label_drops_an_empty_part(self):
-		with patch.object(frappe.db, "get_value", side_effect=_title_value):
+		with (
+			patch.object(frappe.db, "get_value", side_effect=_title_value),
+			patch.object(frappe, "has_permission", return_value=True),
+		):
 			label = workflow_approval._position_label(_position(project=None), 2)
 		self.assertEqual(label, "Position 2 (Task One, Developer)")
+
+	def test_label_uses_only_titles_the_reader_can_access(self):
+		with (
+			patch.object(frappe.db, "get_value", side_effect=_title_value),
+			patch.object(frappe, "has_permission", side_effect=lambda doctype, *_args, **_kwargs: doctype == "Project"),
+		):
+			label = workflow_approval._position_label(_position(), 2)
+		self.assertEqual(label, "Position 2 (Project One, TASK-1, Developer)")
 
 	def test_label_without_context_has_no_parentheses(self):
 		label = workflow_approval._position_label(

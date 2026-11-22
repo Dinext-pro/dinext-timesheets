@@ -116,8 +116,36 @@ def _parse_names(values: object) -> list[str]:
 	return list(dict.fromkeys(str(row) for row in rows if row not in (None, "")))
 
 
-def _position_label(position: object) -> str:
-	return str(_value(position, "name") or _value(position, "document_name") or _("new position"))
+def _position_label(position: object, index: int) -> str:
+	project = _value(position, "project")
+	document = _value(position, "document_name")
+	doctype = _value(position, "document_type")
+	project = _read_position_title("Project", project, "project_name")
+	if doctype in {"Task", "Issue"}:
+		document = _read_position_title(doctype, document, "subject")
+	context = ", ".join(filter(None, (project, document, _value(position, "project_role"))))
+	return _("Position {0} ({1})").format(index, context) if context else _("Position {0}").format(index)
+
+
+def _read_position_title(doctype: str, name: str | None, field: str) -> str | None:
+	if not name:
+		return None
+	title = frappe.db.get_value(doctype, name, field)
+	if title:
+		try:
+			if frappe.has_permission(doctype, "read", doc=name):
+				return title
+		except frappe.DoesNotExistError:
+			pass
+	return name
+
+
+def _format_position_errors(label: str, errors: list[str]) -> str:
+	label = frappe.utils.escape_html(label)
+	lines = [frappe.utils.escape_html(error) for error in dict.fromkeys(errors)]
+	if len(lines) == 1:
+		return f"{label}: {lines[0]}"
+	return f"{label}:<br>" + "<br>".join(lines)
 
 
 def _validate_position_shape(
@@ -126,16 +154,15 @@ def _validate_position_shape(
 	*,
 	description_required: bool,
 ) -> list[str]:
-	label = _position_label(position)
 	errors: list[str] = []
 	if not _value(position, "project"):
-		errors.append(_("Position {0}: project is required").format(label))
+		errors.append(_("project is required"))
 	if _value(position, "document_type") not in {"Task", "Issue"}:
-		errors.append(_("Position {0}: task or issue type is required").format(label))
+		errors.append(_("task or issue type is required"))
 	if not _value(position, "document_name"):
-		errors.append(_("Position {0}: task or issue is required").format(label))
+		errors.append(_("task or issue is required"))
 	if not _value(position, "project_role"):
-		errors.append(_("Position {0}: project role is required").format(label))
+		errors.append(_("project role is required"))
 	details = _value(position, "table") or _value(position, "details") or []
 	total = 0.0
 	seen_dates: set[object] = set()
@@ -146,31 +173,21 @@ def _validate_position_shape(
 		date_value = _value(detail, "date")
 		description = str(_value(detail, "description") or "").strip()
 		if hours <= 0:
-			errors.append(_("Position {0}: hours must be positive").format(label))
+			errors.append(_("hours must be positive"))
 		if not date_value:
-			errors.append(_("Position {0}: date is required").format(label))
+			errors.append(_("date is required"))
 			continue
 		detail_date = getdate(date_value)
 		if detail_date in seen_dates:
-			errors.append(_("Position {0}: duplicate date {1}").format(label, detail_date))
+			errors.append(_("duplicate date {0}").format(detail_date))
 		seen_dates.add(detail_date)
 		if detail_date < date_from or detail_date > date_to:
-			errors.append(
-				_("Position {0}: date {1} is outside the timesheet period").format(
-					label,
-					detail_date,
-				)
-			)
+			errors.append(_("date {0} is outside the timesheet period").format(detail_date))
 		if description_required and hours > 0 and not description:
-			errors.append(
-				_("Position {0}: description is required for {1}").format(
-					label,
-					detail_date,
-				)
-			)
+			errors.append(_("description is required for {0}").format(detail_date))
 		total += hours
 	if total <= 0:
-		errors.append(_("Position {0}: total hours must be positive").format(label))
+		errors.append(_("total hours must be positive"))
 	return errors
 
 
@@ -241,7 +258,6 @@ def _team_row_matches_period(row: object, parent: object, project: object) -> bo
 
 def _validate_position_links(parent: object, position: object, template: object) -> list[str]:
 	errors: list[str] = []
-	label = _position_label(position)
 	project_name = str(_value(position, "project") or "")
 	document_type = str(_value(position, "document_type") or "")
 	document_name = str(_value(position, "document_name") or "")
@@ -257,7 +273,7 @@ def _validate_position_links(parent: object, position: object, template: object)
 		as_dict=True,
 	)
 	if not project or project.status != "Open" or project.is_active != "Yes":
-		errors.append(_("Position {0}: project is not active and open").format(label))
+		errors.append(_("project is not active and open"))
 		return errors
 	allowed_doctypes = {
 		str(_value(row, "dtdoctype"))
@@ -265,13 +281,9 @@ def _validate_position_links(parent: object, position: object, template: object)
 		if _value(row, "dtdoctype")
 	}
 	if document_type not in allowed_doctypes:
-		errors.append(
-			_("Position {0}: document type is not enabled by the timesheet template").format(
-				label
-			)
-		)
+		errors.append(_("document type is not enabled by the timesheet template"))
 	if not frappe.db.exists("Project Role", role):
-		errors.append(_("Position {0}: project role does not exist").format(label))
+		errors.append(_("project role does not exist"))
 	source_fields = ["project", "custom_include"]
 	if document_type == "Task":
 		source_fields.extend(
@@ -290,21 +302,13 @@ def _validate_position_links(parent: object, position: object, template: object)
 		as_dict=True,
 	)
 	if not source or source.project != project_name:
-		errors.append(
-			_("Position {0}: task or issue does not belong to the selected project").format(
-				label
-			)
-		)
+		errors.append(_("task or issue does not belong to the selected project"))
 	else:
 		if not cint(source.custom_include):
-			errors.append(
-				_("Position {0}: task or issue is excluded from timesheets").format(label)
-			)
+			errors.append(_("task or issue is excluded from timesheets"))
 		if document_type == "Task":
 			if source.status in {"Cancelled", "Template"} or cint(source.is_milestone):
-				errors.append(
-					_("Position {0}: task is not eligible for timesheets").format(label)
-				)
+				errors.append(_("task is not eligible for timesheets"))
 			date_from = getdate(_value(parent, "ts_valid_from"))
 			date_to = getdate(_value(parent, "ts_valid_for"))
 			start = getdate(source.exp_start_date) if source.exp_start_date else None
@@ -316,9 +320,7 @@ def _validate_position_links(parent: object, position: object, template: object)
 				else None
 			)
 			if not start or start > date_to or not end or end < date_from:
-				errors.append(
-					_("Position {0}: task is outside the timesheet period").format(label)
-				)
+				errors.append(_("task is outside the timesheet period"))
 		owner = str(_value(parent, "timesheet_from"))
 		has_open_assignment = frappe.db.exists(
 			"ToDo",
@@ -339,11 +341,7 @@ def _validate_position_links(parent: object, position: object, template: object)
 			},
 		)
 		if not (has_open_assignment or has_read_share):
-			errors.append(
-				_("Position {0}: task or issue is not assigned or shared with the owner").format(
-					label
-				)
-			)
+			errors.append(_("task or issue is not assigned or shared with the owner"))
 	team_rows = frappe.get_all(
 		"Project Team Details",
 		filters={
@@ -357,11 +355,7 @@ def _validate_position_links(parent: object, position: object, template: object)
 		fields=["pt_valid_from", "pt_valid_for"],
 	)
 	if not any(_team_row_matches_period(row, parent, project) for row in team_rows):
-		errors.append(
-			_("Position {0}: project role is not valid for the owner and period").format(
-				label
-			)
-		)
+		errors.append(_("project role is not valid for the owner and period"))
 	return errors
 
 
@@ -774,29 +768,23 @@ def _validate_positions(parent: object, positions: list[object]) -> None:
 	if not positions:
 		return
 	template, holidays, reduced, leave_hours = _calendar_context(parent)
-	for position in positions:
-		errors.extend(
-			_validate_position_shape(
-				parent,
-				position,
-				description_required=bool(template._is_mandatory),
-			)
-		)
-		errors.extend(_validate_position_links(parent, position, template))
-	errors.extend(
-		_validate_daily_totals(
+	position_errors = []
+	for index, position in enumerate(positions, start=1):
+		row_errors = _validate_position_shape(
 			parent,
-			positions,
-			template,
-			holidays,
-			reduced,
-			leave_hours,
+			position,
+			description_required=bool(template._is_mandatory),
 		)
-	)
+		row_errors.extend(_validate_position_links(parent, position, template))
+		if row_errors:
+			position_errors.append(_format_position_errors(_position_label(position, index), row_errors))
+	errors.extend(_validate_daily_totals(parent, positions, template, holidays, reduced, leave_hours))
 	errors.extend(_validate_planned_limits(parent, positions))
-	if errors:
+	if position_errors or errors:
 		frappe.throw(
-			"<br>".join(frappe.utils.escape_html(error) for error in dict.fromkeys(errors)),
+			"<br><br>".join(
+				position_errors + [frappe.utils.escape_html(error) for error in dict.fromkeys(errors)]
+			),
 			frappe.ValidationError,
 			title=_("Timesheet filling errors"),
 		)

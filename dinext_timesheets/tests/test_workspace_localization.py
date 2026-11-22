@@ -10,7 +10,7 @@ class TestWorkspaceLocalization(unittest.TestCase):
 		app = Path(__file__).resolve().parents[1]
 		documents = {
 			"dinext_common": ("My Approvals", "my_approvals", 8),
-			"dinext_timesheets": ("My Timesheets", "my_timesheets", 20),
+			"dinext_timesheets": ("My Timesheets", "my_timesheets", 26),
 		}
 		name, slug, card_count = documents[app.name]
 		path = app / app.name / "workspace" / slug / f"{slug}.json"

@@ -45,7 +45,10 @@ context(
 
 		it("Timesheet form menu", () => {
 			cy.login();
+			cy.intercept("**/api/method/dinext_timesheets.dinext_timesheets.user_timesheet.api.get_timesheet_context*")
+				.as("timesheetContext");
 			cy.visit(`/app/user-timesheet/${encodeURIComponent(fixture.timesheet)}`);
+			cy.wait("@timesheetContext").its("response.statusCode").should("eq", 200);
 			for (const theme of ["light", "dark"]) {
 				setTheme(theme);
 				const button = '.page-container:visible .inner-group-button[data-label="Workflow"] > button';

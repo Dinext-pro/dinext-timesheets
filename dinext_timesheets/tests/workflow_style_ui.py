@@ -4,7 +4,7 @@ import frappe
 from frappe.tests.ui_test_helpers import whitelist_for_tests
 
 from dinext_common.workflow_approval.scenarios import service
-from dinext_common.tests.ui_test_helpers import _delete_tasks_for
+from dinext_common.tests.ui_test_helpers import _delete_tasks_for, _ensure_user
 from dinext_common.tests.workflow_style_ui import _guard, _master, _task
 from dinext_timesheets.tests.settings_fixture import (
 	discard_snapshot_after_commit, read_snapshot, restore_timesheet_settings_rows, save_snapshot,
@@ -13,6 +13,10 @@ from dinext_timesheets.tests.settings_fixture import (
 PREFIX = "Cypress Timesheet Style "
 ACTIONS = ((PREFIX + "Approve", "Approved"), (PREFIX + "Reject", "Rejected"))
 VISIBILITY_SNAPSHOT = "timesheet_workflow_style_visibility"
+WORKER_USER = "cy.workflow.timesheet.style@example.invalid"
+WORKER = PREFIX + "Worker"
+TEMPLATE = PREFIX + "Template"
+CALENDAR = PREFIX + "Calendar"
 
 
 def _guard_admin():
@@ -37,11 +41,16 @@ def cleanup_workflow_styles():
 		("User Timesheet Position", PREFIX + "Position"),
 		("User Timesheet", PREFIX + "Timesheet"),
 		("Workflow", PREFIX + "Positions"),
+		("Worker", WORKER),
+		("Timesheet Template", TEMPLATE),
+		("Holiday List", CALENDAR),
+		("User", WORKER_USER),
 	):
-		if doctype != "Workflow":
+		source = doctype in ("User Timesheet", "User Timesheet Position")
+		if source:
 			for table in (service.CONTEXT, service.PROCESS):
 				frappe.db.delete(table, {"reference_doctype": doctype, "reference_name": name})
-		frappe.delete_doc(doctype, name, force=True, ignore_missing=True, ignore_on_trash=doctype != "Workflow")
+		frappe.delete_doc(doctype, name, force=True, ignore_missing=True, ignore_on_trash=source)
 	for action, _ in ACTIONS:
 		frappe.delete_doc_if_exists("Workflow Action Master", action, force=True)
 	frappe.clear_cache()
@@ -54,12 +63,28 @@ def seed_workflow_styles():
 	for (action, state), icon, style in zip(ACTIONS, ("check", "close"), ("Success", "Danger"), strict=True):
 		_master("Workflow Action Master", action, workflow_action_name=action, custom_icon=icon)
 		_master("Workflow State", state, workflow_state_name=state, style=style)
+	_ensure_user(WORKER_USER, "Workflow style test", ["Desk User"])
+	for doctype, name, fields in (
+		("Holiday List", CALENDAR, {
+			"holiday_list_name": CALENDAR, "from_date": "2039-01-03", "to_date": "2039-01-09",
+		}),
+		("Timesheet Template", TEMPLATE, {
+			"ttsubject": TEMPLATE, "ttreporting_period": "Недельный", "enabled": 1,
+			"hours_on_date": 8, "minimum_hours": 0, "maximum_hours": 24,
+		}),
+		("Worker", WORKER, {
+			"wuser": WORKER_USER, "wfullname": "Workflow style test", "wvalid_from": "2039-01-01",
+			"wholiday_list": CALENDAR, "wtimesheet_template": TEMPLATE,
+		}),
+	):
+		frappe.get_doc({"doctype": doctype, "name": name, **fields}).db_insert()
 	parent = frappe.get_doc(
 		{
 			"doctype": "User Timesheet",
 			"name": PREFIX + "Timesheet",
-			"timesheet_from": "Guest",
+			"timesheet_from": WORKER_USER,
 			"timesheet_from_name": "Workflow style test",
+			"ts_from_template": TEMPLATE,
 			"ts_valid_from": "2039-01-03",
 			"ts_valid_for": "2039-01-09",
 			"ut_status": "Pending Approval",
@@ -71,7 +96,7 @@ def seed_workflow_styles():
 			"doctype": "User Timesheet Position",
 			"name": PREFIX + "Position",
 			"user_timesheet": parent.name,
-			"user": "Guest",
+			"user": WORKER_USER,
 			"status": "Pending Approval",
 			"all_hours": 8.0,
 			"period": "2039-01",

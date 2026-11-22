@@ -19,7 +19,7 @@ def before_position_save(original, doc, method=None):
 	context = service.workflow_context(doc)
 	if not context:
 		return original(doc, method)
-	_, workflow, field, _ = context
+	_workflow_name, workflow, field, _state = context
 	if field == "workflow_state" or before.get(field) == doc.get(field):
 		return original(doc, method)
 	if any(doc.get(key) != before.get(key) for key in ("user_timesheet", "user", "user_group")):

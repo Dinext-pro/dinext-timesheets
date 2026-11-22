@@ -62,13 +62,15 @@ def assert_can_edit_timesheet(doc) -> None:
 
 def is_timesheet_management_transition(transition) -> bool:
 	"""Identify configured submission and return-to-editing transitions."""
+	if transition.get("allowed") != "Dinext_Worker" or not cint(transition.get("allow_self_approval")):
+		return False
 	state = transition.get("state")
 	next_state = transition.get("next_state")
 	states = (
 		UTP_STATUS_FROM_RUSSIAN.get(state, state),
 		UTP_STATUS_FROM_RUSSIAN.get(next_state, next_state),
 	)
-	return bool(cint(transition.get("allow_self_approval"))) and states in {
+	return states in {
 		(POSITION_EDITING, POSITION_PENDING),
 		(POSITION_PENDING, POSITION_EDITING),
 		(POSITION_REJECTED, POSITION_EDITING),

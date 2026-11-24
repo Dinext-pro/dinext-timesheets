@@ -138,3 +138,55 @@ class TestDeadlineWorkspaceCharts(TestCase):
 			next(i for i, b in enumerate(updated) if b["id"] == "reports"),
 		)
 		self.assertEqual(updated[-1]["id"], "config")
+
+	def test_previous_standard_layout_is_replaced_and_custom_workspace_is_preserved(self):
+		from dinext_timesheets.patches.v1_0 import restore_standard_my_timesheets_layout as migration
+
+		shipped = self.shipped_workspace()
+		blocks = json.loads(shipped["content"])
+		removed_cards = {
+			"Total Expense Claims", "On-time Timesheet Submissions", "On-time Timesheet Approvals",
+			"Overdue Timesheet Approvals", "Overdue Timesheet Positions", "Timesheet Hours Awaiting Approval",
+		}
+		removed_shortcuts = {"Timesheet Settings", "Timesheet Deadline Discipline"}
+		legacy_blocks = [
+			block for block in blocks
+			if block["data"].get("number_card_name") not in removed_cards
+			and block["data"].get("shortcut_name") not in removed_shortcuts
+		]
+		workspace = frappe._dict(
+			content=json.dumps(legacy_blocks), public=1, module="Dinext Timesheets",
+			number_cards=[row for row in shipped["number_cards"] if row["label"] not in removed_cards],
+			charts=shipped["charts"],
+			shortcuts=[row for row in shipped["shortcuts"] if row["label"] not in removed_shortcuts],
+			for_user=None, links=[], custom_blocks=[], quick_lists=[],
+		)
+		self.assertTrue(migration._is_earlier_standard(workspace, shipped, legacy_blocks, blocks))
+		extra = dict(type="paragraph", data={"text": "Site-specific instructions"})
+		self.assertFalse(migration._is_earlier_standard(workspace, shipped, [*legacy_blocks, extra], blocks))
+		workspace.number_cards = shipped["number_cards"]
+		workspace.shortcuts = shipped["shortcuts"]
+		self.assertFalse(migration._is_earlier_standard(workspace, shipped, blocks, blocks))
+
+	def test_obsolete_management_column_is_removed_only_after_metadata(self):
+		from unittest.mock import Mock, call
+
+		from dinext_timesheets.patches.v1_0 import drop_obsolete_timesheet_management_column as migration
+
+		db = Mock()
+		db.has_column.side_effect = [True, False]
+		meta = Mock()
+		meta.has_field.return_value = False
+		qb = Mock()
+		qb.DocType.return_value.get_sql.return_value = "`tabWorkflow Transition`"
+		cache = Mock()
+		runtime = Mock(db=db, cache=cache, conf=frappe._dict(), qb=qb, get_meta=Mock(return_value=meta))
+		with patch.object(migration, "frappe", runtime):
+			migration.execute()
+			migration.execute()
+
+		db.sql_ddl.assert_called_once_with(
+			"ALTER TABLE `tabWorkflow Transition` DROP COLUMN custom_timesheet_management_action"
+		)
+		meta.has_field.assert_called_once_with("custom_timesheet_management_action")
+		self.assertEqual(cache.hdel.call_args_list, [call("table_columns", "tabWorkflow Transition")] * 3)

@@ -169,7 +169,7 @@ class TestDeadlineWorkspaceCharts(TestCase):
 		self.assertFalse(migration._is_earlier_standard(workspace, shipped, blocks, blocks))
 
 	def test_obsolete_management_column_is_removed_only_after_metadata(self):
-		from unittest.mock import Mock
+		from unittest.mock import Mock, call
 
 		from dinext_timesheets.patches.v1_0 import drop_obsolete_timesheet_management_column as migration
 
@@ -179,7 +179,9 @@ class TestDeadlineWorkspaceCharts(TestCase):
 		meta.has_field.return_value = False
 		qb = Mock()
 		qb.DocType.return_value.get_sql.return_value = "`tabWorkflow Transition`"
-		with patch.object(migration, "frappe", Mock(db=db, conf=frappe._dict(), qb=qb, get_meta=Mock(return_value=meta))):
+		cache = Mock()
+		runtime = Mock(db=db, cache=cache, conf=frappe._dict(), qb=qb, get_meta=Mock(return_value=meta))
+		with patch.object(migration, "frappe", runtime):
 			migration.execute()
 			migration.execute()
 
@@ -187,3 +189,4 @@ class TestDeadlineWorkspaceCharts(TestCase):
 			"ALTER TABLE `tabWorkflow Transition` DROP COLUMN custom_timesheet_management_action"
 		)
 		meta.has_field.assert_called_once_with("custom_timesheet_management_action")
+		self.assertEqual(cache.hdel.call_args_list, [call("table_columns", "tabWorkflow Transition")] * 3)

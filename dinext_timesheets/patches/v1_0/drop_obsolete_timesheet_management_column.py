@@ -5,9 +5,11 @@ import frappe
 from dinext_timesheets.patches.v1_0.remove_timesheet_management_action import FIELDNAME
 
 DOCTYPE = "Workflow Transition"
+TABLE = f"tab{DOCTYPE}"
 
 
 def execute():
+	frappe.cache.hdel("table_columns", TABLE)
 	if not frappe.db.has_column(DOCTYPE, FIELDNAME):
 		return
 
@@ -18,3 +20,4 @@ def execute():
 	quote = '"' if frappe.conf.db_type == "postgres" else "`"
 	table = frappe.qb.DocType(DOCTYPE).get_sql(quote_char=quote)
 	frappe.db.sql_ddl(f"ALTER TABLE {table} DROP COLUMN {FIELDNAME}")
+	frappe.cache.hdel("table_columns", TABLE)

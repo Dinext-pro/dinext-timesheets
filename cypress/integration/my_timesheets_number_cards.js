@@ -255,6 +255,18 @@ describe("My Timesheets: 20 section-aware Number Cards", () => {
 		}
 	}
 
+	it("shows the complete default workspace and opens the discipline report", () => {
+		open(fixture.other);
+		cy.get(".number-widget-box").should("have.length", 26);
+		cy.get(".dashboard-widget-box").should("have.length", 2);
+		cy.get(".shortcut-widget-box").should("have.length", 10);
+		cy.contains(".shortcut-widget-box", "Timesheet Settings").should("exist");
+		cy.contains(".shortcut-widget-box", "Timesheet Deadline Discipline").click();
+		cy.window().should((win) => {
+			expect(win.frappe.query_report?.report_name).to.eq("Timesheet Deadline Discipline");
+		});
+	});
+
 	it("renders English captions and resolves the legacy route", () => {
 		open(fixture.other, legacyWorkspace);
 		cy.location("pathname").should("eq", workspace);
